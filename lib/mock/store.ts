@@ -14,10 +14,12 @@ export interface MockStore {
 
 const SESSION_TTL_MS = 2 * 60 * 60 * 1000 // 2 hours
 
+// h is in Pacific Daylight Time (UTC-7); convert to UTC so meetings appear at the right time regardless of server timezone
 function t(dayOffset: number, h: number, m = 0): string {
+  const utcH = h + 7
   const d = new Date()
-  d.setDate(d.getDate() + dayOffset)
-  d.setHours(h, m, 0, 0)
+  d.setUTCDate(d.getUTCDate() + dayOffset + Math.floor(utcH / 24))
+  d.setUTCHours(utcH % 24, m, 0, 0)
   return d.toISOString()
 }
 
@@ -42,6 +44,8 @@ function makeSeedBookings(): Booking[] {
     bk('b4',  'r4', 'Amara Osei',    'amara@example.com',  'Board meeting',     0,  14, 16),
     bk('b5',  'r3', 'Sofia Reyes',   'sofia@example.com',  'Design sprint',     0,   9, 11),
     bk('b6',  'r5', 'Priya Nair',    'priya@example.com',  '1:1',               0,  13, 13,  0,  30),
+    bk('b6b', 'r2', 'Tom Blake',     'tom@example.com',    'Engineering sync',  0,  15, 16),
+    bk('b6c', 'r4', 'Zara Ahmed',    'zara@example.com',   'Retro',             0,  16, 17),
     bk('b7',  'r1', 'Tom Blake',     'tom@example.com',    'Kickoff',           -1, 10, 11),
     bk('b8',  'r2', 'Zara Ahmed',    'zara@example.com',   'Sprint retro',      -1, 14, 15, 30),
     bk('b9',  'r4', 'Alex Kim',      'alex@example.com',   'All-hands',         -1,  9, 11),
