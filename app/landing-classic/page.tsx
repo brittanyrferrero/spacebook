@@ -47,7 +47,7 @@ const TABS: { key: Tab; label: string; url: string; desc: string; fw: number; fh
 const PLANS = [
   {
     name: 'Nook',
-    rooms: '1–2 rooms',
+    rooms: '1 – 2 rooms',
     price: { monthly: 30, annual: 25 },
     blurb: 'A good fit for small offices and studios just getting started.',
     features: ['Up to 2 rooms', 'Hosted & managed', 'Google Calendar sync', 'Email support', '14-day free trial'],
@@ -57,7 +57,7 @@ const PLANS = [
   },
   {
     name: 'Hub',
-    rooms: '2–6 rooms',
+    rooms: '3 – 5 rooms',
     price: { monthly: 52, annual: 44 },
     blurb: 'For coworking spaces and places with a handful of bookable rooms.',
     features: ['Up to 6 rooms', 'Hosted & managed', 'Google Calendar sync', 'Email support', '14-day free trial'],
@@ -67,7 +67,7 @@ const PLANS = [
   },
   {
     name: 'Commons',
-    rooms: '6–12 rooms',
+    rooms: '6 – 12 rooms',
     price: { monthly: 120, annual: 100 },
     blurb: 'For larger shared spaces that want custom branding and hands-on support.',
     features: ['Up to 12 rooms', 'Custom domain & branding', 'Google Calendar sync', 'Priority support', '14-day free trial'],
@@ -131,8 +131,6 @@ export default function LandingPage() {
   const cur = TABS.find(t => t.key === tab)!
   const cw = tab === 'tablet' ? Math.round(cur.fw * cur.scale) : 920
   const ch = Math.round(cur.fh * cur.scale)
-
-  const urlLabel = tab === 'tablet' ? 'yourspace.com/room/cedar' : tab === 'admin' ? 'yourspace.com/admin' : 'yourspace.com'
 
   return (
     <div style={{ fontFamily: 'system-ui, -apple-system, sans-serif', color: '#1a1a1a', overflowX: 'hidden' }}>
@@ -240,19 +238,7 @@ export default function LandingPage() {
 
           {/* Demo frame */}
           <div style={{ display: 'flex', justifyContent: 'center', marginBottom: 22 }}>
-            <div style={{ borderRadius: 14, border: '1px solid rgba(255,255,255,0.09)', overflow: 'hidden', boxShadow: '0 40px 100px rgba(0,0,0,0.7)', background: '#1e2332' }}>
-              {/* Browser chrome */}
-              <div style={{ background: '#242b3a', padding: '10px 16px', display: 'flex', alignItems: 'center', gap: 10, borderBottom: '1px solid rgba(255,255,255,0.06)' }}>
-                <div style={{ display: 'flex', gap: 5 }}>
-                  {['#FF5F57', '#FFBD2E', '#28C840'].map(c => (
-                    <div key={c} style={{ width: 10, height: 10, borderRadius: '50%', background: c, opacity: 0.6 }} />
-                  ))}
-                </div>
-                <div style={{ flex: 1, background: 'rgba(255,255,255,0.05)', borderRadius: 6, height: 22, display: 'flex', alignItems: 'center', justifyContent: 'center', maxWidth: 320, margin: '0 auto' }}>
-                  <span style={{ fontSize: 11, color: 'rgba(255,255,255,0.22)', letterSpacing: '0.01em' }}>{urlLabel}</span>
-                </div>
-              </div>
-
+            <div style={{ borderRadius: 14, border: '1px solid rgba(255,255,255,0.09)', overflow: 'hidden', boxShadow: '0 40px 100px rgba(0,0,0,0.7)' }}>
               {/* Iframe container */}
               <div style={{ width: cw, height: ch, overflow: 'hidden', position: 'relative' }}>
                 {ready ? (
@@ -428,9 +414,6 @@ export default function LandingPage() {
       <div style={{ background: DARK, padding: '36px 44px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 12 }}>
         <div style={{ fontSize: 16, fontWeight: 700, color: '#fff', letterSpacing: '-0.02em' }}>
           space<span style={{ color: ROSE, fontWeight: 300 }}>book</span>
-        </div>
-        <div style={{ fontSize: 12, color: 'rgba(255,255,255,0.28)', maxWidth: 340, textAlign: 'right' }}>
-          Made for small teams who just needed to book a room
         </div>
       </div>
 
