@@ -6,10 +6,10 @@ import { NameAutocomplete } from '@/components/NameAutocomplete'
 
 // ─── Colours ──────────────────────────────────────────────────────────────────
 const SAGE = '#5C7A6B'
-const NAVY = '#2C3E6B'
+const NAVY = '#111111'
 const ROSE = '#db95ab'          // user accent — Book Now + selected day
-const FREE_BG = '#E8F4EC'; const FREE_TEXT = '#1E5C30'; const FREE_BAR = '#3B7A4A'
-const BUSY_BG = '#e8ecf2'; const BUSY_TEXT = '#213452'; const BUSY_BAR = '#213452'
+const FREE_BG = '#eef7f1'; const FREE_TEXT = '#1E5C30'; const FREE_BAR = '#3B7A4A'
+const BUSY_BG = '#f0f0f0'; const BUSY_TEXT = '#333333'; const BUSY_BAR = '#555555'
 
 // ─── Calendar constants ───────────────────────────────────────────────────────
 const GRID_START = 8            // 8 am
@@ -102,7 +102,7 @@ function TimePicker({ value, onChange, style }: { value: string; onChange: (v: s
   const [rawH, rawM] = value ? value.split(':') : ['', '']
   const selH = rawH ?? ''
   const selM = rawM ?? ''
-  const sel: React.CSSProperties = { fontSize: 14, padding: '8px 6px', border: '0.5px solid #C8CDD4', borderRadius: 8, outline: 'none', fontFamily: 'inherit', flex: 1, background: '#fff', cursor: 'pointer', ...style }
+  const sel: React.CSSProperties = { fontSize: 14, padding: '8px 6px', border: '1px solid #cccccc', borderRadius: 0, outline: 'none', fontFamily: 'inherit', flex: 1, background: '#fff', cursor: 'pointer', ...style }
   return (
     <div style={{ display: 'flex', gap: 6 }}>
       <select style={sel} value={selH} onChange={e => onChange(`${e.target.value}:${selM || '00'}`)}>
@@ -158,7 +158,7 @@ function DayView({ bookings, viewDate, onSlotClick, onBookingClick, pendingSlot,
       </div>
 
       {/* Time grid */}
-      <div style={{ flex: 1, borderLeft: '0.5px solid #E8E8E8' }}>
+      <div style={{ flex: 1, borderLeft: '1px solid #dddddd' }}>
         <div
           style={{ position: 'relative', height: GRID_H, cursor: onSlotClick ? 'pointer' : 'default' }}
           onClick={onSlotClick ? (e) => {
@@ -172,7 +172,7 @@ function DayView({ bookings, viewDate, onSlotClick, onBookingClick, pendingSlot,
           } : undefined}>
           {/* Hour bands + grid lines */}
           {Array.from({ length: GRID_HOURS }, (_, i) => (
-            <div key={i} style={{ position: 'absolute', top: i * HOUR_H, left: 0, right: 0, height: HOUR_H, background: i % 2 === 0 ? 'rgba(0,0,0,0.018)' : 'transparent', borderTop: `0.5px solid ${isPast ? '#ECECEC' : '#C4C4C4'}` }} />
+            <div key={i} style={{ position: 'absolute', top: i * HOUR_H, left: 0, right: 0, height: HOUR_H, background: i % 2 === 0 ? 'rgba(0,0,0,0.018)' : 'transparent', borderTop: `1px solid ${isPast ? '#eeeeee' : '#cccccc'}` }} />
           ))}
 
           {/* Ghost pending block */}
@@ -227,12 +227,12 @@ function WeekView({ bookings, weekDays, onSlotClick, onBookingClick, pendingSlot
   return (
     <div>
       {/* Day headers — outside scroll container so they never overlap the grid */}
-      <div style={{ display: 'flex', marginLeft: 38, borderLeft: '0.5px solid #E8E8E8' }}>
+      <div style={{ display: 'flex', marginLeft: 38, borderLeft: '1px solid #dddddd' }}>
         {weekDays.map((day, colIdx) => {
           const ds = dateStr(day)
           const isToday = ds === todayStr
           return (
-            <div key={ds} style={{ flex: 1, textAlign: 'center', padding: '6px 0 8px', borderRight: colIdx < 6 ? '0.5px solid #F0F0EE' : 'none' }}>
+            <div key={ds} style={{ flex: 1, textAlign: 'center', padding: '6px 0 8px', borderRight: colIdx < 6 ? '1px solid #eeeeee' : 'none' }}>
               <div style={{ fontSize: 10, color: isToday ? ROSE : '#9CA3AF', fontWeight: isToday ? 600 : 400 }}>{DAYS_SHORT[colIdx]}</div>
               <div style={{ width: 24, height: 24, borderRadius: '50%', background: isToday ? ROSE : 'transparent', color: isToday ? '#fff' : '#374151', fontSize: 12, fontWeight: isToday ? 600 : 400, display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '2px auto 0' }}>
                 {day.getDate()}
@@ -252,13 +252,13 @@ function WeekView({ bookings, weekDays, onSlotClick, onBookingClick, pendingSlot
         </div>
 
         {/* Day columns */}
-        <div style={{ display: 'grid', gridTemplateColumns: `repeat(7, 1fr)`, flex: 1, borderLeft: '0.5px solid #E8E8E8' }}>
+        <div style={{ display: 'grid', gridTemplateColumns: `repeat(7, 1fr)`, flex: 1, borderLeft: '1px solid #dddddd' }}>
           {weekDays.map((day, colIdx) => {
             const ds = dateStr(day)
             const isToday = ds === todayStr
             const dayBookings = (byDay[ds] ?? []).filter(b => !b.cancelled_at)
             return (
-              <div key={ds} style={{ borderRight: colIdx < 6 ? '0.5px solid #F0F0EE' : 'none' }}>
+              <div key={ds} style={{ borderRight: colIdx < 6 ? '1px solid #eeeeee' : 'none' }}>
                 <div
                   style={{ position: 'relative', height: GRID_H, background: isToday ? 'rgba(212,155,169,0.04)' : 'transparent', cursor: onSlotClick ? 'pointer' : 'default' }}
                   onClick={onSlotClick ? (e) => {
@@ -272,7 +272,7 @@ function WeekView({ bookings, weekDays, onSlotClick, onBookingClick, pendingSlot
                   } : undefined}>
                   {/* Hour bands + grid lines */}
                   {Array.from({ length: GRID_HOURS }, (_, i) => (
-                    <div key={i} style={{ position: 'absolute', top: i * HOUR_H, left: 0, right: 0, height: HOUR_H, background: i % 2 === 0 ? 'rgba(0,0,0,0.018)' : 'transparent', borderTop: '0.5px solid #ECECEC' }} />
+                    <div key={i} style={{ position: 'absolute', top: i * HOUR_H, left: 0, right: 0, height: HOUR_H, background: i % 2 === 0 ? 'rgba(0,0,0,0.018)' : 'transparent', borderTop: '1px solid #eeeeee' }} />
                   ))}
 
                   {/* Pending booking ghost */}
@@ -337,7 +337,7 @@ function MonthView({ bookings, viewDate, onDayClick }: { bookings: Booking[]; vi
 
       {/* Calendar grid */}
       {weeks.map((week, wi) => (
-        <div key={wi} style={{ display: 'grid', gridTemplateColumns: 'repeat(7,1fr)', borderTop: '0.5px solid #F0F0EE' }}>
+        <div key={wi} style={{ display: 'grid', gridTemplateColumns: 'repeat(7,1fr)', borderTop: '1px solid #eeeeee' }}>
           {week.map((day, di) => {
             const ds = dateStr(day)
             const inMonth  = day.getMonth() === viewMonth
@@ -346,7 +346,7 @@ function MonthView({ bookings, viewDate, onDayClick }: { bookings: Booking[]; vi
 
             return (
               <div key={ds} onClick={() => onDayClick(day)}
-                style={{ padding: '6px 4px 8px', minHeight: 52, cursor: 'pointer', borderRight: di < 6 ? '0.5px solid #F0F0EE' : 'none', background: isToday ? 'rgba(212,155,169,0.07)' : 'transparent', transition: 'background .1s' }}>
+                style={{ padding: '6px 4px 8px', minHeight: 52, cursor: 'pointer', borderRight: di < 6 ? '1px solid #eeeeee' : 'none', background: isToday ? 'rgba(212,155,169,0.07)' : 'transparent', transition: 'background .1s' }}>
                 <div style={{ display: 'flex', justifyContent: 'center' }}>
                   <div style={{ width: 22, height: 22, borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', background: isToday ? ROSE : 'transparent', color: isToday ? '#fff' : inMonth ? '#374151' : '#C8CDD4', fontSize: 11, fontWeight: isToday ? 600 : 400 }}>
                     {day.getDate()}
@@ -614,15 +614,16 @@ export default function RoomDisplayPage({ params }: { params: { roomId: string }
     setMSubmitting(false)
   }
 
-  const inp: React.CSSProperties = { fontSize: 14, padding: '8px 10px', border: '0.5px solid #C8CDD4', borderRadius: 8, outline: 'none', fontFamily: 'inherit', width: '100%' }
+  const inp: React.CSSProperties = { fontSize: 14, padding: '8px 10px', border: '1px solid #cccccc', borderRadius: 0, outline: 'none', fontFamily: 'inherit', width: '100%' }
   const lbl: React.CSSProperties = { fontSize: 12, color: '#6B7280', fontWeight: 500, display: 'block', marginBottom: 4 }
 
   return (
-    <div style={{ background: '#F4F4F2', minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 16 }}>
-      <div style={{ borderRadius: 14, overflow: 'hidden', border: '0.5px solid #D0D4D8', maxWidth: 960, width: '100%', background: '#fff', boxShadow: '0 2px 16px rgba(0,0,0,0.08)' }}>
+    <div style={{ background: '#ffffff', minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 16 }}>
+      <style dangerouslySetInnerHTML={{ __html: `@import url('https://fonts.googleapis.com/css2?family=Spectral:ital,wght@0,400;0,500;0,600;1,400&display=swap');` }} />
+      <div style={{ borderRadius: 0, overflow: 'hidden', border: '1px solid #cccccc', maxWidth: 960, width: '100%', background: '#fff', boxShadow: '0 2px 16px rgba(0,0,0,0.08)' }}>
 
         {/* Clock bar + view tabs */}
-        <div style={{ background: '#213452', padding: '8px 24px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+        <div style={{ background: '#111111', padding: '8px 24px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
           <span style={{ fontSize: 16, fontWeight: 500, color: '#fff' }}>
             {now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
           </span>
@@ -633,7 +634,7 @@ export default function RoomDisplayPage({ params }: { params: { roomId: string }
           <div style={{ display: 'flex', gap: 4 }}>
             {(['day', 'week', 'month'] as CalView[]).map(v => (
               <button key={v} onClick={() => { setCalView(v); setViewDate(new Date()) }}
-                style={{ fontSize: 12, padding: '4px 12px', borderRadius: 20, border: 'none', cursor: 'pointer', fontFamily: 'inherit', fontWeight: calView === v ? 600 : 400, background: calView === v ? ROSE : 'rgba(255,255,255,0.15)', color: '#fff', transition: 'background .15s' }}>
+                style={{ fontSize: 12, padding: '4px 12px', borderRadius: 0, border: 'none', cursor: 'pointer', fontFamily: 'inherit', fontWeight: calView === v ? 600 : 400, background: calView === v ? ROSE : 'rgba(255,255,255,0.15)', color: '#fff', transition: 'background .15s' }}>
                 {v.charAt(0).toUpperCase() + v.slice(1)}
               </button>
             ))}
@@ -645,7 +646,7 @@ export default function RoomDisplayPage({ params }: { params: { roomId: string }
           <div style={{ display: 'flex', alignItems: 'stretch' }}>
 
             {/* Left: status + buttons */}
-            <div style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', borderRight: '0.5px solid #E0E4E8' }}>
+            <div style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', borderRight: '1px solid #cccccc' }}>
               {/* Status */}
               <div style={{ background: bandBg, padding: '24px 20px', display: 'flex', flexDirection: 'column', gap: 16, transition: 'background .4s' }}>
                 {isFree ? (
@@ -664,25 +665,25 @@ export default function RoomDisplayPage({ params }: { params: { roomId: string }
                     <div style={{ fontSize: 15, color: 'rgba(255,255,255,0.82)', marginTop: 8, fontWeight: 400 }}>Free from {until}</div>
                   </div>
                 )}
-                <div style={{ borderTop: `0.5px solid ${isFree ? '#B8D8BF' : 'rgba(255,255,255,0.25)'}`, paddingTop: 14 }}>
+                <div style={{ borderTop: `1px solid ${isFree ? '#b8d8bf' : 'rgba(255,255,255,0.25)'}`, paddingTop: 14 }}>
                   <div style={{ fontSize: 14, fontWeight: 500, color: isFree ? NAVY : '#fff' }}>{room?.name ?? '—'}</div>
                   <div style={{ fontSize: 11, color: isFree ? '#6B7280' : 'rgba(255,255,255,0.85)', marginTop: 3 }}>{room?.capacity} people</div>
                   <div style={{ fontSize: 11, color: isFree ? '#9CA3AF' : 'rgba(255,255,255,0.75)', marginTop: 2 }}>{room?.amenities.join(', ')}</div>
                 </div>
               </div>
               {/* Buttons — offset halfway down the remaining space */}
-              <div style={{ flex: 1, background: '#FAFAFA', borderTop: '0.5px solid #E8E8E8', display: 'flex', alignItems: 'flex-start', padding: '18% 16px 16px' }}>
+              <div style={{ flex: 1, background: '#ffffff', borderTop: '1px solid #cccccc', display: 'flex', alignItems: 'flex-start', padding: '18% 16px 16px' }}>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 10, width: '100%' }}>
                   {isFree && (
                     <button
                       onClick={() => { const t = toHHMMExact(new Date()); const [h,m] = t.split(':').map(Number); const et = Math.min(h*60+m+60,23*60); setMDate(todayStr); setMTime(t); setMEndTime(`${String(Math.floor(et/60)).padStart(2,'0')}:${String(et%60).padStart(2,'0')}`); setShowModal('now'); setMDone(false) }}
-                      style={{ background: ROSE, color: '#fff', border: 'none', borderRadius: 10, padding: '13px 12px', fontSize: 14, fontWeight: 600, cursor: 'pointer', width: '100%' }}>
+                      style={{ background: ROSE, color: '#fff', border: 'none', borderRadius: 0, padding: '13px 12px', fontSize: 14, fontWeight: 600, cursor: 'pointer', width: '100%' }}>
                       Book now
                     </button>
                   )}
                   <button
                     onClick={() => { setMDate(todayStr); setMTime(''); setMEndTime(''); setRecurFreq('none'); setShowModal('later'); setMDone(false) }}
-                    style={{ background: '#fff', border: '0.5px solid #C8CDD4', borderRadius: 10, padding: '13px 12px', fontSize: 13, cursor: 'pointer', color: '#213452', width: '100%' }}>
+                    style={{ background: '#fff', border: '1px solid #cccccc', borderRadius: 0, padding: '13px 12px', fontSize: 13, cursor: 'pointer', color: '#111111', width: '100%' }}>
                     Schedule for later
                   </button>
                 </div>
@@ -692,12 +693,12 @@ export default function RoomDisplayPage({ params }: { params: { roomId: string }
             {/* Right: nav + calendar */}
             <div style={{ flex: 1, minWidth: 0, padding: '16px 20px' }}>
               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, marginBottom: 14 }}>
-                <button onClick={() => shiftView(-1)} style={{ background: 'none', border: '0.5px solid #E0E4E8', borderRadius: 6, padding: '3px 9px', cursor: 'pointer', fontSize: 14, color: '#6B7280', lineHeight: 1 }}>‹</button>
+                <button onClick={() => shiftView(-1)} style={{ background: 'none', border: '1px solid #cccccc', borderRadius: 0, padding: '3px 9px', cursor: 'pointer', fontSize: 14, color: '#6B7280', lineHeight: 1 }}>‹</button>
                 {(() => {
                   const isCurrent = viewDateStr === todayStr
-                  return <span style={{ fontSize: 13, fontWeight: 500, minWidth: 160, textAlign: 'center', color: isCurrent ? ROSE : NAVY, background: isCurrent ? 'rgba(212,155,169,0.12)' : 'transparent', borderRadius: 20, padding: '2px 10px' }}>{navLabel()}</span>
+                  return <span style={{ fontSize: 13, fontWeight: 500, minWidth: 160, textAlign: 'center', color: isCurrent ? ROSE : NAVY, background: isCurrent ? 'rgba(212,155,169,0.12)' : 'transparent', borderRadius: 0, padding: '2px 10px' }}>{navLabel()}</span>
                 })()}
-                <button onClick={() => shiftView(1)} style={{ background: 'none', border: '0.5px solid #E0E4E8', borderRadius: 6, padding: '3px 9px', cursor: 'pointer', fontSize: 14, color: '#6B7280', lineHeight: 1 }}>›</button>
+                <button onClick={() => shiftView(1)} style={{ background: 'none', border: '1px solid #cccccc', borderRadius: 0, padding: '3px 9px', cursor: 'pointer', fontSize: 14, color: '#6B7280', lineHeight: 1 }}>›</button>
               </div>
               <DayView bookings={dayBookings} viewDate={viewDate} onSlotClick={openScheduleLater} onBookingClick={openEdit} pendingSlot={pendingSlot} now={now} />
             </div>
@@ -707,30 +708,30 @@ export default function RoomDisplayPage({ params }: { params: { roomId: string }
           <>
             <div style={{ background: '#fff', padding: '16px 24px' }}>
               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, marginBottom: 14 }}>
-                <button onClick={() => shiftView(-1)} style={{ background: 'none', border: '0.5px solid #E0E4E8', borderRadius: 6, padding: '3px 9px', cursor: 'pointer', fontSize: 14, color: '#6B7280', lineHeight: 1 }}>‹</button>
+                <button onClick={() => shiftView(-1)} style={{ background: 'none', border: '1px solid #cccccc', borderRadius: 0, padding: '3px 9px', cursor: 'pointer', fontSize: 14, color: '#6B7280', lineHeight: 1 }}>‹</button>
                 {(() => {
                   const isCurrent =
                     (calView === 'week'  && todayStr >= dateStr(weekDays[0]) && todayStr <= dateStr(weekDays[6])) ||
                     (calView === 'month' && viewDate.getFullYear() === now.getFullYear() && viewDate.getMonth() === now.getMonth())
-                  return <span style={{ fontSize: 13, fontWeight: 500, minWidth: 160, textAlign: 'center', color: isCurrent ? ROSE : NAVY, background: isCurrent ? 'rgba(212,155,169,0.12)' : 'transparent', borderRadius: 20, padding: '2px 10px' }}>{navLabel()}</span>
+                  return <span style={{ fontSize: 13, fontWeight: 500, minWidth: 160, textAlign: 'center', color: isCurrent ? ROSE : NAVY, background: isCurrent ? 'rgba(212,155,169,0.12)' : 'transparent', borderRadius: 0, padding: '2px 10px' }}>{navLabel()}</span>
                 })()}
-                <button onClick={() => shiftView(1)} style={{ background: 'none', border: '0.5px solid #E0E4E8', borderRadius: 6, padding: '3px 9px', cursor: 'pointer', fontSize: 14, color: '#6B7280', lineHeight: 1 }}>›</button>
+                <button onClick={() => shiftView(1)} style={{ background: 'none', border: '1px solid #cccccc', borderRadius: 0, padding: '3px 9px', cursor: 'pointer', fontSize: 14, color: '#6B7280', lineHeight: 1 }}>›</button>
               </div>
               {calView === 'week'  && <WeekView  bookings={rangeBkgs} weekDays={weekDays} onSlotClick={openScheduleLater} onBookingClick={openEdit} pendingSlot={pendingSlot} now={now} />}
               {calView === 'month' && <MonthView bookings={rangeBkgs} viewDate={viewDate} onDayClick={d => { setViewDate(d); setCalView('day') }} />}
             </div>
 
-            <div style={{ background: '#FAFAFA', borderTop: '0.5px solid #E8E8E8', padding: '16px 28px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+            <div style={{ background: '#ffffff', borderTop: '1px solid #cccccc', padding: '16px 28px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
               <span style={{ fontSize: 13, color: '#9CA3AF' }}>{isFree ? 'Room is free — book it now or schedule ahead' : 'This room is currently occupied'}</span>
               <div style={{ display: 'flex', gap: 10 }}>
                 {isFree && (
                   <button onClick={() => { const t = toHHMMExact(new Date()); const [h,m] = t.split(':').map(Number); const et = Math.min(h*60+m+60,23*60); setMDate(todayStr); setMTime(t); setMEndTime(`${String(Math.floor(et/60)).padStart(2,'0')}:${String(et%60).padStart(2,'0')}`); setShowModal('now'); setMDone(false) }}
-                    style={{ background: ROSE, color: '#fff', border: 'none', borderRadius: 8, padding: '10px 22px', fontSize: 14, fontWeight: 600, cursor: 'pointer' }}>
+                    style={{ background: ROSE, color: '#fff', border: 'none', borderRadius: 0, padding: '10px 22px', fontSize: 14, fontWeight: 600, cursor: 'pointer' }}>
                     Book now
                   </button>
                 )}
                 <button onClick={() => { setMDate(todayStr); setMTime(''); setMEndTime(''); setShowModal('later'); setMDone(false) }}
-                  style={{ background: '#fff', border: '0.5px solid #C8CDD4', borderRadius: 8, padding: '10px 18px', fontSize: 13, cursor: 'pointer', color: '#213452' }}>
+                  style={{ background: '#fff', border: '1px solid #cccccc', borderRadius: 0, padding: '10px 18px', fontSize: 13, cursor: 'pointer', color: '#111111' }}>
                   Schedule for later
                 </button>
               </div>
@@ -741,14 +742,14 @@ export default function RoomDisplayPage({ params }: { params: { roomId: string }
 
       {/* Quick-book modal */}
       {showModal && (
-        <div onClick={() => setShowModal(null)} style={{ position: 'fixed', inset: 0, background: 'rgba(44,62,107,0.38)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 100 }}>
-          <div onClick={e => e.stopPropagation()} style={{ background: '#fff', borderRadius: 14, padding: 28, width: 340, border: '0.5px solid #E0E4E8' }}>
+        <div onClick={() => setShowModal(null)} style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.32)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 100 }}>
+          <div onClick={e => e.stopPropagation()} style={{ background: '#fff', borderRadius: 0, padding: 28, width: 340, border: '1px solid #cccccc' }}>
             {mDone ? (
               <div style={{ textAlign: 'center' }}>
                 <div style={{ fontSize: 16, fontWeight: 500, color: NAVY, marginBottom: 8 }}>Booking confirmed!</div>
                 <div style={{ fontSize: 13, color: '#6B7280', marginBottom: 16 }}>Your room is reserved.</div>
                 <button onClick={() => { setShowModal(null); setMName(''); setMEmail(''); setMTime(''); setMEndTime('') }}
-                  style={{ background: ROSE, color: '#fff', border: 'none', borderRadius: 8, padding: '10px 24px', fontSize: 14, fontWeight: 500, cursor: 'pointer' }}>Done</button>
+                  style={{ background: ROSE, color: '#fff', border: 'none', borderRadius: 0, padding: '10px 24px', fontSize: 14, fontWeight: 500, cursor: 'pointer' }}>Done</button>
               </div>
             ) : (
               <>
@@ -798,7 +799,7 @@ export default function RoomDisplayPage({ params }: { params: { roomId: string }
                     <div style={{ display: 'flex', gap: 6 }}>
                       {(['none', 'weekly', 'monthly'] as const).map(f => (
                         <button key={f} onClick={() => setRecurFreq(f)}
-                          style={{ flex: 1, padding: '6px 0', fontSize: 12, borderRadius: 20, border: `0.5px solid ${recurFreq === f ? ROSE : '#C8CDD4'}`, cursor: 'pointer', fontFamily: 'inherit', background: recurFreq === f ? ROSE : 'transparent', color: recurFreq === f ? '#fff' : '#374151', fontWeight: recurFreq === f ? 600 : 400, transition: 'all .15s' }}>
+                          style={{ flex: 1, padding: '6px 0', fontSize: 12, borderRadius: 0, border: `1px solid ${recurFreq === f ? ROSE : '#cccccc'}`, cursor: 'pointer', fontFamily: 'inherit', background: recurFreq === f ? ROSE : 'transparent', color: recurFreq === f ? '#fff' : '#374151', fontWeight: recurFreq === f ? 600 : 400, transition: 'all .15s' }}>
                           {f === 'none' ? 'None' : f === 'weekly' ? 'Weekly' : 'Monthly'}
                         </button>
                       ))}
@@ -821,11 +822,11 @@ export default function RoomDisplayPage({ params }: { params: { roomId: string }
                 )}
                 <div style={{ display: 'flex', gap: 8 }}>
                   <button onClick={() => setShowModal(null)}
-                    style={{ flex: 1, background: 'none', border: '0.5px solid #C8CDD4', borderRadius: 8, padding: 10, fontSize: 14, cursor: 'pointer', color: '#6B7280' }}>
+                    style={{ flex: 1, background: 'none', border: '1px solid #cccccc', borderRadius: 0, padding: 10, fontSize: 14, cursor: 'pointer', color: '#6B7280' }}>
                     Cancel
                   </button>
                   <button onClick={handleQuickBook} disabled={mSubmitting || !mTime || !mEndTime || mEndTime <= mTime || (showModal === 'later' && recurFreq !== 'none' && !recurUntil)}
-                    style={{ flex: 1, background: mSubmitting ? '#e8bdc7' : ROSE, color: '#fff', border: 'none', borderRadius: 8, padding: 10, fontSize: 14, fontWeight: 600, cursor: (mSubmitting || mEndTime <= mTime) ? 'default' : 'pointer' }}>
+                    style={{ flex: 1, background: mSubmitting ? '#e8bdc7' : ROSE, color: '#fff', border: 'none', borderRadius: 0, padding: 10, fontSize: 14, fontWeight: 600, cursor: (mSubmitting || mEndTime <= mTime) ? 'default' : 'pointer' }}>
                     {mSubmitting ? 'Booking…' : 'Confirm'}
                   </button>
                 </div>
@@ -840,13 +841,13 @@ export default function RoomDisplayPage({ params }: { params: { roomId: string }
         const isOthers = mEmail && editBooking.booker_email !== mEmail
         const editInvalid = !editStart || !editEnd || editEnd <= editStart
         return (
-          <div onClick={() => setEditBooking(null)} style={{ position: 'fixed', inset: 0, background: 'rgba(44,62,107,0.38)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 100 }}>
-            <div onClick={e => e.stopPropagation()} style={{ background: '#fff', borderRadius: 14, padding: 28, width: 340, border: '0.5px solid #E0E4E8', boxShadow: '0 8px 32px rgba(0,0,0,0.18)' }}>
+          <div onClick={() => setEditBooking(null)} style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.32)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 100 }}>
+            <div onClick={e => e.stopPropagation()} style={{ background: '#fff', borderRadius: 0, padding: 28, width: 340, border: '1px solid #cccccc', boxShadow: '0 8px 32px rgba(0,0,0,0.18)' }}>
               <div style={{ fontSize: 15, fontWeight: 500, color: NAVY, marginBottom: isOthers ? 10 : 16 }}>
                 Edit booking — {room?.name}
               </div>
               {isOthers && (
-                <div style={{ background: '#C0392B', borderRadius: 10, padding: '12px 14px', marginBottom: 16 }}>
+                <div style={{ background: '#C0392B', borderRadius: 0, padding: '12px 14px', marginBottom: 16 }}>
                   <div style={{ fontSize: 15, fontWeight: 700, color: '#fff', marginBottom: 4 }}>⚠️ Not your booking</div>
                   <div style={{ fontSize: 12, color: '#fddede', lineHeight: 1.5 }}>
                     This belongs to <strong style={{ color: '#fff' }}>{editBooking.booker_name}</strong>. They will receive an email if you save changes.
@@ -878,11 +879,11 @@ export default function RoomDisplayPage({ params }: { params: { roomId: string }
               {editInvalid && <div style={{ fontSize: 12, color: '#B94040', marginBottom: 12 }}>End time must be after start time.</div>}
               <div style={{ display: 'flex', gap: 8, marginBottom: 8 }}>
                 <button onClick={() => setEditBooking(null)}
-                  style={{ flex: 1, background: 'none', border: '0.5px solid #C8CDD4', borderRadius: 8, padding: 10, fontSize: 13, cursor: 'pointer', color: '#6B7280' }}>
+                  style={{ flex: 1, background: 'none', border: '1px solid #cccccc', borderRadius: 0, padding: 10, fontSize: 13, cursor: 'pointer', color: '#6B7280' }}>
                   Close
                 </button>
                 <button onClick={handleEditSave} disabled={editSubmitting || editInvalid || !editName || !editEmail}
-                  style={{ flex: 1, background: editSubmitting ? '#9ab5c8' : SAGE, color: '#fff', border: 'none', borderRadius: 8, padding: 10, fontSize: 13, fontWeight: 600, cursor: editSubmitting ? 'default' : 'pointer' }}>
+                  style={{ flex: 1, background: editSubmitting ? '#9ab5c8' : SAGE, color: '#fff', border: 'none', borderRadius: 0, padding: 10, fontSize: 13, fontWeight: 600, cursor: editSubmitting ? 'default' : 'pointer' }}>
                   {editSubmitting ? 'Saving…' : 'Save changes'}
                 </button>
               </div>

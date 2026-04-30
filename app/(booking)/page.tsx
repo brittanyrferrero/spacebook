@@ -6,13 +6,13 @@ import { NameAutocomplete } from '@/components/NameAutocomplete'
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 const SAGE = '#5C7A6B'
-const NAVY = '#2C3E6B'
+const NAVY = '#111111'
 const ROSE = '#db95ab'
-const FREE_BG = '#E8F4EC'; const FREE_TEXT = '#1E5C30'; const FREE_BAR = '#3B7A4A'
-const BUSY_BG = '#e8ecf2'; const BUSY_TEXT = '#213452'; const BUSY_BAR = '#213452'
-const WEEKEND_BG = '#fcfaff'
-const PAST_BG    = 'rgba(120,120,130,0.18)'
-const PAST_TEXT  = '#B0B8C4'
+const FREE_BG = '#eef7f1'; const FREE_TEXT = '#1E5C30'; const FREE_BAR = '#3B7A4A'
+const BUSY_BG = '#f0f0f0'; const BUSY_TEXT = '#333333'; const BUSY_BAR = '#555555'
+const WEEKEND_BG = 'rgba(0,0,0,0.024)'
+const PAST_BG    = 'rgba(0,0,0,0.06)'
+const PAST_TEXT  = '#aaaaaa'
 
 const GRID_START = 8, GRID_END = 19, GRID_HOURS = GRID_END - GRID_START, HOUR_H = 38, GRID_H = GRID_HOURS * HOUR_H
 
@@ -55,32 +55,35 @@ type CalView = 'day' | 'week' | 'month'
 // ─── Theme ────────────────────────────────────────────────────────────────────
 function mkT(dark: boolean) {
   return {
-    pageBg:          dark ? '#090d18'                                          : '#f0eff8',
-    cardBg:          dark ? '#111828'                                          : '#fff',
-    border:          dark ? '#1c2840'                                          : '#E0E4E8',
-    borderFaint:     dark ? 'rgba(255,255,255,0.07)'                           : '#F0F0EE',
-    text:            dark ? '#dde5f8'                                          : '#374151',
-    textMuted:       dark ? '#7a8aaa'                                          : '#9CA3AF',
-    textFaint:       dark ? '#404e6a'                                          : '#B0B0B0',
-    navBg:           dark ? 'linear-gradient(135deg,#0e1628 0%,#1c0f38 100%)' : 'linear-gradient(135deg,#1e2d5a 0%,#2e1558 100%)',
-    activeRoom:      dark ? 'rgba(59,122,74,0.18)'                             : 'rgba(59,122,74,0.10)',
+    pageBg:          dark ? '#111111'                   : '#ffffff',
+    cardBg:          dark ? '#1a1a1a'                   : '#ffffff',
+    border:          dark ? '#2e2e2e'                   : '#cccccc',
+    borderFaint:     dark ? 'rgba(255,255,255,0.06)'    : '#e8e8e8',
+    text:            dark ? '#e4e4e4'                   : '#111111',
+    textMuted:       dark ? '#888888'                   : '#666666',
+    textFaint:       dark ? '#464646'                   : '#aaaaaa',
+    navBg:           dark ? '#0e0e0e'                   : '#f0ece4',
+    navText:         dark ? '#ffffff'                   : '#1c1510',
+    navSub:          dark ? 'rgba(255,255,255,0.42)'    : 'rgba(28,21,16,0.42)',
+    navBorder:       dark ? '1px solid #222222'         : '1px solid #d8d4cc',
+    activeRoom:      dark ? 'rgba(59,122,74,0.18)'      : 'rgba(59,122,74,0.10)',
     activeBorder:    FREE_BAR,
-    bandOdd:         dark ? 'rgba(255,255,255,0.022)'                          : 'rgba(0,0,0,0.018)',
-    gridLine:        dark ? 'rgba(255,255,255,0.065)'                          : '#ECECEC',
-    colSep:          dark ? 'rgba(255,255,255,0.065)'                          : '#F0F0EE',
-    weekendBg:       dark ? 'rgba(110,80,165,0.07)'                            : WEEKEND_BG,
-    pastBg:          dark ? 'rgba(0,0,0,0.22)'                                 : PAST_BG,
-    pastText:        dark ? '#384565'                                          : PAST_TEXT,
-    blockBg:         dark ? '#1b3260'                                          : '#c8d2e0',
-    blockBorder:     dark ? '#4878c8'                                          : BUSY_BAR,
-    pastBlockBg:     dark ? '#111a30'                                          : '#dde1e8',
-    pastBlockBorder: dark ? '#243250'                                          : '#aab0be',
-    calDayBg:        dark ? '#13192e'                                          : '#fff',
-    inputBg:         dark ? '#0d1525'                                          : '#fff',
-    inputBorder:     dark ? '#1c2840'                                          : '#C8CDD4',
-    modalBg:         dark ? '#111828'                                          : '#fff',
-    modalBorder:     dark ? '#1c2840'                                          : '#E0E4E8',
-    inpText:         dark ? '#dde5f8'                                          : 'inherit',
+    bandOdd:         dark ? 'rgba(255,255,255,0.018)'   : 'rgba(0,0,0,0.015)',
+    gridLine:        dark ? 'rgba(255,255,255,0.06)'    : '#e4e4e4',
+    colSep:          dark ? 'rgba(255,255,255,0.06)'    : '#eeeeee',
+    weekendBg:       dark ? 'rgba(0,0,0,0.10)'           : WEEKEND_BG,
+    pastBg:          dark ? 'rgba(0,0,0,0.25)'          : PAST_BG,
+    pastText:        dark ? '#424242'                   : PAST_TEXT,
+    blockBg:         dark ? '#1e2838'                   : '#dce0e6',
+    blockBorder:     dark ? '#3a4e68'                   : '#5a6e84',
+    pastBlockBg:     dark ? '#1e1e26'                   : '#e8e8e8',
+    pastBlockBorder: dark ? '#2e2e3e'                   : '#cccccc',
+    calDayBg:        dark ? '#161616'                   : '#ffffff',
+    inputBg:         dark ? '#141414'                   : '#ffffff',
+    inputBorder:     dark ? '#2e2e2e'                   : '#cccccc',
+    modalBg:         dark ? '#1a1a1a'                   : '#ffffff',
+    modalBorder:     dark ? '#2e2e2e'                   : '#cccccc',
+    inpText:         dark ? '#e4e4e4'                   : 'inherit',
   }
 }
 
@@ -201,7 +204,7 @@ function NowLine({ now, gridH }: { now: Date; gridH: number }) {
 function TimePicker({ value, onChange, dark }: { value: string; onChange: (v: string) => void; dark?: boolean }) {
   const [rawH, rawM] = value ? value.split(':') : ['', '']
   const T = mkT(dark ?? false)
-  const sel: React.CSSProperties = { fontSize: 14, padding: '8px 6px', border: `0.5px solid ${T.inputBorder}`, borderRadius: 8, outline: 'none', fontFamily: 'inherit', flex: 1, background: T.inputBg, cursor: 'pointer', color: T.inpText }
+  const sel: React.CSSProperties = { fontSize: 14, padding: '8px 6px', border: `0.5px solid ${T.inputBorder}`, borderRadius: 0, outline: 'none', fontFamily: 'inherit', flex: 1, background: T.inputBg, cursor: 'pointer', color: T.inpText }
   return (
     <div style={{ display: 'flex', gap: 6 }}>
       <select style={sel} value={rawH ?? ''} onChange={e => onChange(`${e.target.value}:${rawM || '00'}`)}>
@@ -280,10 +283,10 @@ function DayView({ bookings, viewDate, onSlotClick, onBookingClick, pendingSlot,
             const bg     = isPast ? T.pastBlockBg : isMine ? (dark ? '#4a2535' : '#f5e0e7') : T.blockBg
             const border = isPast ? T.pastBlockBorder : isMine ? ROSE : T.blockBorder
             const label  = isMine ? (b.title || b.booker_name) : b.booker_name
-            const textColor = isPast ? T.textFaint : isMine ? (dark ? '#e8b4c4' : '#8a3d58') : (dark ? '#c8daf0' : BUSY_BAR)
+            const textColor = isPast ? T.textFaint : isMine ? (dark ? '#e8b4c4' : '#8a3d58') : (dark ? '#a0b4c8' : '#3d5068')
             return (
               <div key={b.id} onClick={e => { e.stopPropagation(); onBookingClick?.(b) }}
-                style={{ position: 'absolute', top: topPx, left: 4, right: 4, height: heightPx, background: bg, borderRadius: 4, cursor: onBookingClick ? 'pointer' : 'default', overflow: 'hidden' }}>
+                style={{ position: 'absolute', top: topPx, left: 4, right: 4, height: heightPx, background: bg, borderRadius: 0, cursor: onBookingClick ? 'pointer' : 'default', overflow: 'hidden' }}>
                 {heightPx > 18 && <div style={{ padding: '2px 5px', fontSize: 10, color: textColor, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', fontWeight: 500 }}>{b.recurring_series_id ? `↻ ${label}` : label}</div>}
               </div>
             )
@@ -334,8 +337,8 @@ function WeekView({ bookings, weekDays, onSlotClick, onBookingClick, pendingSlot
           const isWeekend = colIdx >= 5
           return (
             <div key={ds} style={{ flex: 1, textAlign: 'center', padding: '6px 0 8px', borderRight: colIdx < 6 ? `0.5px solid ${T.colSep}` : 'none' }}>
-              <div style={{ fontSize: 10, color: isToday ? ROSE : isPast ? T.pastText : isWeekend ? '#b0a0b8' : T.textMuted, fontWeight: isToday ? 600 : 400 }}>{DAYS_SHORT[colIdx]}</div>
-              <div style={{ width: 24, height: 24, borderRadius: '50%', background: isToday ? ROSE : 'transparent', color: isToday ? '#fff' : isPast ? T.pastText : isWeekend ? '#8B7A9A' : T.text, fontSize: 12, fontWeight: isToday ? 600 : 400, display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '2px auto 0' }}>
+              <div style={{ fontSize: 10, color: isToday ? ROSE : isPast ? T.pastText : isWeekend ? '#aa9a80' : T.textMuted, fontWeight: isToday ? 600 : 400 }}>{DAYS_SHORT[colIdx]}</div>
+              <div style={{ width: 24, height: 24, borderRadius: '50%', background: isToday ? ROSE : 'transparent', color: isToday ? '#fff' : isPast ? T.pastText : isWeekend ? '#8a7a60' : T.text, fontSize: 12, fontWeight: isToday ? 600 : 400, display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '2px auto 0' }}>
                 {day.getDate()}
               </div>
             </div>
@@ -386,10 +389,10 @@ function WeekView({ bookings, weekDays, onSlotClick, onBookingClick, pendingSlot
                     const bg     = isPast ? T.pastBlockBg : isMine ? (dark ? '#4a2535' : '#f5e0e7') : T.blockBg
                     const border = isPast ? T.pastBlockBorder : isMine ? ROSE : T.blockBorder
                     const label  = isMine ? (b.title || b.booker_name) : b.booker_name
-                    const textColor = isPast ? T.textFaint : isMine ? (dark ? '#e8b4c4' : '#8a3d58') : (dark ? '#c8daf0' : BUSY_BAR)
+                    const textColor = isPast ? T.textFaint : isMine ? (dark ? '#e8b4c4' : '#8a3d58') : (dark ? '#a0b4c8' : '#3d5068')
                     return (
                       <div key={b.id} onClick={e => { e.stopPropagation(); onBookingClick?.(b) }}
-                        style={{ position: 'absolute', top: topPx, left: 2, right: 2, height: heightPx, background: bg, borderRadius: 4, cursor: onBookingClick ? 'pointer' : 'default', overflow: 'hidden' }}>
+                        style={{ position: 'absolute', top: topPx, left: 2, right: 2, height: heightPx, background: bg, borderRadius: 0, cursor: onBookingClick ? 'pointer' : 'default', overflow: 'hidden' }}>
                         {heightPx > 18 && <div style={{ padding: '2px 4px', fontSize: 9, color: textColor, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', fontWeight: 500 }}>{b.recurring_series_id ? `↻ ${label}` : label}</div>}
                       </div>
                     )
@@ -421,7 +424,7 @@ function MonthView({ bookings, viewDate, onDayClick, dark }: { bookings: Booking
     <div>
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7,1fr)', marginBottom: 4 }}>
         {DAYS_SHORT.map((d, i) => (
-          <div key={d} style={{ textAlign: 'center', fontSize: 10, color: i >= 5 ? '#b0a0b8' : T.textMuted, fontWeight: 500, paddingBottom: 4 }}>{d}</div>
+          <div key={d} style={{ textAlign: 'center', fontSize: 10, color: i >= 5 ? '#aa9a80' : T.textMuted, fontWeight: 500, paddingBottom: 4 }}>{d}</div>
         ))}
       </div>
       {weeks.map((week, wi) => (
@@ -434,7 +437,7 @@ function MonthView({ bookings, viewDate, onDayClick, dark }: { bookings: Booking
             const isWeekend = di >= 5
             const count     = byDay[ds] ?? 0
             const cellBg    = isWeekend ? T.weekendBg : T.cardBg
-            const numColor  = isToday ? '#fff' : isPast ? T.pastText : isWeekend && inMonth ? '#8B7A9A' : inMonth ? T.text : T.borderFaint
+            const numColor  = isToday ? '#fff' : isPast ? T.pastText : isWeekend && inMonth ? '#8a7a60' : inMonth ? T.text : T.borderFaint
             return (
               <div key={ds} onClick={() => onDayClick(day)}
                 style={{ padding: '6px 4px 8px', minHeight: 64, cursor: 'pointer', borderRight: di < 6 ? `0.5px solid ${T.colSep}` : 'none', background: isPast ? T.pastBg : cellBg }}>
@@ -723,34 +726,23 @@ export default function BookingPage() {
     setMSubmitting(false)
   }
 
-  const inp: React.CSSProperties = { fontSize: 14, padding: '9px 12px', border: `1px solid ${T.inputBorder}`, borderRadius: 10, outline: 'none', fontFamily: 'inherit', width: '100%', background: T.inputBg, color: T.inpText, colorScheme: dark ? 'dark' : 'light' }
+  const inp: React.CSSProperties = { fontSize: 14, padding: '9px 12px', border: `1px solid ${T.inputBorder}`, borderRadius: 0, outline: 'none', fontFamily: 'inherit', width: '100%', background: T.inputBg, color: T.inpText, colorScheme: dark ? 'dark' : 'light' }
   const lbl: React.CSSProperties = { fontSize: 10, color: T.textMuted, fontWeight: 600, display: 'block', marginBottom: 5, letterSpacing: '0.08em', textTransform: 'uppercase' as const }
   const timeInvalid = !!(mTime && mEndTime && mEndTime <= mTime)
   const roseGrad = ROSE
 
-  const toggleBtn: React.CSSProperties = { background: 'rgba(255,255,255,0.1)', border: '0.5px solid rgba(255,255,255,0.18)', borderRadius: 8, padding: '5px 11px', cursor: 'pointer', fontSize: 13, color: 'rgba(255,255,255,0.85)', lineHeight: 1 }
+  const toggleBtn: React.CSSProperties = { background: 'rgba(255,255,255,0.1)', border: '0.5px solid rgba(255,255,255,0.18)', borderRadius: 0, padding: '5px 11px', cursor: 'pointer', fontSize: 13, color: 'rgba(255,255,255,0.85)', lineHeight: 1 }
 
   return (
     <div style={{ background: T.pageBg, height: '100vh', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
-      <style>{`@keyframes tabShine{0%,100%{border-bottom-color:rgba(219,149,171,0.6)}50%{border-bottom-color:rgba(219,149,171,1)}}`}</style>
+      <style dangerouslySetInnerHTML={{ __html: `@import url('https://fonts.googleapis.com/css2?family=Spectral:ital,wght@0,400;0,500;0,600;1,400&display=swap');@keyframes tabShine{0%,100%{border-bottom-color:rgba(219,149,171,0.6)}50%{border-bottom-color:rgba(219,149,171,1)}}` }} />
 
       {/* Top bar */}
-      <div style={{ background: T.navBg, padding: '14px 24px', display: 'flex', alignItems: 'center', position: 'relative', overflow: 'hidden' }}>
-
-        {/* Star field */}
-        {NAV_STARS.map((s, i) => (
-          <div key={i} style={{ position: 'absolute', top: s.top, left: s.left, width: s.size, height: s.size, borderRadius: '50%', background: '#fff', opacity: s.o, pointerEvents: 'none' }} />
-        ))}
-
-        {/* Orbit arc — subtle ellipse with a planet dot */}
-        <svg style={{ position: 'absolute', left: '38%', top: '50%', transform: 'translateY(-50%)', pointerEvents: 'none', opacity: 0.13 }} width="120" height="44" viewBox="0 0 120 44" fill="none">
-          <ellipse cx="100" cy="22" rx="96" ry="17" stroke="white" strokeWidth="0.7" strokeDasharray="3 4"/>
-          <circle cx="18" cy="33" r="2.8" fill="white"/>
-        </svg>
+      <div style={{ background: T.navBg, padding: '14px 24px', display: 'flex', alignItems: 'center', borderBottom: T.navBorder }}>
 
         {/* Logo */}
-        <div style={{ fontSize: 16, fontWeight: 700, color: '#fff', flexShrink: 0, letterSpacing: '-0.02em', zIndex: 1 }}>
-          space<span style={{ color: ROSE, fontWeight: 300 }}>book</span>
+        <div style={{ fontSize: 17, fontWeight: 500, color: T.navText, flexShrink: 0, letterSpacing: '0.02em', fontFamily: "'Spectral', Georgia, serif" }}>
+          space<span style={{ fontStyle: 'italic', fontWeight: 400 }}>book</span>
           {lotr && <span style={{ fontSize: 13, marginLeft: 5 }}>🧙</span>}
         </div>
 
@@ -758,7 +750,7 @@ export default function BookingPage() {
         <div style={{ position: 'absolute', left: 'calc(50% + 100px)', transform: 'translateX(-50%)', display: 'flex', gap: 22, zIndex: 1 }}>
           {(['day', 'week', 'month'] as CalView[]).map(v => (
             <button key={v} onClick={() => { setCalView(v); setViewDate(new Date()) }}
-              style={{ fontSize: 12, padding: '0 0 5px', border: 'none', borderBottom: calView === v ? '1.5px solid rgba(219,149,171,0.35)' : '1.5px solid transparent', animation: calView === v ? 'tabShine 6s ease-in-out infinite' : undefined, cursor: 'pointer', fontFamily: 'inherit', fontWeight: calView === v ? 600 : 400, background: 'transparent', color: calView === v ? '#fff' : 'rgba(255,255,255,0.42)', transition: 'color .15s', letterSpacing: '0.1em', textTransform: 'uppercase' as const, lineHeight: 1 }}>
+              style={{ fontSize: 12, padding: '0 0 5px', border: 'none', borderBottom: calView === v ? '1.5px solid rgba(219,149,171,0.35)' : '1.5px solid transparent', animation: calView === v ? 'tabShine 6s ease-in-out infinite' : undefined, cursor: 'pointer', fontFamily: 'inherit', fontWeight: calView === v ? 600 : 400, background: 'transparent', color: calView === v ? T.navText : T.navSub, transition: 'color .15s', letterSpacing: '0.1em', textTransform: 'uppercase' as const, lineHeight: 1 }}>
               {v}
             </button>
           ))}
@@ -769,8 +761,8 @@ export default function BookingPage() {
           {/* Theme slider */}
           <div onClick={() => setTheme(t => t === 'light' ? 'dark' : 'light')}
             title={dark ? 'Light mode' : 'Dark mode'}
-            style={{ width: 34, height: 18, borderRadius: 9, background: 'rgba(255,255,255,0.15)', border: '0.5px solid rgba(255,255,255,0.22)', cursor: 'pointer', position: 'relative', flexShrink: 0 }}>
-            <div style={{ position: 'absolute', top: 2, left: dark ? 16 : 2, width: 14, height: 14, borderRadius: '50%', background: '#fff', transition: 'left .18s', boxShadow: '0 1px 3px rgba(0,0,0,0.35)' }} />
+            style={{ width: 34, height: 18, borderRadius: 0, background: dark ? 'rgba(255,255,255,0.15)' : 'rgba(0,0,0,0.10)', border: dark ? '0.5px solid rgba(255,255,255,0.22)' : '0.5px solid rgba(28,21,16,0.25)', cursor: 'pointer', position: 'relative', flexShrink: 0 }}>
+            <div style={{ position: 'absolute', top: 2, left: dark ? 16 : 2, width: 14, height: 14, borderRadius: 0, background: dark ? '#fff' : '#1c1510', transition: 'left .18s' }} />
           </div>
           {/* LOTR wizard */}
           <span onClick={() => setLotr(l => !l)} title="One ring to rule them all"
@@ -788,19 +780,19 @@ export default function BookingPage() {
         {/* [0,1] Nav row */}
         <div style={{ background: T.cardBg, padding: '14px 24px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-            <button onClick={() => shiftView(-1)} style={{ background: 'none', border: `0.5px solid ${T.border}`, borderRadius: 6, padding: '3px 10px', cursor: 'pointer', fontSize: 14, color: T.textMuted }}>‹</button>
+            <button onClick={() => shiftView(-1)} style={{ background: 'none', border: `0.5px solid ${T.border}`, borderRadius: 0, padding: '3px 10px', cursor: 'pointer', fontSize: 14, color: T.textMuted }}>‹</button>
             {(() => {
               const isCurrent =
                 (calView === 'week'  && todayStr >= dateStr(weekDays[0]) && todayStr <= dateStr(weekDays[6])) ||
                 (calView === 'day'   && viewDateStr === todayStr) ||
                 (calView === 'month' && viewDate.getFullYear() === now.getFullYear() && viewDate.getMonth() === now.getMonth())
               return (
-                <span style={{ fontSize: 13, fontWeight: 500, minWidth: 180, textAlign: 'center', color: isCurrent ? ROSE : dark ? T.text : NAVY, background: isCurrent ? 'rgba(219,149,171,0.12)' : 'transparent', borderRadius: 20, padding: '2px 10px' }}>
+                <span style={{ fontSize: 13, fontWeight: 500, minWidth: 180, textAlign: 'center', color: isCurrent ? ROSE : dark ? T.text : NAVY, background: isCurrent ? 'rgba(219,149,171,0.12)' : 'transparent', borderRadius: 0, padding: '2px 10px' }}>
                   {navLabel()}
                 </span>
               )
             })()}
-            <button onClick={() => shiftView(1)} style={{ background: 'none', border: `0.5px solid ${T.border}`, borderRadius: 6, padding: '3px 10px', cursor: 'pointer', fontSize: 14, color: T.textMuted }}>›</button>
+            <button onClick={() => shiftView(1)} style={{ background: 'none', border: `0.5px solid ${T.border}`, borderRadius: 0, padding: '3px 10px', cursor: 'pointer', fontSize: 14, color: T.textMuted }}>›</button>
           </div>
         </div>
 
@@ -813,7 +805,7 @@ export default function BookingPage() {
             const active = room.id === selectedRoomId
             return (
               <div key={room.id} onClick={() => setSelectedRoomId(room.id)}
-                style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '8px 10px', borderRadius: 6, cursor: 'pointer', marginBottom: 1, background: active ? T.activeRoom : 'transparent', border: active ? `1px solid ${T.activeBorder}` : '1px solid transparent', transition: 'background 0.12s ease-out, border-color 0.12s ease-out' }}>
+                style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '8px 10px', borderRadius: 0, cursor: 'pointer', marginBottom: 1, background: active ? T.activeRoom : 'transparent', border: active ? `1px solid ${T.activeBorder}` : '1px solid transparent', transition: 'background 0.12s ease-out, border-color 0.12s ease-out' }}>
                 <div style={{ width: 8, height: 8, borderRadius: '50%', background: dot, flexShrink: 0 }} />
                 <div style={{ flex: 1, minWidth: 0 }}>
                   <div style={{ fontSize: 13, color: T.text, fontWeight: active ? 600 : 400, letterSpacing: active ? '-0.01em' : 0 }}>{room.name}</div>
@@ -847,12 +839,12 @@ export default function BookingPage() {
                 setMEndTime(`${String(Math.floor(et / 60)).padStart(2, '0')}:${String(et % 60).padStart(2, '0')}`)
                 setMError(''); setShowModal('now'); setMDone(false)
               }}
-                style={{ background: roseGrad, color: '#fff', border: 'none', borderRadius: 12, padding: '12px 28px', fontSize: 14, fontWeight: 600, cursor: 'pointer', whiteSpace: 'nowrap', letterSpacing: '0.02em' }}>
+                style={{ background: roseGrad, color: '#fff', border: 'none', borderRadius: 0, padding: '12px 28px', fontSize: 14, fontWeight: 600, cursor: 'pointer', whiteSpace: 'nowrap', letterSpacing: '0.02em' }}>
                 {txt.bookNow}
               </button>
             )}
             <button onClick={() => { setMDate(todayStr); setMTime(''); setMEndTime(''); setRecurFreq('none'); setMError(''); setShowModal('later'); setMDone(false) }}
-              style={{ background: 'transparent', border: `1px solid ${T.inputBorder}`, borderRadius: 12, padding: '12px 22px', fontSize: 14, cursor: 'pointer', color: T.text, whiteSpace: 'nowrap', letterSpacing: '0.01em' }}>
+              style={{ background: 'transparent', border: `1px solid ${T.inputBorder}`, borderRadius: 0, padding: '12px 22px', fontSize: 14, cursor: 'pointer', color: T.text, whiteSpace: 'nowrap', letterSpacing: '0.01em' }}>
               {txt.schedule}
             </button>
           </div>
@@ -863,12 +855,12 @@ export default function BookingPage() {
       {/* Modal */}
       {showModal && (
         <div onClick={() => setShowModal(null)} style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 100 }}>
-          <div onClick={e => e.stopPropagation()} style={{ background: T.modalBg, borderRadius: 18, padding: 28, width: 370, border: `1px solid ${T.modalBorder}`, boxShadow: dark ? '0 24px 64px rgba(0,0,0,0.6)' : '0 12px 48px rgba(0,0,0,0.18)' }}>
+          <div onClick={e => e.stopPropagation()} style={{ background: T.modalBg, borderRadius: 0, padding: 28, width: 370, border: `1px solid ${T.modalBorder}`, boxShadow: dark ? '0 24px 64px rgba(0,0,0,0.6)' : '0 12px 48px rgba(0,0,0,0.18)' }}>
             {mDone ? (
               <div style={{ textAlign: 'center', position: 'relative' }}>
                 {lotr && (
                   <>
-                    <style>{`@keyframes spark{0%{transform:translate(0,0) scale(1);opacity:1}100%{transform:translate(var(--stx),var(--sty)) scale(0.1);opacity:0}}`}</style>
+                    <style dangerouslySetInnerHTML={{ __html: `@keyframes spark{0%{transform:translate(0,0) scale(1);opacity:1}100%{transform:translate(var(--stx),var(--sty)) scale(0.1);opacity:0}}` }} />
                     <div style={{ position: 'absolute', top: '20%', left: '50%', pointerEvents: 'none' }}>
                       {FIREWORK_PARTICLES.map((p, i) => (
                         <div key={i} style={{ position: 'absolute', width: p.size, height: p.size, borderRadius: '50%', background: p.color, animationName: 'spark', animationDuration: `${p.duration}s`, animationTimingFunction: 'ease-out', animationDelay: `${p.delay}s`, animationFillMode: 'forwards', '--stx': `${p.tx}px`, '--sty': `${p.ty}px` } as React.CSSProperties} />
@@ -879,7 +871,7 @@ export default function BookingPage() {
                 <div style={{ fontSize: 16, fontWeight: 500, color: dark ? T.text : NAVY, marginBottom: 8 }}>{txt.confirmed}</div>
                 <div style={{ fontSize: 13, color: T.textMuted, marginBottom: 16 }}>{txt.subtext}</div>
                 <button onClick={() => setShowModal(null)}
-                  style={{ background: ROSE, color: '#fff', border: 'none', borderRadius: 8, padding: '10px 24px', fontSize: 14, fontWeight: 500, cursor: 'pointer' }}>{txt.done}</button>
+                  style={{ background: ROSE, color: '#fff', border: 'none', borderRadius: 0, padding: '10px 24px', fontSize: 14, fontWeight: 500, cursor: 'pointer' }}>{txt.done}</button>
               </div>
             ) : (
               <>
@@ -929,7 +921,7 @@ export default function BookingPage() {
                     <div style={{ display: 'flex', gap: 6 }}>
                       {(['none', 'weekly', 'monthly'] as const).map(f => (
                         <button key={f} onClick={() => setRecurFreq(f)}
-                          style={{ flex: 1, padding: '6px 0', fontSize: 12, borderRadius: 20, border: `0.5px solid ${recurFreq === f ? ROSE : T.inputBorder}`, cursor: 'pointer', fontFamily: 'inherit', background: recurFreq === f ? ROSE : 'transparent', color: recurFreq === f ? '#fff' : T.text, fontWeight: recurFreq === f ? 600 : 400, transition: 'all .15s' }}>
+                          style={{ flex: 1, padding: '6px 0', fontSize: 12, borderRadius: 0, border: `0.5px solid ${recurFreq === f ? ROSE : T.inputBorder}`, cursor: 'pointer', fontFamily: 'inherit', background: recurFreq === f ? ROSE : 'transparent', color: recurFreq === f ? '#fff' : T.text, fontWeight: recurFreq === f ? 600 : 400, transition: 'all .15s' }}>
                           {f === 'none' ? 'None' : f === 'weekly' ? 'Weekly' : 'Monthly'}
                         </button>
                       ))}
@@ -951,10 +943,10 @@ export default function BookingPage() {
                   </div>
                 )}
                 {mError && (
-                  <div style={{ fontSize: 12, color: '#B94040', background: '#fdf2f2', border: '0.5px solid #f5c6c6', borderRadius: 8, padding: '8px 12px', marginBottom: 12 }}>{mError}</div>
+                  <div style={{ fontSize: 12, color: '#B94040', background: '#fdf2f2', border: '0.5px solid #f5c6c6', borderRadius: 0, padding: '8px 12px', marginBottom: 12 }}>{mError}</div>
                 )}
                 <button onClick={handleQuickBook} disabled={mSubmitting || !mName || !mEmail || !mTime || !mEndTime || timeInvalid || (showModal === 'later' && recurFreq !== 'none' && !recurUntil)}
-                  style={{ width: '100%', background: mSubmitting ? '#e8bdc7' : roseGrad, color: '#fff', border: 'none', borderRadius: 12, padding: '13px', fontSize: 14, fontWeight: 600, cursor: (mSubmitting || timeInvalid) ? 'default' : 'pointer', letterSpacing: '0.02em', marginTop: 4 }}>
+                  style={{ width: '100%', background: mSubmitting ? '#e8bdc7' : roseGrad, color: '#fff', border: 'none', borderRadius: 0, padding: '13px', fontSize: 14, fontWeight: 600, cursor: (mSubmitting || timeInvalid) ? 'default' : 'pointer', letterSpacing: '0.02em', marginTop: 4 }}>
                   {mSubmitting ? txt.confirming : txt.confirm}
                 </button>
               </>
@@ -969,12 +961,12 @@ export default function BookingPage() {
         const editInvalid = !editStart || !editEnd || editEnd <= editStart
         return (
           <div onClick={() => setEditBooking(null)} style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 100 }}>
-            <div onClick={e => e.stopPropagation()} style={{ background: T.modalBg, borderRadius: 18, padding: 28, width: 370, border: `1px solid ${T.modalBorder}`, boxShadow: dark ? '0 24px 64px rgba(0,0,0,0.6)' : '0 12px 48px rgba(0,0,0,0.18)' }}>
+            <div onClick={e => e.stopPropagation()} style={{ background: T.modalBg, borderRadius: 0, padding: 28, width: 370, border: `1px solid ${T.modalBorder}`, boxShadow: dark ? '0 24px 64px rgba(0,0,0,0.6)' : '0 12px 48px rgba(0,0,0,0.18)' }}>
               <div style={{ fontSize: 17, fontWeight: 700, color: dark ? T.text : NAVY, marginBottom: isOthers ? 10 : 20, letterSpacing: '-0.02em' }}>
                 Edit booking <span style={{ color: ROSE }}>·</span> {selectedRoom?.name}
               </div>
               {isOthers && (
-                <div style={{ background: '#C0392B', borderRadius: 10, padding: '12px 14px', marginBottom: 16 }}>
+                <div style={{ background: '#C0392B', borderRadius: 0, padding: '12px 14px', marginBottom: 16 }}>
                   <div style={{ fontSize: 15, fontWeight: 700, color: '#fff', marginBottom: 4 }}>⚠️ Not your booking</div>
                   <div style={{ fontSize: 12, color: '#fddede', lineHeight: 1.5 }}>
                     This belongs to <strong style={{ color: '#fff' }}>{editBooking.booker_name}</strong>. They will receive an email if you save changes.
@@ -1012,7 +1004,7 @@ export default function BookingPage() {
               </div>
               {editInvalid && <div style={{ fontSize: 12, color: '#B94040', marginBottom: 12 }}>End time must be after start time.</div>}
               <button onClick={handleEditSave} disabled={editSubmitting || editInvalid || !editName || !editEmail}
-                style={{ width: '100%', background: editSubmitting ? '#9ab5c8' : SAGE, color: '#fff', border: 'none', borderRadius: 12, padding: 13, fontSize: 14, fontWeight: 600, cursor: editSubmitting ? 'default' : 'pointer', marginBottom: 8, letterSpacing: '0.02em' }}>
+                style={{ width: '100%', background: editSubmitting ? '#9ab5c8' : SAGE, color: '#fff', border: 'none', borderRadius: 0, padding: 13, fontSize: 14, fontWeight: 600, cursor: editSubmitting ? 'default' : 'pointer', marginBottom: 8, letterSpacing: '0.02em' }}>
                 {editSubmitting ? 'Saving…' : 'Save changes'}
               </button>
               <button onClick={handleEditCancel}

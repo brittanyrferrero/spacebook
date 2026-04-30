@@ -46,7 +46,7 @@ export default function EnterTokenPage() {
   }
 
   const inp: React.CSSProperties = {
-    width: '100%', padding: '10px 12px', borderRadius: 8,
+    width: '100%', padding: '10px 12px', borderRadius: 0,
     border: '1px solid rgba(255,255,255,0.15)', background: 'rgba(255,255,255,0.07)',
     color: '#fff', fontSize: 14, outline: 'none', fontFamily: 'inherit',
     boxSizing: 'border-box',
@@ -57,8 +57,8 @@ export default function EnterTokenPage() {
   if (!tokenValid) {
     return (
       <div style={{ height: '100vh', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', background: '#090d18', fontFamily: 'system-ui, sans-serif', gap: 12 }}>
-        <div style={{ fontSize: 22, fontWeight: 700, color: '#fff', letterSpacing: '-0.02em' }}>
-          space<span style={{ color: '#db95ab', fontWeight: 300 }}>book</span>
+        <div style={{ fontSize: 22, fontWeight: 500, color: '#fff', letterSpacing: '0.02em', fontFamily: "'Spectral', Georgia, serif" }}>
+          space<span style={{ fontStyle: 'italic', fontWeight: 400 }}>book</span>
         </div>
         <p style={{ fontSize: 14, color: 'rgba(255,255,255,0.45)', margin: 0 }}>
           This invite link is invalid.
@@ -69,9 +69,10 @@ export default function EnterTokenPage() {
 
   return (
     <div style={{ height: '100vh', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', background: '#090d18', fontFamily: 'system-ui, sans-serif' }}>
+      <style dangerouslySetInnerHTML={{ __html: `@import url('https://fonts.googleapis.com/css2?family=Spectral:ital,wght@0,400;0,500;1,400&display=swap');` }} />
       <div style={{ width: '100%', maxWidth: 340, padding: '0 24px' }}>
-        <div style={{ fontSize: 22, fontWeight: 700, color: '#fff', letterSpacing: '-0.02em', textAlign: 'center', marginBottom: 8 }}>
-          space<span style={{ color: '#db95ab', fontWeight: 300 }}>book</span>
+        <div style={{ fontSize: 22, fontWeight: 500, color: '#fff', letterSpacing: '0.02em', textAlign: 'center', marginBottom: 8, fontFamily: "'Spectral', Georgia, serif" }}>
+          space<span style={{ fontStyle: 'italic', fontWeight: 400 }}>book</span>
         </div>
         <p style={{ fontSize: 13, color: 'rgba(255,255,255,0.45)', textAlign: 'center', margin: '0 0 28px' }}>
           Enter your details to get access
@@ -97,7 +98,7 @@ export default function EnterTokenPage() {
           <button
             type="submit"
             disabled={submitting || !name.trim() || !email.trim()}
-            style={{ marginTop: 4, padding: '11px 0', borderRadius: 8, border: 'none', background: '#db95ab', color: '#fff', fontSize: 14, fontWeight: 500, cursor: submitting ? 'default' : 'pointer', opacity: submitting ? 0.7 : 1, fontFamily: 'inherit' }}>
+            style={{ marginTop: 4, padding: '11px 0', borderRadius: 0, border: 'none', background: '#db95ab', color: '#fff', fontSize: 14, fontWeight: 500, cursor: submitting ? 'default' : 'pointer', opacity: submitting ? 0.7 : 1, fontFamily: 'inherit' }}>
             {submitting ? 'Entering…' : 'Enter workspace'}
           </button>
         </form>
