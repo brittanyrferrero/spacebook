@@ -1,0 +1,212 @@
+
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --sage:#5C7A6B;--sage-light:#E8F0EC;--sage-mid:#A8C4B4;
+  --rose:#C4878A;--rose-light:#F5E8E8;
+  --navy:#2C3E6B;--navy-light:#E8EBF4;
+  --gray:#6B7280;--gray-light:#F4F4F2;
+  --free:#3B7A4A;--busy:#B94040;
+}
+body{background:#fff;font-family:var(--font-sans)}
+.admin{background:#F8F8F6;border:0.5px solid #E0E4E8;border-radius:12px;overflow:hidden}
+.topbar{background:#fff;border-bottom:0.5px solid #E0E4E8;padding:11px 18px;display:flex;align-items:center;justify-content:space-between}
+.logo{font-size:14px;font-weight:500;color:var(--navy)}
+.logo span{color:var(--sage);font-weight:400}
+.date-filter{display:flex;align-items:center;gap:6px;position:relative}
+.preset-btn{font-size:12px;padding:5px 10px;border-radius:20px;border:0.5px solid #C8CDD4;background:#fff;cursor:pointer;color:var(--gray);white-space:nowrap}
+.preset-btn:hover,.preset-btn.active{background:var(--navy-light);border-color:var(--navy);color:var(--navy)}
+.custom-btn{font-size:12px;padding:5px 10px;border-radius:20px;border:0.5px solid var(--navy);background:var(--navy-light);color:var(--navy);cursor:pointer;white-space:nowrap}
+.custom-btn.active{background:var(--navy);color:#fff}
+.date-range-pop{display:none;position:absolute;top:36px;right:0;background:#fff;border:0.5px solid #E0E4E8;border-radius:10px;padding:14px;width:320px;z-index:10}
+.date-range-pop.show{display:block}
+.drp-row{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:10px}
+.drp-group{display:flex;flex-direction:column;gap:4px}
+.drp-label{font-size:11px;color:var(--gray);font-weight:500}
+.drp-group input{font-size:13px}
+.drp-actions{display:flex;justify-content:flex-end;gap:6px}
+.drp-apply{background:var(--navy);color:#fff;border:none;border-radius:8px;padding:6px 14px;font-size:12px;cursor:pointer}
+.drp-cancel{background:none;border:0.5px solid #C8CDD4;border-radius:8px;padding:6px 12px;font-size:12px;cursor:pointer;color:var(--gray)}
+.export-btn{font-size:12px;padding:6px 12px;border-radius:8px;border:none;background:var(--sage);color:#fff;cursor:pointer;white-space:nowrap}
+.export-btn:hover{background:#4A6558}
+.body{display:grid;grid-template-columns:150px 1fr}
+.nav{background:#fff;border-right:0.5px solid #E0E4E8;padding:12px}
+.nav-item{font-size:13px;padding:7px 9px;border-radius:8px;cursor:pointer;color:var(--gray);margin-bottom:2px}
+.nav-item:hover,.nav-item.active{background:#F4F4F2;color:#374151}
+.main{padding:16px 18px}
+.metrics{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-bottom:14px}
+.metric{background:#fff;border-radius:8px;padding:11px;border:0.5px solid #E8E8E8}
+.metric-label{font-size:11px;color:#9CA3AF;margin-bottom:3px}
+.metric-val{font-size:21px;font-weight:500;color:var(--navy)}
+.metric-delta{font-size:11px;margin-top:2px}
+.up{color:var(--free)}.dn{color:var(--busy)}.neu{color:#9CA3AF}
+.charts{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:14px}
+.card{background:#fff;border:0.5px solid #E8E8E8;border-radius:10px;padding:13px}
+.card-title{font-size:12px;font-weight:500;color:#374151;margin-bottom:10px}
+.bar-chart{display:flex;align-items:flex-end;gap:5px;height:80px}
+.bw{display:flex;flex-direction:column;align-items:center;gap:3px;flex:1}
+.bar{border-radius:3px 3px 0 0;width:100%}
+.bl{font-size:10px;color:#9CA3AF;text-align:center}
+.heatmap-grid{display:grid;grid-template-columns:repeat(9,1fr);gap:2px;margin-bottom:3px}
+.hm{height:20px;border-radius:3px}
+.hm-lbl-grid{display:grid;grid-template-columns:repeat(9,1fr);gap:2px}
+.hm-l{font-size:10px;color:#9CA3AF;text-align:center}
+.tbl-wrap{background:#fff;border:0.5px solid #E8E8E8;border-radius:10px;overflow:hidden}
+.tbl{width:100%;border-collapse:collapse;font-size:12px;table-layout:fixed}
+.tbl th{background:#F8F8F6;padding:8px 12px;text-align:left;font-size:11px;font-weight:500;color:#9CA3AF;border-bottom:0.5px solid #E8E8E8}
+.tbl td{padding:8px 12px;border-bottom:0.5px solid #F0F0EE;color:#374151}
+.tbl tr:last-child td{border-bottom:none}
+.tbl tr:hover td{background:#FAFAFA}
+.sdot{width:7px;height:7px;border-radius:50%;display:inline-block;margin-right:5px}
+.eb{font-size:11px;padding:3px 7px;border-radius:6px;border:0.5px solid #C8CDD4;background:none;cursor:pointer;color:var(--gray)}
+.eb:hover{background:#F4F4F2}
+.tog{width:30px;height:17px;border-radius:9px;border:none;cursor:pointer;position:relative;transition:background .2s}
+.tog.on{background:var(--sage)}.tog.off{background:#C8CDD4}
+.tog::after{content:'';position:absolute;width:11px;height:11px;border-radius:50%;background:#fff;top:3px;transition:left .2s}
+.tog.on::after{left:16px}.tog.off::after{left:3px}
+.range-label{font-size:12px;color:var(--navy);background:var(--navy-light);padding:3px 10px;border-radius:20px;font-weight:500}
+</style>
+
+<div class="admin">
+  <div class="topbar">
+    <div class="logo">space<span>desk</span> <span style="font-size:12px;color:#9CA3AF;margin-left:4px">admin</span></div>
+    <div class="date-filter">
+      <button class="preset-btn" onclick="setPreset(this,'Last 7 days')">7 days</button>
+      <button class="preset-btn active" onclick="setPreset(this,'Last 30 days')">30 days</button>
+      <button class="preset-btn" onclick="setPreset(this,'This month')">This month</button>
+      <button class="preset-btn" onclick="setPreset(this,'This quarter')">Quarter</button>
+      <button class="custom-btn" id="custom-btn" onclick="toggleDatePop()">Custom range</button>
+      <div class="date-range-pop" id="drp">
+        <div style="font-size:13px;font-weight:500;color:var(--navy);margin-bottom:10px">Custom date range</div>
+        <div class="drp-row">
+          <div class="drp-group"><label class="drp-label">From</label><input type="date" id="from-date" value="2026-03-01"></div>
+          <div class="drp-group"><label class="drp-label">To</label><input type="date" id="to-date" value="2026-04-27"></div>
+        </div>
+        <div style="font-size:11px;color:#9CA3AF;margin-bottom:10px" id="range-days-hint">58 days selected</div>
+        <div class="drp-actions">
+          <button class="drp-cancel" onclick="closeDatePop()">Cancel</button>
+          <button class="drp-apply" onclick="applyCustom()">Apply</button>
+        </div>
+      </div>
+    </div>
+    <button class="export-btn" onclick="alert('Exporting CSV…')">Export CSV</button>
+  </div>
+  <div class="body">
+    <div class="nav">
+      <div class="nav-item active">Overview</div>
+      <div class="nav-item">Bookings</div>
+      <div class="nav-item">Rooms</div>
+      <div class="nav-item">Settings</div>
+    </div>
+    <div class="main">
+      <div style="display:flex;align-items:center;gap:8px;margin-bottom:12px">
+        <span style="font-size:12px;color:#9CA3AF">Showing data for</span>
+        <span class="range-label" id="active-range-label">Last 30 days</span>
+      </div>
+      <div class="metrics">
+        <div class="metric"><div class="metric-label">Total bookings</div><div class="metric-val" id="m1">284</div><div class="metric-delta up">+12% vs prior</div></div>
+        <div class="metric"><div class="metric-label">Hours booked</div><div class="metric-val" id="m2">412</div><div class="metric-delta up">+8% vs prior</div></div>
+        <div class="metric"><div class="metric-label">Avg. duration</div><div class="metric-val">1.4h</div><div class="metric-delta neu">No change</div></div>
+        <div class="metric"><div class="metric-label">Utilisation</div><div class="metric-val">68%</div><div class="metric-delta dn">-3% vs prior</div></div>
+      </div>
+      <div class="charts">
+        <div class="card">
+          <div class="card-title">Bookings by room</div>
+          <div class="bar-chart" id="room-bars"></div>
+        </div>
+        <div class="card">
+          <div class="card-title">Busiest hours</div>
+          <div class="heatmap-grid" id="hm"></div>
+          <div class="hm-lbl-grid" id="hm-lbl"></div>
+        </div>
+      </div>
+      <div style="font-size:12px;font-weight:500;margin-bottom:8px;color:#374151">Room management</div>
+      <div class="tbl-wrap">
+        <table class="tbl">
+          <thead><tr>
+            <th style="width:24%">Room</th><th style="width:13%">Capacity</th>
+            <th style="width:16%">Bookings</th><th style="width:16%">Utilisation</th>
+            <th style="width:14%">Active</th><th style="width:17%">Actions</th>
+          </tr></thead>
+          <tbody id="tbl-body"></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+const rooms=[
+  {name:'The Nook',cap:4,b:61,u:72,on:true},
+  {name:'The Loft',cap:8,b:54,u:64,on:true},
+  {name:'Greenhouse',cap:6,b:48,u:57,on:true},
+  {name:'Boardroom',cap:12,b:38,u:45,on:true},
+  {name:'Studio A',cap:3,b:52,u:62,on:true},
+  {name:'The Pod',cap:2,b:31,u:37,on:false},
+];
+const hours=['8am','9am','10am','11am','12pm','1pm','2pm','3pm','4pm'];
+const heat=[2,6,9,8,5,7,10,6,3];
+const sageHex='#5C7A6B';
+
+function buildCharts(){
+  const mb=Math.max(...rooms.map(r=>r.b));
+  const bc=document.getElementById('room-bars');
+  bc.innerHTML=rooms.map(r=>{
+    const h=Math.round(r.b/mb*75);
+    return `<div class="bw"><div class="bar" style="height:${h}px;background:${r.on?sageHex:'#C8D8CC'}"></div><div class="bl">${r.name.split(' ').pop()}</div></div>`;
+  }).join('');
+  const maxH=Math.max(...heat);
+  document.getElementById('hm').innerHTML=heat.map((v,i)=>`<div class="hm" style="background:${sageHex};opacity:${(0.15+0.85*(v/maxH)).toFixed(2)}" title="${hours[i]}: ${v}"></div>`).join('');
+  document.getElementById('hm-lbl').innerHTML=hours.map(h=>`<div class="hm-l">${h}</div>`).join('');
+}
+
+function buildTable(){
+  document.getElementById('tbl-body').innerHTML=rooms.map((r,i)=>{
+    const dc=r.on?(r.u>60?'#3B7A4A':'#8A6A20'):'#B94040';
+    return `<tr><td><span class="sdot" style="background:${dc}"></span>${r.name}</td><td>${r.cap} people</td><td>${r.b}</td><td>${r.u}%</td>
+    <td><button class="tog ${r.on?'on':'off'}" id="t${i}" onclick="togRoom(${i})"></button></td>
+    <td><button class="eb" onclick="alert('Edit: ${r.name}')">Edit</button></td></tr>`;
+  }).join('');
+}
+
+function togRoom(i){rooms[i].on=!rooms[i].on;buildTable();buildCharts();}
+
+function setPreset(btn,label){
+  document.querySelectorAll('.preset-btn').forEach(b=>b.classList.remove('active'));
+  document.getElementById('custom-btn').classList.remove('active');
+  btn.classList.add('active');
+  document.getElementById('active-range-label').textContent=label;
+  closeDatePop();
+}
+
+let popOpen=false;
+function toggleDatePop(){
+  popOpen=!popOpen;
+  document.getElementById('drp').classList.toggle('show',popOpen);
+  document.getElementById('custom-btn').classList.toggle('active',popOpen);
+}
+function closeDatePop(){popOpen=false;document.getElementById('drp').classList.remove('show');document.getElementById('custom-btn').classList.remove('active');}
+
+function applyCustom(){
+  const f=document.getElementById('from-date').value;
+  const t=document.getElementById('to-date').value;
+  if(!f||!t)return;
+  const d1=new Date(f),d2=new Date(t);
+  const days=Math.round((d2-d1)/86400000)+1;
+  const fmt=d=>new Date(d).toLocaleDateString([],{day:'numeric',month:'short'});
+  document.getElementById('active-range-label').textContent=fmt(f)+' – '+fmt(t)+' ('+days+'d)';
+  document.querySelectorAll('.preset-btn').forEach(b=>b.classList.remove('active'));
+  document.getElementById('custom-btn').classList.add('active');
+  closeDatePop();
+}
+
+document.getElementById('from-date').addEventListener('change',updateDayHint);
+document.getElementById('to-date').addEventListener('change',updateDayHint);
+function updateDayHint(){
+  const f=document.getElementById('from-date').value;
+  const t=document.getElementById('to-date').value;
+  if(f&&t){const days=Math.round((new Date(t)-new Date(f))/86400000)+1;document.getElementById('range-days-hint').textContent=days>0?days+' days selected':'Invalid range';}
+}
+
+buildCharts();buildTable();
+</script>

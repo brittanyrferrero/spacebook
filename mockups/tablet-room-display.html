@@ -1,0 +1,232 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Room Display — The Nook</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --sage:#5C7A6B;--sage-light:#E8F0EC;
+  --rose:#C4878A;--navy:#2C3E6B;--navy-light:#E8EBF4;
+  --free-bg:#E8F4EC;--free-text:#1E5C30;--free-bar:#3B7A4A;
+  --busy-bg:#FAEAEA;--busy-text:#8B2020;--busy-bar:#B94040;
+}
+body{background:#F4F4F2;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;display:flex;align-items:center;justify-content:center;min-height:100vh;padding:20px}
+.tablet-frame{border-radius:14px;overflow:hidden;border:0.5px solid #D0D4D8;max-width:900px;width:100%;background:#fff;box-shadow:0 2px 16px rgba(0,0,0,0.08)}
+.clock-bar{background:var(--navy);padding:8px 28px;display:flex;justify-content:space-between;align-items:center}
+.clock-time{font-size:16px;font-weight:500;color:#fff}
+.clock-date{font-size:13px;color:rgba(255,255,255,0.65)}
+.status-band{padding:32px 32px 26px;display:flex;align-items:center;justify-content:space-between;transition:background .4s}
+.status-band.free{background:var(--free-bg)}
+.status-band.busy{background:var(--busy-bg)}
+.status-left{display:flex;align-items:center;gap:22px}
+.status-icon{width:64px;height:64px;border-radius:50%;display:flex;align-items:center;justify-content:center;flex-shrink:0;transition:background .4s}
+.status-icon.free{background:#C6E8CC}
+.status-icon.busy{background:#F5C0C0}
+.status-icon svg{width:32px;height:32px}
+.status-big{font-size:36px;font-weight:500;line-height:1;transition:color .4s}
+.status-big.free{color:var(--free-text)}
+.status-big.busy{color:var(--busy-text)}
+.status-until{font-size:15px;margin-top:6px;transition:color .4s}
+.status-until.free{color:#3B7A4A}
+.status-until.busy{color:#B94040}
+.room-name-right{text-align:right}
+.rn-big{font-size:24px;font-weight:500;color:var(--navy)}
+.rn-sub{font-size:13px;color:#6B7280;margin-top:3px}
+.schedule-section{background:#fff;padding:20px 32px}
+.sched-header{font-size:11px;font-weight:500;text-transform:uppercase;letter-spacing:.06em;color:#9CA3AF;margin-bottom:12px}
+.sched-row{display:flex;align-items:center;gap:14px;padding:9px 0;border-bottom:0.5px solid #F0F0EE}
+.sched-row:last-child{border-bottom:none}
+.sched-bar{width:4px;height:30px;border-radius:2px;flex-shrink:0}
+.sched-bar.free{background:#A8C4B0}
+.sched-bar.busy{background:#E0B0B2}
+.sched-bar.now{background:var(--navy)}
+.sched-time{font-size:13px;color:#6B7280;min-width:130px;font-variant-numeric:tabular-nums}
+.sched-status{font-size:13px;color:#374151}
+.free-tag{font-size:11px;background:var(--free-bg);color:var(--free-text);padding:2px 9px;border-radius:10px;margin-left:auto}
+.busy-tag{font-size:11px;background:var(--busy-bg);color:var(--busy-text);padding:2px 9px;border-radius:10px;margin-left:auto}
+.action-section{background:#FAFAFA;border-top:0.5px solid #E8E8E8;padding:18px 32px;display:flex;align-items:center;justify-content:space-between}
+.action-hint{font-size:13px;color:#9CA3AF}
+.action-btns{display:flex;gap:10px}
+.btn-book-now{background:var(--sage);color:#fff;border:none;border-radius:8px;padding:11px 24px;font-size:15px;font-weight:500;cursor:pointer;transition:opacity .15s}
+.btn-book-now:hover{opacity:.88}
+.btn-later{background:#fff;border:0.5px solid #C8CDD4;border-radius:8px;padding:11px 20px;font-size:14px;cursor:pointer;color:#6B7280;transition:background .15s}
+.btn-later:hover{background:#F4F4F2}
+.modal-overlay{display:none;position:fixed;inset:0;background:rgba(44,62,107,0.38);align-items:center;justify-content:center;z-index:100}
+.modal-overlay.show{display:flex}
+.modal{background:#fff;border-radius:14px;padding:28px;width:320px;border:0.5px solid #E0E4E8}
+.modal-title{font-size:16px;font-weight:500;margin-bottom:16px;color:var(--navy)}
+.mrow{display:flex;flex-direction:column;gap:5px;margin-bottom:12px}
+.mlabel{font-size:12px;color:#6B7280;font-weight:500}
+.mrow input,.mrow select{font-size:14px;padding:8px 10px;border:0.5px solid #C8CDD4;border-radius:8px;outline:none;font-family:inherit}
+.mrow input:focus,.mrow select:focus{border-color:var(--sage);box-shadow:0 0 0 2px var(--sage-light)}
+.modal-actions{display:flex;gap:8px;margin-top:16px}
+.mc{background:var(--sage);color:#fff;border:none;border-radius:8px;padding:10px;font-size:14px;font-weight:500;cursor:pointer;flex:1;font-family:inherit}
+.mc:hover{background:#4A6558}
+.mx{background:none;border:0.5px solid #C8CDD4;border-radius:8px;padding:10px;font-size:14px;cursor:pointer;color:#6B7280;flex:1;font-family:inherit}
+.mx:hover{background:#F4F4F2}
+.demo-bar{background:#fff;border-top:0.5px solid #E0E4E8;padding:10px 20px;display:flex;align-items:center;justify-content:center;gap:10px}
+.demo-label{font-size:11px;color:#9CA3AF;margin-right:4px}
+.tog-btn{font-size:12px;padding:5px 14px;border-radius:20px;border:0.5px solid #C8CDD4;background:#fff;cursor:pointer;color:#6B7280;font-family:inherit}
+.tog-btn:hover{background:var(--sage-light);border-color:var(--sage);color:var(--sage)}
+</style>
+</head>
+<body>
+
+<div class="tablet-frame">
+
+  <div class="clock-bar">
+    <span class="clock-time" id="clock-t"></span>
+    <span class="clock-date" id="clock-d"></span>
+  </div>
+
+  <div class="status-band free" id="status-band">
+    <div class="status-left">
+      <div class="status-icon free" id="status-icon">
+        <svg viewBox="0 0 28 28" fill="none" id="status-svg">
+          <circle cx="14" cy="14" r="11" stroke="#3B7A4A" stroke-width="2"/>
+          <path d="M9 14.5l3.5 3.5 6.5-7" stroke="#3B7A4A" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/>
+        </svg>
+      </div>
+      <div>
+        <div class="status-big free" id="status-big">Available</div>
+        <div class="status-until free" id="status-until">Free until 11:00 AM</div>
+      </div>
+    </div>
+    <div class="room-name-right">
+      <div class="rn-big">The Nook</div>
+      <div class="rn-sub">4 people · Whiteboard, TV</div>
+    </div>
+  </div>
+
+  <div class="schedule-section">
+    <div class="sched-header">Today's schedule</div>
+    <div class="sched-row">
+      <div class="sched-bar busy"></div>
+      <div class="sched-time">9:00 – 9:30 AM</div>
+      <div class="sched-status" style="color:#9CA3AF">Occupied</div>
+      <div class="busy-tag">30 min</div>
+    </div>
+    <div class="sched-row">
+      <div class="sched-bar free"></div>
+      <div class="sched-time">9:30 – 11:00 AM</div>
+      <div class="sched-status" style="color:#3B7A4A">Free</div>
+      <div class="free-tag">90 min</div>
+    </div>
+    <div class="sched-row">
+      <div class="sched-bar now"></div>
+      <div class="sched-time">11:00 – 11:30 AM</div>
+      <div class="sched-status" style="color:#2C3E6B;font-weight:500">Occupied</div>
+      <div class="busy-tag">30 min</div>
+    </div>
+    <div class="sched-row">
+      <div class="sched-bar free"></div>
+      <div class="sched-time">11:30 AM – 1:30 PM</div>
+      <div class="sched-status" style="color:#3B7A4A">Free</div>
+      <div class="free-tag">2 hrs</div>
+    </div>
+    <div class="sched-row">
+      <div class="sched-bar busy"></div>
+      <div class="sched-time">1:30 – 3:00 PM</div>
+      <div class="sched-status" style="color:#9CA3AF">Occupied</div>
+      <div class="busy-tag">1.5 hrs</div>
+    </div>
+    <div class="sched-row">
+      <div class="sched-bar free"></div>
+      <div class="sched-time">3:00 – 5:00 PM</div>
+      <div class="sched-status" style="color:#3B7A4A">Free</div>
+      <div class="free-tag">2 hrs</div>
+    </div>
+  </div>
+
+  <div class="action-section">
+    <div class="action-hint" id="action-hint">Room is free — book it now or schedule ahead</div>
+    <div class="action-btns" id="action-btns">
+      <button class="btn-book-now" onclick="openModal('now')">Book now</button>
+      <button class="btn-later" onclick="openModal('later')">Schedule for later</button>
+    </div>
+  </div>
+
+  <div class="demo-bar">
+    <span class="demo-label">Preview:</span>
+    <button class="tog-btn" onclick="setStatus('free')">Show as free</button>
+    <button class="tog-btn" onclick="setStatus('busy')">Show as occupied</button>
+  </div>
+
+</div>
+
+<div class="modal-overlay" id="modal-overlay">
+  <div class="modal">
+    <div class="modal-title" id="modal-title">Book now — The Nook</div>
+    <div class="mrow"><label class="mlabel">Your name</label><input type="text" placeholder="e.g. Jamie Lee"></div>
+    <div class="mrow"><label class="mlabel">Email</label><input type="email" placeholder="you@example.com"></div>
+    <div class="mrow" id="time-field" style="display:none"><label class="mlabel">Start time</label><input type="time" value="14:00"></div>
+    <div class="mrow">
+      <label class="mlabel">Duration</label>
+      <select>
+        <option>30 minutes</option>
+        <option selected>1 hour</option>
+        <option>1.5 hours</option>
+        <option>2 hours</option>
+      </select>
+    </div>
+    <div class="modal-actions">
+      <button class="mx" onclick="closeModal()">Cancel</button>
+      <button class="mc" onclick="closeModal()">Confirm booking</button>
+    </div>
+  </div>
+</div>
+
+<script>
+function tick() {
+  const n = new Date();
+  document.getElementById('clock-t').textContent = n.toLocaleTimeString([], {hour: '2-digit', minute: '2-digit'});
+  document.getElementById('clock-d').textContent = n.toLocaleDateString([], {weekday: 'long', day: 'numeric', month: 'long', year: 'numeric'});
+}
+tick();
+setInterval(tick, 1000);
+
+function setStatus(s) {
+  const band = document.getElementById('status-band');
+  const icon = document.getElementById('status-icon');
+  const big = document.getElementById('status-big');
+  const until = document.getElementById('status-until');
+  const hint = document.getElementById('action-hint');
+  const btns = document.getElementById('action-btns');
+  const svg = document.getElementById('status-svg');
+  if (s === 'free') {
+    band.className = 'status-band free';
+    icon.className = 'status-icon free';
+    big.className = 'status-big free'; big.textContent = 'Available';
+    until.className = 'status-until free'; until.textContent = 'Free until 11:00 AM';
+    hint.textContent = 'Room is free — book it now or schedule ahead';
+    btns.innerHTML = '<button class="btn-book-now" onclick="openModal(\'now\')">Book now</button><button class="btn-later" onclick="openModal(\'later\')">Schedule for later</button>';
+    svg.innerHTML = '<circle cx="14" cy="14" r="11" stroke="#3B7A4A" stroke-width="2"/><path d="M9 14.5l3.5 3.5 6.5-7" stroke="#3B7A4A" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/>';
+  } else {
+    band.className = 'status-band busy';
+    icon.className = 'status-icon busy';
+    big.className = 'status-big busy'; big.textContent = 'In Use';
+    until.className = 'status-until busy'; until.textContent = 'Free from 11:30 AM';
+    hint.textContent = 'This room is currently occupied';
+    btns.innerHTML = '<button class="btn-later" onclick="openModal(\'later\')">Schedule for later</button>';
+    svg.innerHTML = '<circle cx="14" cy="14" r="11" stroke="#B94040" stroke-width="2"/><path d="M9.5 9.5l9 9M18.5 9.5l-9 9" stroke="#B94040" stroke-width="2.2" stroke-linecap="round"/>';
+  }
+}
+
+function openModal(type) {
+  document.getElementById('modal-overlay').classList.add('show');
+  document.getElementById('modal-title').textContent = (type === 'now' ? 'Book now' : 'Schedule for later') + ' — The Nook';
+  document.getElementById('time-field').style.display = type === 'later' ? 'flex' : 'none';
+}
+
+function closeModal() {
+  document.getElementById('modal-overlay').classList.remove('show');
+}
+
+document.getElementById('modal-overlay').addEventListener('click', function(e) {
+  if (e.target === this) closeModal();
+});
+</script>
+</body>
+</html>

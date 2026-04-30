@@ -1,0 +1,267 @@
+
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --sage:#5C7A6B;--sage-light:#E8F0EC;--sage-mid:#A8C4B4;
+  --rose:#C4878A;--rose-light:#F5E8E8;--rose-mid:#E0B0B2;
+  --navy:#2C3E6B;--navy-light:#E8EBF4;--navy-mid:#8A9BC4;
+  --gray:#6B7280;--gray-light:#F4F4F2;--gray-mid:#C8CDD4;
+  --free:#3B7A4A;--free-bg:#E6F4EA;--busy:#B94040;--busy-bg:#FAEAEA;--soon:#8A6A20;--soon-bg:#FBF3E0;
+  --accent:#5C7A6B;
+}
+body{background:#fff;font-family:var(--font-sans)}
+.app{background:#fff;border:0.5px solid #E0E4E8;border-radius:12px;overflow:hidden}
+.topbar{background:#fff;border-bottom:0.5px solid #E0E4E8;padding:12px 20px;display:flex;align-items:center;justify-content:space-between}
+.logo{font-size:15px;font-weight:500;color:var(--navy)}
+.logo span{color:var(--sage);font-weight:400}
+.date-controls{display:flex;align-items:center;gap:8px}
+.nav-btn{background:none;border:0.5px solid #C8CDD4;border-radius:8px;padding:5px 10px;cursor:pointer;font-size:12px;color:var(--gray)}
+.nav-btn:hover{background:#F4F4F2}
+.date-display{font-size:13px;font-weight:500;color:var(--navy);min-width:130px;text-align:center}
+.datepicker-btn{font-size:12px;padding:5px 10px;border:0.5px solid var(--navy-mid);border-radius:8px;background:var(--navy-light);color:var(--navy);cursor:pointer}
+.datepicker-btn:hover{background:#D8DCF0}
+.top-right{font-size:12px;color:var(--gray)}
+.main{display:grid;grid-template-columns:210px 1fr}
+.sidebar{background:#FAFAFA;border-right:0.5px solid #E0E4E8;padding:14px}
+.sidebar-label{font-size:11px;font-weight:500;text-transform:uppercase;letter-spacing:.05em;color:#9CA3AF;margin-bottom:8px}
+.room-item{display:flex;align-items:center;gap:8px;padding:7px 9px;border-radius:8px;cursor:pointer;margin-bottom:3px}
+.room-item:hover,.room-item.active{background:#fff;border:0.5px solid #E0E4E8}
+.room-item:not(.active):not(:hover){border:0.5px solid transparent}
+.dot{width:8px;height:8px;border-radius:50%;flex-shrink:0}
+.dot.free{background:var(--free)}.dot.busy{background:var(--busy)}.dot.soon{background:var(--soon)}
+.room-name{font-size:13px;color:#374151;flex:1}
+.room-cap{font-size:11px;color:#9CA3AF}
+.content{padding:18px 22px;background:#fff}
+.room-header{display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:16px}
+.room-title{font-size:18px;font-weight:500;color:var(--navy)}
+.room-meta{font-size:12px;color:var(--gray);margin-top:2px}
+.badge{display:inline-flex;align-items:center;gap:6px;padding:5px 12px;border-radius:20px;font-size:12px;font-weight:500}
+.badge.free{background:var(--free-bg);color:var(--free)}
+.badge.busy{background:var(--busy-bg);color:var(--busy)}
+.badge.soon{background:var(--soon-bg);color:var(--soon)}
+.book-btn{background:var(--sage);color:#fff;border:none;border-radius:8px;padding:8px 16px;font-size:13px;font-weight:500;cursor:pointer}
+.book-btn:hover{background:#4A6558}
+.timeline{background:#FAFAFA;border:0.5px solid #E0E4E8;border-radius:10px;padding:14px;margin-bottom:14px}
+.tl-label{font-size:11px;color:#9CA3AF;margin-bottom:8px}
+.tl-grid{position:relative;height:36px}
+.tl-track{height:7px;background:#EBEBEB;border-radius:4px;position:absolute;top:14px;left:0;right:0}
+.tl-block{position:absolute;height:7px;top:14px;border-radius:4px}
+.tl-block.busy{background:var(--rose-mid)}
+.tl-tick{position:absolute;top:26px;font-size:10px;color:#9CA3AF;transform:translateX(-50%)}
+.slots-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:7px;margin-bottom:14px}
+.slot{border:0.5px solid #E0E4E8;border-radius:8px;padding:8px;text-align:center;cursor:pointer;background:#fff;transition:all .15s}
+.slot:hover{border-color:var(--sage-mid);background:var(--sage-light)}
+.slot.taken{background:#F9F9F9;cursor:default;opacity:.5}
+.slot.selected{border-color:var(--sage);background:var(--sage-light)}
+.slot-time{font-size:12px;font-weight:500;color:#374151}
+.slot-dur{font-size:11px;color:#9CA3AF}
+.form-card{background:#FAFAFA;border:0.5px solid #E0E4E8;border-radius:10px;padding:16px}
+.form-row{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:10px}
+.form-group{display:flex;flex-direction:column;gap:4px}
+.form-label{font-size:11px;color:#6B7280;font-weight:500}
+.form-group input,.form-group select{font-size:13px;background:#fff}
+.recur-section{background:#fff;border:0.5px solid #E0E4E8;border-radius:8px;padding:12px;margin-bottom:10px}
+.recur-toggle{display:flex;align-items:center;gap:8px;cursor:pointer;margin-bottom:0}
+.recur-toggle input{accent-color:var(--sage)}
+.recur-toggle label{font-size:13px;color:#374151;cursor:pointer}
+.recur-opts{margin-top:10px;display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.confirm-row{display:flex;justify-content:flex-end;gap:8px;margin-top:12px}
+.cancel-btn{background:none;border:0.5px solid #C8CDD4;border-radius:8px;padding:7px 14px;font-size:13px;cursor:pointer;color:var(--gray)}
+.mini-cal{background:#fff;border:0.5px solid #E0E4E8;border-radius:10px;padding:12px;display:none;margin-bottom:14px}
+.mini-cal.show{display:block}
+.cal-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:10px}
+.cal-month{font-size:13px;font-weight:500;color:var(--navy)}
+.cal-nav{background:none;border:0.5px solid #E0E4E8;border-radius:6px;padding:2px 8px;cursor:pointer;font-size:12px;color:var(--gray)}
+.cal-grid{display:grid;grid-template-columns:repeat(7,1fr);gap:2px}
+.cal-dow{font-size:10px;color:#9CA3AF;text-align:center;padding:3px 0}
+.cal-day{font-size:12px;text-align:center;padding:5px 2px;border-radius:6px;cursor:pointer;color:#374151}
+.cal-day:hover{background:var(--sage-light)}
+.cal-day.today{font-weight:500;color:var(--sage)}
+.cal-day.selected{background:var(--sage);color:#fff;border-radius:6px}
+.cal-day.other{color:#C8CDD4}
+</style>
+
+<div class="app">
+  <div class="topbar">
+    <div class="logo">space<span>desk</span></div>
+    <div class="date-controls">
+      <button class="nav-btn" onclick="shiftDay(-1)">‹</button>
+      <span class="date-display" id="day-label">Mon 28 Apr</span>
+      <button class="nav-btn" onclick="shiftDay(1)">›</button>
+      <button class="datepicker-btn" onclick="toggleCal()">Pick date</button>
+    </div>
+    <div class="top-right">6 rooms · 4 free now</div>
+  </div>
+  <div class="main">
+    <div class="sidebar">
+      <div class="sidebar-label">Rooms</div>
+      <div class="room-item active" onclick="selRoom(this,'The Nook','4 people · Ground floor','free')"><div class="dot free"></div><span class="room-name">The Nook</span><span class="room-cap">4</span></div>
+      <div class="room-item" onclick="selRoom(this,'The Loft','8 people · 1st floor','busy')"><div class="dot busy"></div><span class="room-name">The Loft</span><span class="room-cap">8</span></div>
+      <div class="room-item" onclick="selRoom(this,'Greenhouse','6 people · Mezzanine','free')"><div class="dot free"></div><span class="room-name">Greenhouse</span><span class="room-cap">6</span></div>
+      <div class="room-item" onclick="selRoom(this,'Boardroom','12 people · 2nd floor','soon')"><div class="dot soon"></div><span class="room-name">Boardroom</span><span class="room-cap">12</span></div>
+      <div class="room-item" onclick="selRoom(this,'Studio A','3 people · Basement','free')"><div class="dot free"></div><span class="room-name">Studio A</span><span class="room-cap">3</span></div>
+      <div class="room-item" onclick="selRoom(this,'The Pod','2 people · Ground floor','busy')"><div class="dot busy"></div><span class="room-name">The Pod</span><span class="room-cap">2</span></div>
+      <div style="margin-top:18px;padding-top:14px;border-top:0.5px solid #E0E4E8">
+        <div class="sidebar-label">Status</div>
+        <div style="display:flex;flex-direction:column;gap:5px;font-size:12px;color:var(--gray)">
+          <div style="display:flex;align-items:center;gap:7px"><div class="dot free"></div>Available</div>
+          <div style="display:flex;align-items:center;gap:7px"><div class="dot soon"></div>Booked soon</div>
+          <div style="display:flex;align-items:center;gap:7px"><div class="dot busy"></div>In use</div>
+        </div>
+      </div>
+    </div>
+    <div class="content">
+      <div id="cal-wrap">
+        <div class="mini-cal" id="mini-cal">
+          <div class="cal-header">
+            <button class="cal-nav" onclick="shiftMonth(-1)">‹</button>
+            <span class="cal-month" id="cal-month-label"></span>
+            <button class="cal-nav" onclick="shiftMonth(1)">›</button>
+          </div>
+          <div class="cal-grid" id="cal-grid"></div>
+        </div>
+      </div>
+      <div class="room-header">
+        <div>
+          <div class="room-title" id="room-title">The Nook</div>
+          <div class="room-meta" id="room-meta">4 people · Ground floor · Whiteboard, TV</div>
+        </div>
+        <div style="display:flex;align-items:center;gap:8px">
+          <span class="badge free" id="room-badge"><span id="bdot" style="width:7px;height:7px;border-radius:50%;background:var(--free);display:inline-block"></span><span id="btext">Available</span></span>
+          <button class="book-btn">Book room</button>
+        </div>
+      </div>
+      <div class="timeline">
+        <div class="tl-label">Today's schedule</div>
+        <div class="tl-grid">
+          <div class="tl-track"></div>
+          <div class="tl-block busy" style="left:18%;width:11%"></div>
+          <div class="tl-block busy" style="left:53%;width:17%"></div>
+          <div class="tl-tick" style="left:0%">8am</div>
+          <div class="tl-tick" style="left:25%">10am</div>
+          <div class="tl-tick" style="left:50%">12pm</div>
+          <div class="tl-tick" style="left:75%">2pm</div>
+          <div class="tl-tick" style="left:100%">5pm</div>
+        </div>
+      </div>
+      <div style="font-size:13px;font-weight:500;margin-bottom:8px;color:#374151">Available slots</div>
+      <div class="slots-grid">
+        <div class="slot taken"><div class="slot-time">9:00</div><div class="slot-dur">Taken</div></div>
+        <div class="slot taken"><div class="slot-time">9:30</div><div class="slot-dur">Taken</div></div>
+        <div class="slot" onclick="pickSlot(this,'10:00')"><div class="slot-time">10:00</div><div class="slot-dur">1h free</div></div>
+        <div class="slot" onclick="pickSlot(this,'10:30')"><div class="slot-time">10:30</div><div class="slot-dur">Free</div></div>
+        <div class="slot" onclick="pickSlot(this,'11:00')"><div class="slot-time">11:00</div><div class="slot-dur">2h free</div></div>
+        <div class="slot" onclick="pickSlot(this,'11:30')"><div class="slot-time">11:30</div><div class="slot-dur">Free</div></div>
+        <div class="slot taken"><div class="slot-time">12:00</div><div class="slot-dur">Taken</div></div>
+        <div class="slot taken"><div class="slot-time">12:30</div><div class="slot-dur">Taken</div></div>
+        <div class="slot" onclick="pickSlot(this,'1:00 pm')"><div class="slot-time">1:00</div><div class="slot-dur">Free</div></div>
+        <div class="slot" onclick="pickSlot(this,'2:00 pm')"><div class="slot-time">2:00</div><div class="slot-dur">Free</div></div>
+        <div class="slot" onclick="pickSlot(this,'3:00 pm')"><div class="slot-time">3:00</div><div class="slot-dur">Free</div></div>
+        <div class="slot" onclick="pickSlot(this,'4:00 pm')"><div class="slot-time">4:00</div><div class="slot-dur">Free</div></div>
+      </div>
+      <div class="form-card">
+        <div style="font-size:13px;font-weight:500;margin-bottom:12px;color:var(--navy)">Booking details — <span id="selected-slot" style="color:var(--sage);font-weight:400">select a slot above</span></div>
+        <div class="form-row">
+          <div class="form-group"><label class="form-label">Your name</label><input type="text" placeholder="e.g. Jamie Lee"></div>
+          <div class="form-group"><label class="form-label">Email</label><input type="email" placeholder="you@example.com"></div>
+        </div>
+        <div class="form-row">
+          <div class="form-group"><label class="form-label">Duration</label>
+            <select><option>30 min</option><option selected>1 hour</option><option>1.5 hrs</option><option>2 hrs</option></select>
+          </div>
+          <div class="form-group"><label class="form-label">Purpose (optional)</label><input type="text" placeholder="e.g. Team standup"></div>
+        </div>
+        <div class="recur-section">
+          <div class="recur-toggle">
+            <input type="checkbox" id="recur-chk" onchange="toggleRecur(this.checked)">
+            <label for="recur-chk">Make this a recurring booking</label>
+          </div>
+          <div class="recur-opts" id="recur-opts" style="display:none">
+            <div class="form-group"><label class="form-label">Repeat</label>
+              <select><option>Every week</option><option>Every 2 weeks</option><option>Every month</option><option>Custom days</option></select>
+            </div>
+            <div class="form-group"><label class="form-label">End date</label><input type="date"></div>
+            <div class="form-group" style="grid-column:1/-1"><label class="form-label">Days (for weekly)</label>
+              <div style="display:flex;gap:5px;margin-top:3px" id="day-pills">
+                <span onclick="togDay(this)" style="padding:4px 9px;border-radius:20px;font-size:11px;border:0.5px solid #C8CDD4;cursor:pointer;color:var(--gray)">Mon</span>
+                <span onclick="togDay(this)" style="padding:4px 9px;border-radius:20px;font-size:11px;border:0.5px solid #C8CDD4;cursor:pointer;color:var(--gray)">Tue</span>
+                <span onclick="togDay(this)" style="padding:4px 9px;border-radius:20px;font-size:11px;border:0.5px solid #C8CDD4;cursor:pointer;color:var(--gray)">Wed</span>
+                <span onclick="togDay(this)" style="padding:4px 9px;border-radius:20px;font-size:11px;border:0.5px solid #C8CDD4;cursor:pointer;color:var(--gray)">Thu</span>
+                <span onclick="togDay(this)" style="padding:4px 9px;border-radius:20px;font-size:11px;border:0.5px solid #C8CDD4;cursor:pointer;color:var(--gray)">Fri</span>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="confirm-row">
+          <button class="cancel-btn">Clear</button>
+          <button class="book-btn">Confirm booking</button>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+let curDate=new Date(2026,3,28);
+let calDate=new Date(2026,3,1);
+let calOpen=false;
+
+const months=['January','February','March','April','May','June','July','August','September','October','November','December'];
+const dows=['Su','Mo','Tu','We','Th','Fr','Sa'];
+const dayNames=['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
+
+function fmtDate(d){return dayNames[d.getDay()]+' '+d.getDate()+' '+months[d.getMonth()].slice(0,3);}
+
+function shiftDay(n){curDate=new Date(curDate);curDate.setDate(curDate.getDate()+n);document.getElementById('day-label').textContent=fmtDate(curDate);renderCal();}
+
+function toggleCal(){calOpen=!calOpen;document.getElementById('mini-cal').classList.toggle('show',calOpen);if(calOpen)renderCal();}
+
+function shiftMonth(n){calDate=new Date(calDate);calDate.setMonth(calDate.getMonth()+n);renderCal();}
+
+function renderCal(){
+  document.getElementById('cal-month-label').textContent=months[calDate.getMonth()]+' '+calDate.getFullYear();
+  const grid=document.getElementById('cal-grid');
+  grid.innerHTML=dows.map(d=>`<div class="cal-dow">${d}</div>`).join('');
+  const first=new Date(calDate.getFullYear(),calDate.getMonth(),1).getDay();
+  const last=new Date(calDate.getFullYear(),calDate.getMonth()+1,0).getDate();
+  const prevLast=new Date(calDate.getFullYear(),calDate.getMonth(),0).getDate();
+  for(let i=0;i<first;i++)grid.innerHTML+=`<div class="cal-day other">${prevLast-first+1+i}</div>`;
+  for(let d=1;d<=last;d++){
+    const isToday=d===curDate.getDate()&&calDate.getMonth()===curDate.getMonth()&&calDate.getFullYear()===curDate.getFullYear();
+    const isSel=d===curDate.getDate()&&calDate.getMonth()===curDate.getMonth()&&calDate.getFullYear()===curDate.getFullYear();
+    grid.innerHTML+=`<div class="cal-day${isToday?' today':''}${isSel?' selected':''}" onclick="pickDay(${d})">${d}</div>`;
+  }
+  let fill=42-first-last;if(fill>6)fill-=7;
+  for(let i=1;i<=fill;i++)grid.innerHTML+=`<div class="cal-day other">${i}</div>`;
+}
+
+function pickDay(d){curDate=new Date(calDate.getFullYear(),calDate.getMonth(),d);document.getElementById('day-label').textContent=fmtDate(curDate);renderCal();}
+
+function selRoom(el,name,meta,status){
+  document.querySelectorAll('.room-item').forEach(r=>r.classList.remove('active'));
+  el.classList.add('active');
+  document.getElementById('room-title').textContent=name;
+  document.getElementById('room-meta').textContent=meta;
+  const b=document.getElementById('room-badge');
+  const bd=document.getElementById('bdot');
+  const bt=document.getElementById('btext');
+  if(status==='free'){b.className='badge free';bd.style.background='var(--free)';bt.textContent='Available';}
+  else if(status==='busy'){b.className='badge busy';bd.style.background='var(--busy)';bt.textContent='In use';}
+  else{b.className='badge soon';bd.style.background='var(--soon)';bt.textContent='Booked soon';}
+}
+
+function pickSlot(el,t){
+  document.querySelectorAll('.slot:not(.taken)').forEach(s=>s.classList.remove('selected'));
+  el.classList.add('selected');
+  document.getElementById('selected-slot').textContent='The Nook · '+t;
+}
+
+function toggleRecur(on){document.getElementById('recur-opts').style.display=on?'grid':'none';}
+
+function togDay(el){
+  const on=el.style.background==='rgb(92, 122, 107)';
+  el.style.background=on?'':el.style.color=on?'':'#fff';
+  if(on){el.style.background='';el.style.color='var(--gray)';el.style.borderColor='#C8CDD4';}
+  else{el.style.background='var(--sage)';el.style.color='#fff';el.style.borderColor='var(--sage)';}
+}
+</script>
