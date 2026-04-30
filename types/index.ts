@@ -5,6 +5,7 @@ export type RecurringFrequency = 'weekly' | 'biweekly' | 'monthly'
 export interface Room {
   id: string
   name: string
+  room_type: string | null
   capacity: number
   amenities: Amenity[]
   google_calendar_id: string | null

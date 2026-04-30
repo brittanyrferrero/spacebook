@@ -89,10 +89,11 @@ export function updateRoom(store: MockStore, id: string, patch: Partial<Pick<Roo
   return room
 }
 
-export function createRoom(store: MockStore, data: { name: string; capacity: number; amenities: Room['amenities'] }): Room {
+export function createRoom(store: MockStore, data: { name: string; room_type?: string | null; capacity: number; amenities: Room['amenities'] }): Room {
   const room: Room = {
     id: uid(),
     name: data.name,
+    room_type: data.room_type ?? null,
     capacity: data.capacity,
     amenities: data.amenities,
     google_calendar_id: null,

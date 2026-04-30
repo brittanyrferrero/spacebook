@@ -667,6 +667,7 @@ export default function RoomDisplayPage({ params }: { params: { roomId: string }
                 )}
                 <div style={{ borderTop: `1px solid ${isFree ? '#b8d8bf' : 'rgba(255,255,255,0.25)'}`, paddingTop: 14 }}>
                   <div style={{ fontSize: 14, fontWeight: 500, color: isFree ? NAVY : '#fff' }}>{room?.name ?? '—'}</div>
+                  {room?.room_type && <div style={{ fontSize: 11, color: isFree ? '#9CA3AF' : 'rgba(255,255,255,0.6)', marginTop: 1 }}>{room.room_type}</div>}
                   <div style={{ fontSize: 11, color: isFree ? '#6B7280' : 'rgba(255,255,255,0.85)', marginTop: 3 }}>{room?.capacity} people</div>
                   <div style={{ fontSize: 11, color: isFree ? '#9CA3AF' : 'rgba(255,255,255,0.75)', marginTop: 2 }}>{room?.amenities.join(', ')}</div>
                 </div>

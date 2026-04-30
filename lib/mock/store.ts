@@ -22,12 +22,12 @@ function t(dayOffset: number, h: number, m = 0): string {
 }
 
 const ROOMS: Room[] = [
-  { id: 'r1', name: 'Birch',   capacity: 4,  amenities: ['Whiteboard', 'TV'],                       google_calendar_id: null, display_order: 1, is_active: true,  created_at: new Date().toISOString() },
-  { id: 'r2', name: 'Cedar',   capacity: 8,  amenities: ['TV', 'Video conferencing'],                google_calendar_id: null, display_order: 2, is_active: true,  created_at: new Date().toISOString() },
-  { id: 'r3', name: 'Willow',  capacity: 6,  amenities: ['Natural light', 'Whiteboard'],             google_calendar_id: null, display_order: 3, is_active: true,  created_at: new Date().toISOString() },
-  { id: 'r4', name: 'Redwood', capacity: 12, amenities: ['TV', 'Whiteboard', 'Video conferencing'], google_calendar_id: null, display_order: 4, is_active: true,  created_at: new Date().toISOString() },
-  { id: 'r5', name: 'Spruce',  capacity: 3,  amenities: ['Whiteboard'],                              google_calendar_id: null, display_order: 5, is_active: true,  created_at: new Date().toISOString() },
-  { id: 'r6', name: 'Fern',    capacity: 2,  amenities: ['TV'],                                      google_calendar_id: null, display_order: 6, is_active: false, created_at: new Date().toISOString() },
+  { id: 'r1', name: 'Lovelace', room_type: 'Meeting Room',   capacity: 4,  amenities: ['Whiteboard', 'TV'],                       google_calendar_id: null, display_order: 1, is_active: true,  created_at: new Date().toISOString() },
+  { id: 'r2', name: 'Turing',   room_type: 'Conference Room', capacity: 8,  amenities: ['TV', 'Video conferencing'],                google_calendar_id: null, display_order: 2, is_active: true,  created_at: new Date().toISOString() },
+  { id: 'r3', name: 'Hopper',   room_type: 'Meeting Room',   capacity: 6,  amenities: ['Natural light', 'Whiteboard'],             google_calendar_id: null, display_order: 3, is_active: true,  created_at: new Date().toISOString() },
+  { id: 'r4', name: 'Dijkstra', room_type: 'Boardroom',      capacity: 12, amenities: ['TV', 'Whiteboard', 'Video conferencing'], google_calendar_id: null, display_order: 4, is_active: true,  created_at: new Date().toISOString() },
+  { id: 'r5', name: 'Shannon',  room_type: 'Focus Room',     capacity: 3,  amenities: ['Whiteboard'],                              google_calendar_id: null, display_order: 5, is_active: true,  created_at: new Date().toISOString() },
+  { id: 'r6', name: 'Babbage',  room_type: 'Phone Booth',    capacity: 2,  amenities: ['TV'],                                      google_calendar_id: null, display_order: 6, is_active: false, created_at: new Date().toISOString() },
 ]
 
 function bk(id: string, roomId: string, name: string, email: string, title: string, dayOffset: number, startH: number, endH: number, startM = 0, endM = 0): Booking {

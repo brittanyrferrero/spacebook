@@ -509,7 +509,7 @@ export default function BookingPage() {
   // LOTR text overrides
   const txt = {
     bookNow:    lotr ? 'Claim it! 💍'           : 'Book now',
-    schedule:   lotr ? 'Plot your course 🗺️'    : 'Schedule a meeting',
+    schedule:   lotr ? 'Plot your course 🗺️'    : 'Schedule for later',
     confirm:    lotr ? 'For the Shire! ⚔️'      : 'Confirm booking',
     confirming: lotr ? 'One moment...'           : 'Confirming…',
     confirmed:  lotr ? 'It is done.' : 'Booking confirmed!',
@@ -809,6 +809,7 @@ export default function BookingPage() {
                 <div style={{ width: 8, height: 8, borderRadius: '50%', background: dot, flexShrink: 0 }} />
                 <div style={{ flex: 1, minWidth: 0 }}>
                   <div style={{ fontSize: 13, color: T.text, fontWeight: active ? 600 : 400, letterSpacing: active ? '-0.01em' : 0 }}>{room.name}</div>
+                  {room.room_type && <div style={{ fontSize: 10, color: T.textMuted, marginBottom: 1 }}>{room.room_type}</div>}
                   <div style={{ fontSize: 10, color: T.textFaint }}>{room.capacity} people</div>
                   <div style={{ fontSize: 10, color: isBusy ? '#DC2626' : T.textMuted, letterSpacing: '0.03em' }}>{isBusy ? `In use · free at ${until}` : `Free until ${until}`}</div>
                 </div>

@@ -59,7 +59,7 @@ export default function AdminPage() {
   const [editDraft, setEditDraft] = useState<any>(null)
   const [roomSaving, setRoomSaving] = useState(false)
   const [addingRoom, setAddingRoom] = useState(false)
-  const [newDraft, setNewDraft] = useState({ name: '', capacity: '4', amenities: [] as string[] })
+  const [newDraft, setNewDraft] = useState({ name: '', room_type: '', capacity: '4', amenities: [] as string[] })
   const [deletingRoomId, setDeletingRoomId] = useState<string | null>(null)
 
   // Members tab
@@ -201,7 +201,7 @@ export default function AdminPage() {
     await fetch(`/api/rooms/${editingRoom.id}`, {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ name: editDraft.name, capacity: Number(editDraft.capacity), amenities: editDraft.amenities }),
+      body: JSON.stringify({ name: editDraft.name, room_type: editDraft.room_type || null, capacity: Number(editDraft.capacity), amenities: editDraft.amenities }),
     })
     setEditingRoom(null)
     setEditDraft(null)
@@ -214,10 +214,10 @@ export default function AdminPage() {
     await fetch('/api/rooms', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ name: newDraft.name, capacity: Number(newDraft.capacity), amenities: newDraft.amenities }),
+      body: JSON.stringify({ name: newDraft.name, room_type: newDraft.room_type || null, capacity: Number(newDraft.capacity), amenities: newDraft.amenities }),
     })
     setAddingRoom(false)
-    setNewDraft({ name: '', capacity: '4', amenities: [] })
+    setNewDraft({ name: '', room_type: '', capacity: '4', amenities: [] })
     setRoomSaving(false)
     fetchAllRooms()
   }
@@ -604,7 +604,7 @@ export default function AdminPage() {
                         style={{ width: 30, height: 17, borderRadius: 9, background: r.is_active ? SAGE : '#C8CDD4', position: 'relative', cursor: 'pointer', flexShrink: 0 }}>
                         <div style={{ position: 'absolute', width: 11, height: 11, borderRadius: '50%', background: '#fff', top: 3, left: r.is_active ? 16 : 3, transition: 'left .2s' }} />
                       </div>
-                      <button onClick={() => { setEditingRoom(r); setEditDraft({ name: r.name, capacity: r.capacity, amenities: [...r.amenities] }) }}
+                      <button onClick={() => { setEditingRoom(r); setEditDraft({ name: r.name, room_type: r.room_type ?? '', capacity: r.capacity, amenities: [...r.amenities] }) }}
                         style={{ fontSize: 11, padding: '4px 9px', borderRadius: 0, border: '1px solid #cccccc', background: 'none', cursor: 'pointer', color: '#6B7280' }}>
                         Edit
                       </button>
@@ -625,6 +625,10 @@ export default function AdminPage() {
                     <div style={{ marginBottom: 12 }}>
                       <label style={lbl}>Room name</label>
                       <input style={{ ...inp, width: '100%' }} value={editDraft.name} onChange={e => setEditDraft((d: any) => ({ ...d, name: e.target.value }))} />
+                    </div>
+                    <div style={{ marginBottom: 12 }}>
+                      <label style={lbl}>Room type</label>
+                      <input style={{ ...inp, width: '100%' }} placeholder="e.g. Conference Room, Workshop" value={editDraft.room_type} onChange={e => setEditDraft((d: any) => ({ ...d, room_type: e.target.value }))} />
                     </div>
                     <div style={{ marginBottom: 12 }}>
                       <label style={lbl}>Capacity</label>
@@ -666,7 +670,11 @@ export default function AdminPage() {
                     <div style={{ fontSize: 14, fontWeight: 500, color: NAVY, marginBottom: 16 }}>Add room</div>
                     <div style={{ marginBottom: 12 }}>
                       <label style={lbl}>Room name</label>
-                      <input autoFocus style={{ ...inp, width: '100%' }} placeholder="e.g. The Garden" value={newDraft.name} onChange={e => setNewDraft(d => ({ ...d, name: e.target.value }))} />
+                      <input autoFocus style={{ ...inp, width: '100%' }} placeholder="e.g. Lovelace" value={newDraft.name} onChange={e => setNewDraft(d => ({ ...d, name: e.target.value }))} />
+                    </div>
+                    <div style={{ marginBottom: 12 }}>
+                      <label style={lbl}>Room type</label>
+                      <input style={{ ...inp, width: '100%' }} placeholder="e.g. Conference Room, Workshop" value={newDraft.room_type} onChange={e => setNewDraft(d => ({ ...d, room_type: e.target.value }))} />
                     </div>
                     <div style={{ marginBottom: 12 }}>
                       <label style={lbl}>Capacity</label>
@@ -688,7 +696,7 @@ export default function AdminPage() {
                       </div>
                     </div>
                     <div style={{ display: 'flex', gap: 8 }}>
-                      <button onClick={() => { setAddingRoom(false); setNewDraft({ name: '', capacity: '4', amenities: [] }) }}
+                      <button onClick={() => { setAddingRoom(false); setNewDraft({ name: '', room_type: '', capacity: '4', amenities: [] }) }}
                         style={{ flex: 1, background: 'none', border: '1px solid #cccccc', borderRadius: 0, padding: '8px 0', fontSize: 13, cursor: 'pointer', color: '#6B7280' }}>
                         Cancel
                       </button>
