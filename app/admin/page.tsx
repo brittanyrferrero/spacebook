@@ -74,6 +74,15 @@ export default function AdminPage() {
   const [memberSortDir, setMemberSortDir] = useState<'asc' | 'desc'>('asc')
   const [selectedMembers, setSelectedMembers] = useState<Set<string>>(new Set())
   const [bulkRemovingMembers, setBulkRemovingMembers] = useState(false)
+  const [memberSearch, setMemberSearch] = useState('')
+  const [editingMemberId, setEditingMemberId] = useState<string | null>(null)
+  const [editMemberDraft, setEditMemberDraft] = useState({ name: '', email: '' })
+  const [memberEditSaving, setMemberEditSaving] = useState(false)
+  const [memberEditError, setMemberEditError] = useState('')
+  const [batchAddOpen, setBatchAddOpen] = useState(false)
+  const [batchText, setBatchText] = useState('')
+  const [batchAdding, setBatchAdding] = useState(false)
+  const [batchResult, setBatchResult] = useState<{ added: number; skipped: number; errors: string[] } | null>(null)
 
   // Overview filters
   const [filterRoom, setFilterRoom] = useState<string>('')
@@ -251,6 +260,8 @@ export default function AdminPage() {
   }
 
   async function removeMemberById(id: string) {
+    const member = members.find((m: any) => m.id === id)
+    if (!confirm(`Remove ${member?.name ?? 'this member'}?`)) return
     setRemovingMemberId(id)
     await fetch(`/api/members/${id}`, { method: 'DELETE' })
     setRemovingMemberId(null)
@@ -268,14 +279,17 @@ export default function AdminPage() {
   }
 
   function sortedMembers() {
-    return [...members].sort((a, b) => {
-      let av: string, bv: string
-      if (memberSortCol === 'name')      { av = a.name;      bv = b.name }
-      else if (memberSortCol === 'email') { av = a.email;     bv = b.email }
-      else if (memberSortCol === 'joined'){ av = a.added_at;  bv = b.added_at }
-      else                               { av = a.last_used ?? ''; bv = b.last_used ?? '' }
-      return memberSortDir === 'asc' ? av.localeCompare(bv) : bv.localeCompare(av)
-    })
+    const q = memberSearch.toLowerCase()
+    return [...members]
+      .filter(m => !q || m.name.toLowerCase().includes(q) || m.email.toLowerCase().includes(q))
+      .sort((a, b) => {
+        let av: string, bv: string
+        if (memberSortCol === 'name')       { av = a.name;      bv = b.name }
+        else if (memberSortCol === 'email') { av = a.email;     bv = b.email }
+        else if (memberSortCol === 'joined'){ av = a.added_at;  bv = b.added_at }
+        else                               { av = a.last_used ?? ''; bv = b.last_used ?? '' }
+        return memberSortDir === 'asc' ? av.localeCompare(bv) : bv.localeCompare(av)
+      })
   }
 
   function handleMemberSort(col: typeof memberSortCol) {
@@ -283,6 +297,51 @@ export default function AdminPage() {
     else { setMemberSortCol(col); setMemberSortDir('asc') }
   }
   const mSortIndicator = (col: typeof memberSortCol) => memberSortCol === col ? (memberSortDir === 'asc' ? ' ↑' : ' ↓') : ''
+
+  async function saveMemberEdit() {
+    setMemberEditSaving(true)
+    setMemberEditError('')
+    const res = await fetch(`/api/members/${editingMemberId}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ name: editMemberDraft.name.trim(), email: editMemberDraft.email.trim().toLowerCase() }),
+    })
+    const data = await res.json()
+    if (!res.ok) { setMemberEditError(data.error ?? 'Failed to save.'); setMemberEditSaving(false); return }
+    setEditingMemberId(null)
+    setMemberEditSaving(false)
+    fetchMembers()
+  }
+
+  async function batchAddMembers() {
+    setBatchAdding(true)
+    setBatchResult(null)
+    const lines = batchText.split('\n').map(l => l.trim()).filter(Boolean)
+    const rows = lines.flatMap(line => {
+      const parts = line.split(/\t|,/).map(p => p.trim()).filter(Boolean)
+      if (parts.length >= 2) return [{ name: parts[0], email: parts[1] }]
+      if (parts.length === 1 && parts[0].includes('@')) return [{ name: parts[0].split('@')[0], email: parts[0] }]
+      return []
+    })
+    let added = 0, skipped = 0
+    const errors: string[] = []
+    for (const row of rows) {
+      const res = await fetch('/api/members', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(row),
+      })
+      if (res.ok) { added++ }
+      else {
+        const d = await res.json()
+        if (res.status === 409) skipped++
+        else errors.push(`${row.email}: ${d.error ?? 'error'}`)
+      }
+    }
+    setBatchResult({ added, skipped, errors })
+    setBatchAdding(false)
+    if (added > 0) { setBatchText(''); fetchMembers() }
+  }
 
   async function logout() {
     await fetch('/api/admin/logout', { method: 'POST' })
@@ -718,12 +777,21 @@ export default function AdminPage() {
                 <span style={{ fontSize: 13, fontWeight: 500, color: '#374151' }}>
                   Members {!membersLoading && <span style={{ fontSize: 12, fontWeight: 400, color: '#9CA3AF' }}>· {members.length}</span>}
                 </span>
+                <input
+                  value={memberSearch} onChange={e => setMemberSearch(e.target.value)}
+                  placeholder="Search…"
+                  style={{ ...inp, width: 160, fontSize: 12, padding: '4px 8px' }}
+                />
                 {selectedMembers.size > 0 && (
                   <button onClick={bulkRemoveMembers} disabled={bulkRemovingMembers}
                     style={{ fontSize: 12, padding: '4px 12px', borderRadius: 0, border: '1px solid #F0CACA', background: '#FEF2F2', color: BUSY, cursor: 'pointer' }}>
                     {bulkRemovingMembers ? 'Removing…' : `Remove ${selectedMembers.size} selected`}
                   </button>
                 )}
+                <button onClick={() => { setBatchAddOpen(o => !o); setBatchResult(null) }}
+                  style={{ fontSize: 12, padding: '4px 12px', borderRadius: 0, border: '1px solid #dddddd', background: batchAddOpen ? '#f5f5f5' : '#fff', color: '#374151', cursor: 'pointer', marginLeft: 'auto' }}>
+                  Batch add
+                </button>
               </div>
 
               {/* Inline add form */}
@@ -742,6 +810,34 @@ export default function AdminPage() {
                 </button>
                 {memberError && <span style={{ fontSize: 12, color: BUSY, alignSelf: 'center' }}>{memberError}</span>}
               </form>
+
+              {/* Batch add panel */}
+              {batchAddOpen && (
+                <div style={{ background: '#fff', border: '1px solid #dddddd', borderRadius: 0, padding: '14px', marginBottom: 12 }}>
+                  <div style={{ fontSize: 12, fontWeight: 500, color: '#374151', marginBottom: 6 }}>Batch add members</div>
+                  <div style={{ fontSize: 11, color: '#9CA3AF', marginBottom: 8 }}>
+                    Paste from a spreadsheet — one member per line, name and email separated by a tab or comma.
+                  </div>
+                  <textarea
+                    value={batchText} onChange={e => setBatchText(e.target.value)}
+                    placeholder={'Alice Smith\talice@example.com\nBob Jones\tbob@example.com'}
+                    style={{ width: '100%', height: 120, padding: '8px 10px', border: '1px solid #dddddd', borderRadius: 0, fontSize: 12, fontFamily: 'monospace', resize: 'vertical', boxSizing: 'border-box', outline: 'none', color: '#374151' }}
+                  />
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 8 }}>
+                    <button onClick={batchAddMembers} disabled={batchAdding || !batchText.trim()}
+                      style={{ fontSize: 12, padding: '6px 14px', borderRadius: 0, border: 'none', background: SAGE, color: '#fff', cursor: 'pointer', opacity: batchAdding ? 0.7 : 1 }}>
+                      {batchAdding ? 'Importing…' : 'Import'}
+                    </button>
+                    {batchResult && (
+                      <span style={{ fontSize: 12, color: batchResult.errors.length ? BUSY : SAGE }}>
+                        {batchResult.added > 0 && `${batchResult.added} added`}
+                        {batchResult.skipped > 0 && ` · ${batchResult.skipped} skipped (duplicate)`}
+                        {batchResult.errors.map(e => ` · ${e}`)}
+                      </span>
+                    )}
+                  </div>
+                </div>
+              )}
 
               {membersLoading ? (
                 <div style={{ color: '#9CA3AF', fontSize: 13 }}>Loading…</div>
@@ -770,21 +866,54 @@ export default function AdminPage() {
                     <tbody>
                       {sortedMembers().map((m: any) => {
                         const isSelected = selectedMembers.has(m.id)
+                        const isEditing = editingMemberId === m.id
                         return (
-                          <tr key={m.id} style={{ background: isSelected ? '#F0F4FF' : 'transparent' }}>
+                          <tr key={m.id} style={{ background: isEditing ? '#FFFBF0' : isSelected ? '#F0F4FF' : 'transparent' }}>
                             <td style={{ padding: '8px 12px', borderBottom: '1px solid #eeeeee' }}>
-                              <input type="checkbox" checked={isSelected}
+                              <input type="checkbox" checked={isSelected} disabled={isEditing}
                                 onChange={e => setSelectedMembers(prev => { const s = new Set(prev); e.target.checked ? s.add(m.id) : s.delete(m.id); return s })} />
                             </td>
-                            <td style={{ padding: '8px 12px', borderBottom: '1px solid #eeeeee', color: '#374151', fontWeight: 500 }}>{m.name}</td>
-                            <td style={{ padding: '8px 12px', borderBottom: '1px solid #eeeeee', color: '#9CA3AF' }}>{m.email}</td>
+                            <td style={{ padding: '6px 12px', borderBottom: '1px solid #eeeeee', color: '#374151', fontWeight: 500 }}>
+                              {isEditing
+                                ? <input value={editMemberDraft.name} onChange={e => setEditMemberDraft(d => ({ ...d, name: e.target.value }))}
+                                    onKeyDown={e => { if (e.key === 'Enter') saveMemberEdit(); if (e.key === 'Escape') setEditingMemberId(null) }}
+                                    style={{ ...inp, width: '100%', fontSize: 12, padding: '3px 6px' }} autoFocus />
+                                : m.name}
+                            </td>
+                            <td style={{ padding: '6px 12px', borderBottom: '1px solid #eeeeee', color: '#9CA3AF' }}>
+                              {isEditing
+                                ? <input type="email" value={editMemberDraft.email} onChange={e => setEditMemberDraft(d => ({ ...d, email: e.target.value }))}
+                                    onKeyDown={e => { if (e.key === 'Enter') saveMemberEdit(); if (e.key === 'Escape') setEditingMemberId(null) }}
+                                    style={{ ...inp, width: '100%', fontSize: 12, padding: '3px 6px' }} />
+                                : m.email}
+                            </td>
                             <td style={{ padding: '8px 12px', borderBottom: '1px solid #eeeeee', color: '#9CA3AF', whiteSpace: 'nowrap' }}>{fmtJoined(m.added_at)}</td>
                             <td style={{ padding: '8px 12px', borderBottom: '1px solid #eeeeee', color: '#9CA3AF', whiteSpace: 'nowrap' }}>{m.last_used ? fmtDate(m.last_used) : '—'}</td>
-                            <td style={{ padding: '8px 12px', borderBottom: '1px solid #eeeeee' }}>
-                              <button onClick={() => removeMemberById(m.id)} disabled={removingMemberId === m.id}
-                                style={{ fontSize: 11, padding: '3px 7px', borderRadius: 0, border: '1px solid #F0CACA', background: 'none', cursor: 'pointer', color: BUSY }}>
-                                {removingMemberId === m.id ? '…' : 'Remove'}
-                              </button>
+                            <td style={{ padding: '6px 12px', borderBottom: '1px solid #eeeeee', whiteSpace: 'nowrap' }}>
+                              {isEditing ? (
+                                <div style={{ display: 'flex', gap: 4, alignItems: 'center' }}>
+                                  <button onClick={saveMemberEdit} disabled={memberEditSaving || !editMemberDraft.name.trim() || !editMemberDraft.email.trim()}
+                                    style={{ fontSize: 11, padding: '3px 7px', borderRadius: 0, border: 'none', background: SAGE, color: '#fff', cursor: 'pointer', opacity: memberEditSaving ? 0.7 : 1 }}>
+                                    {memberEditSaving ? '…' : 'Save'}
+                                  </button>
+                                  <button onClick={() => { setEditingMemberId(null); setMemberEditError('') }}
+                                    style={{ fontSize: 11, padding: '3px 7px', borderRadius: 0, border: '1px solid #dddddd', background: 'none', cursor: 'pointer', color: '#6B7280' }}>
+                                    Cancel
+                                  </button>
+                                  {memberEditError && <span style={{ fontSize: 11, color: BUSY }}>{memberEditError}</span>}
+                                </div>
+                              ) : (
+                                <div style={{ display: 'flex', gap: 4 }}>
+                                  <button onClick={() => { setEditingMemberId(m.id); setEditMemberDraft({ name: m.name, email: m.email }); setMemberEditError('') }}
+                                    style={{ fontSize: 11, padding: '3px 7px', borderRadius: 0, border: '1px solid #dddddd', background: 'none', cursor: 'pointer', color: '#374151' }}>
+                                    Edit
+                                  </button>
+                                  <button onClick={() => removeMemberById(m.id)} disabled={removingMemberId === m.id}
+                                    style={{ fontSize: 11, padding: '3px 7px', borderRadius: 0, border: '1px solid #F0CACA', background: 'none', cursor: 'pointer', color: BUSY }}>
+                                    {removingMemberId === m.id ? '…' : 'Remove'}
+                                  </button>
+                                </div>
+                              )}
                             </td>
                           </tr>
                         )

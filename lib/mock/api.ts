@@ -264,6 +264,16 @@ export function addMember(store: MockStore, name: string, email: string): { memb
   return { member }
 }
 
+export function updateMember(store: MockStore, id: string, name: string, email: string): { member?: Member; error?: string } {
+  const member = store.members.find(m => m.id === id)
+  if (!member) return { error: 'Member not found.' }
+  const existing = getMemberByEmail(store, email)
+  if (existing && existing.id !== id) return { error: 'A member with that email already exists.' }
+  member.name = name
+  member.email = email
+  return { member }
+}
+
 export function removeMember(store: MockStore, id: string): boolean {
   const idx = store.members.findIndex(m => m.id === id)
   if (idx === -1) return false
