@@ -104,9 +104,9 @@ export default function LandingPage() {
       const flip = Math.random() > 0.5
       setShootingStar({ x: Math.random() * 70 + 5, y: Math.random() * 55, angle: 5 + Math.random() * 55, flip, key: Date.now() })
       setTimeout(() => setShootingStar(null), 800)
-      timeout = setTimeout(fire, 5000 + Math.random() * 3750)
+      timeout = setTimeout(fire, 7000 + Math.random() * 3000)
     }
-    timeout = setTimeout(fire, 2500 + Math.random() * 2500)
+    timeout = setTimeout(fire, 3500 + Math.random() * 1500)
     return () => clearTimeout(timeout)
   }, [])
 
