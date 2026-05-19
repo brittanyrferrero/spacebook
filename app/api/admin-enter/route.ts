@@ -36,11 +36,16 @@ export async function POST(req: NextRequest) {
   }
 
   // Normal flow — check if email is on the admin list
-  const { getAdminRole } = await import('@/lib/prod-config')
+  const { getAdminRole, getWorkspaceToken } = await import('@/lib/prod-config')
   const role = await getAdminRole(lower)
   if (!role) return Response.json({ error: 'You don\'t have admin access.' }, { status: 403 })
 
   const cookieStore = await cookies()
   cookieStore.set('admin_access', role, { httpOnly: true, sameSite: 'lax', path: '/', maxAge: 60 * 60 * 12 })
+  // Also grant workspace access so admins can hit all API routes
+  const wsToken = await getWorkspaceToken()
+  if (wsToken) {
+    cookieStore.set('ws_access', wsToken, { httpOnly: true, sameSite: 'lax', path: '/', maxAge: 60 * 60 * 24 * 365 })
+  }
   return Response.json({ role })
 }

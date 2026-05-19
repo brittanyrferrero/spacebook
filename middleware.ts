@@ -35,13 +35,14 @@ export async function middleware(request: NextRequest) {
     return pass()
   }
 
-  // Admin routes: require admin_access cookie in prod; if present, bypass workspace auth too
-  if (pathname.startsWith('/admin') || pathname.startsWith('/api/admin/')) {
-    const adminAccess = request.cookies.get('admin_access')?.value
-    if (process.env.MOCK_MODE !== 'true' && pathname !== '/api/admin/admins' && !adminAccess) {
-      return NextResponse.redirect(new URL('/', request.url))
-    }
-    if (adminAccess) return pass()
+  // Admin cookie grants full access to everything (admins are workspace members too)
+  if (request.cookies.get('admin_access')?.value) return pass()
+
+  // Non-admin /admin routes require the cookie in prod
+  if (process.env.MOCK_MODE !== 'true' &&
+      (pathname.startsWith('/admin') || pathname.startsWith('/api/admin/')) &&
+      pathname !== '/api/admin/admins') {
+    return NextResponse.redirect(new URL('/', request.url))
   }
 
   // Always allow: the entry route, cancel links, demo routes
