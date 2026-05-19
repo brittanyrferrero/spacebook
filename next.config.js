@@ -5,11 +5,6 @@ const nextConfig = {
   experimental: {
     serverComponentsExternalPackages: ['googleapis'],
   },
-  async redirects() {
-    return [
-      { source: '/', missing: [{ type: 'query', key: 'demo', value: '1' }], destination: '/demo', permanent: false },
-    ]
-  },
 }
 
 module.exports = nextConfig
