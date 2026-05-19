@@ -1,12 +1,11 @@
 'use client'
 
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useRef } from 'react'
 import { format, subDays } from 'date-fns'
 
 const SAGE = '#5C7A6B'; const SAGE_LIGHT = '#eef7f1'
 const NAVY = '#111111'; const NAVY_LIGHT = '#f0f0f0'
 const FREE = '#3B7A4A'; const BUSY = '#B94040'
-const AMENITIES = ['TV', 'Whiteboard', 'Video conferencing', 'Phone', 'Natural light'] as const
 
 type Preset = '7d' | '30d' | 'month' | 'quarter'
 type Nav = 'Overview' | 'Bookings' | 'Rooms' | 'Members' | 'Settings'
@@ -42,6 +41,8 @@ export default function AdminPage() {
   const [showCustom, setShowCustom] = useState(false)
   const [stats, setStats] = useState<any>(null)
   const [nav, setNav] = useState<Nav>('Overview')
+  const [myRole, setMyRole] = useState<'admin' | 'super_admin' | null>(null)
+  const [adminList, setAdminList] = useState<{ email: string; role: string }[]>([])
 
   // Bookings tab
   const [bookings, setBookings] = useState<any[]>([])
@@ -61,6 +62,9 @@ export default function AdminPage() {
   const [addingRoom, setAddingRoom] = useState(false)
   const [newDraft, setNewDraft] = useState({ name: '', room_type: '', capacity: '4', amenities: [] as string[] })
   const [deletingRoomId, setDeletingRoomId] = useState<string | null>(null)
+  const [disconnectingRoomId, setDisconnectingRoomId] = useState<string | null>(null)
+  const [gcalToast, setGcalToast] = useState<string | null>(null)
+  const gcalToastTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
 
   // Members tab
   const [members, setMembers] = useState<any[]>([])
@@ -84,21 +88,80 @@ export default function AdminPage() {
   const [batchAdding, setBatchAdding] = useState(false)
   const [batchResult, setBatchResult] = useState<{ added: number; skipped: number; errors: string[] } | null>(null)
 
+  // Display hours (calendar grid range)
+  const [dispStart, setDispStart] = useState(8)
+  const [dispEnd,   setDispEnd]   = useState(20)
+  const [dispSaving, setDispSaving] = useState(false)
+  const [dispSaved,  setDispSaved]  = useState(false)
+
+  // Booking hours (full data-collection range, wider than display)
+  const [bhStart, setBhStart] = useState(6)
+  const [bhEnd,   setBhEnd]   = useState(22)
+  const [bhSaving, setBhSaving] = useState(false)
+  const [bhSaved,  setBhSaved]  = useState(false)
+
+  // Booking visibility
+  const [visShowTitle,     setVisShowTitle]     = useState(false)
+  const [visShowOrganizer, setVisShowOrganizer] = useState(false)
+  const [visSaving,        setVisSaving]        = useState(false)
+  const [visSaved,         setVisSaved]         = useState(false)
+
   // Overview filters
   const [filterRoom, setFilterRoom] = useState<string>('')
+  const [filterRoomType, setFilterRoomType] = useState<string>('')
   const [filterRoomBookings, setFilterRoomBookings] = useState<string>('')
   const [overviewRooms, setOverviewRooms] = useState<any[]>([])
+
+  // Room types
+  const [roomTypes, setRoomTypes] = useState<string[]>([])
+  const [newTypeText, setNewTypeText] = useState('')
+  const [typeAdding, setTypeAdding] = useState(false)
+  const [typeError, setTypeError] = useState('')
+  const [deletingType, setDeletingType] = useState<string | null>(null)
+
+  // Amenity options
+  const [amenityOptions, setAmenityOptions] = useState<string[]>([])
+  const [newAmenityText, setNewAmenityText] = useState('')
+  const [amenityAdding, setAmenityAdding] = useState(false)
+  const [amenityError, setAmenityError] = useState('')
+  const [deletingAmenity, setDeletingAmenity] = useState<string | null>(null)
 
   const { from, to } = (customFrom && customTo) ? { from: customFrom, to: customTo } : getRange(preset)
 
   useEffect(() => {
-    fetch('/api/rooms?all=1').then(r => r.json()).then(setOverviewRooms)
+    fetch('/api/admin/admins').then(r => r.json()).then((list: any[]) => {
+      setAdminList(list)
+      try {
+        const saved = localStorage.getItem('spacebook_user')
+        if (saved) {
+          const email = JSON.parse(saved).email?.toLowerCase()
+          const me = list.find((a: any) => a.email.toLowerCase() === email)
+          setMyRole(me?.role ?? null)
+        }
+      } catch {}
+    }).catch(() => {})
   }, [])
 
   useEffect(() => {
-    const url = `/api/admin/stats?from=${from}&to=${to}${filterRoom ? `&room_id=${filterRoom}` : ''}`
+    fetch('/api/rooms?all=1').then(r => r.json()).then(setOverviewRooms)
+    fetch('/api/room-types').then(r => r.json()).then(setRoomTypes)
+    fetch('/api/amenities').then(r => r.json()).then(setAmenityOptions)
+    fetch('/api/settings').then(r => r.json()).then(d => {
+      setDispStart(d.displayHours?.start ?? 8)
+      setDispEnd(d.displayHours?.end ?? 20)
+      setBhStart(d.bookingHours?.start ?? 6)
+      setBhEnd(d.bookingHours?.end ?? 22)
+      setVisShowTitle(d.bookingVisibility?.showTitle ?? false)
+      setVisShowOrganizer(d.bookingVisibility?.showOrganizer ?? false)
+    }).catch(() => {})
+  }, [])
+
+  useEffect(() => {
+    let url = `/api/admin/stats?from=${from}&to=${to}`
+    if (filterRoom) url += `&room_id=${filterRoom}`
+    else if (filterRoomType) url += `&room_type=${encodeURIComponent(filterRoomType)}`
     fetch(url).then(r => r.json()).then(setStats)
-  }, [from, to, filterRoom])
+  }, [from, to, filterRoom, filterRoomType])
 
   const fetchBookings = useCallback(async () => {
     setBookingsLoading(true)
@@ -130,6 +193,35 @@ export default function AdminPage() {
     if (nav === 'Rooms') fetchAllRooms()
     if (nav === 'Members') fetchMembers()
   }, [nav, fetchBookings, fetchAllRooms, fetchMembers])
+
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search)
+    const tab = params.get('tab')
+    const gcal = params.get('gcal')
+    if (tab === 'Rooms') setNav('Rooms')
+    if (gcal === 'connected') setGcalToast('Google Calendar connected.')
+    else if (gcal === 'error') setGcalToast('Google Calendar connection failed. Please try again.')
+    else if (gcal === 'no_refresh_token') setGcalToast('No refresh token returned — try again with prompt=consent.')
+    if (gcal) {
+      const url = new URL(window.location.href)
+      url.searchParams.delete('gcal')
+      url.searchParams.delete('tab')
+      window.history.replaceState({}, '', url)
+    }
+  }, [])
+
+  useEffect(() => {
+    if (!gcalToast) return
+    if (gcalToastTimer.current) clearTimeout(gcalToastTimer.current)
+    gcalToastTimer.current = setTimeout(() => setGcalToast(null), 4000)
+  }, [gcalToast])
+
+  async function disconnectGcal(roomId: string) {
+    setDisconnectingRoomId(roomId)
+    await fetch(`/api/gcal/disconnect/${roomId}`, { method: 'DELETE' })
+    await fetchAllRooms()
+    setDisconnectingRoomId(null)
+  }
 
   function roomName(roomId: string) {
     return rooms.find((r: any) => r.id === roomId)?.name ?? roomId
@@ -343,6 +435,54 @@ export default function AdminPage() {
     if (added > 0) { setBatchText(''); fetchMembers() }
   }
 
+  async function addType() {
+    const t = newTypeText.trim()
+    if (!t) return
+    setTypeAdding(true)
+    setTypeError('')
+    const res = await fetch('/api/room-types', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ type: t }),
+    })
+    const data = await res.json()
+    if (!res.ok) { setTypeError(data.error ?? 'Failed to add.'); setTypeAdding(false); return }
+    setNewTypeText('')
+    setTypeAdding(false)
+    fetch('/api/room-types').then(r => r.json()).then(setRoomTypes)
+  }
+
+  async function deleteType(type: string) {
+    setDeletingType(type)
+    await fetch(`/api/room-types/${encodeURIComponent(type)}`, { method: 'DELETE' })
+    setDeletingType(null)
+    fetch('/api/room-types').then(r => r.json()).then(setRoomTypes)
+  }
+
+  async function addAmenity() {
+    const a = newAmenityText.trim()
+    if (!a) return
+    setAmenityAdding(true)
+    setAmenityError('')
+    const res = await fetch('/api/amenities', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ amenity: a }),
+    })
+    const data = await res.json()
+    if (!res.ok) { setAmenityError(data.error ?? 'Failed to add.'); setAmenityAdding(false); return }
+    setNewAmenityText('')
+    setAmenityAdding(false)
+    fetch('/api/amenities').then(r => r.json()).then(setAmenityOptions)
+  }
+
+  async function deleteAmenity(amenity: string) {
+    setDeletingAmenity(amenity)
+    await fetch(`/api/amenities/${encodeURIComponent(amenity)}`, { method: 'DELETE' })
+    setDeletingAmenity(null)
+    fetch('/api/amenities').then(r => r.json()).then(setAmenityOptions)
+  }
+
   async function logout() {
     await fetch('/api/admin/logout', { method: 'POST' })
     window.location.href = '/admin'
@@ -354,7 +494,7 @@ export default function AdminPage() {
     </div>
   )
 
-  const { totals, roomStats, hourStats } = stats
+  const { totals, roomStats, hourStats, concurrentStats, dowHourStats, busiestDate } = stats
   const maxRoomBookings = Math.max(...roomStats.map((r: any) => r.total_bookings), 1)
   const maxHour = Math.max(...hourStats.map((h: any) => h.total_bookings), 1)
 
@@ -424,17 +564,34 @@ export default function AdminPage() {
           {/* ── Overview ── */}
           {nav === 'Overview' && (
             <>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 10, flexWrap: 'wrap' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6, flexWrap: 'wrap' }}>
                 <span style={{ fontSize: 12, color: '#9CA3AF' }}>Showing data for</span>
                 <span style={{ fontSize: 12, color: NAVY, background: NAVY_LIGHT, padding: '3px 10px', borderRadius: 0, fontWeight: 500 }}>
                   {customFrom ? `${customFrom} – ${customTo}` : PRESETS.find(p => p.key === preset)?.label}
                 </span>
-                <span style={{ fontSize: 12, color: '#9CA3AF' }}>·</span>
+              </div>
+              {roomTypes.length > 0 && (
+                <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 6, flexWrap: 'wrap' }}>
+                  <span style={{ fontSize: 11, color: '#9CA3AF' }}>Type</span>
+                  <button onClick={() => { setFilterRoomType(''); setFilterRoom('') }}
+                    style={{ fontSize: 12, padding: '3px 10px', borderRadius: 0, border: `1px solid ${!filterRoomType ? NAVY : '#cccccc'}`, background: !filterRoomType ? NAVY_LIGHT : '#fff', cursor: 'pointer', color: !filterRoomType ? NAVY : '#6B7280' }}>
+                    All types
+                  </button>
+                  {roomTypes.map(t => (
+                    <button key={t} onClick={() => { setFilterRoomType(t); setFilterRoom('') }}
+                      style={{ fontSize: 12, padding: '3px 10px', borderRadius: 0, border: `1px solid ${filterRoomType === t ? NAVY : '#cccccc'}`, background: filterRoomType === t ? NAVY_LIGHT : '#fff', cursor: 'pointer', color: filterRoomType === t ? NAVY : '#6B7280' }}>
+                      {t}
+                    </button>
+                  ))}
+                </div>
+              )}
+              <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 10, flexWrap: 'wrap' }}>
+                <span style={{ fontSize: 11, color: '#9CA3AF' }}>Room</span>
                 <button onClick={() => setFilterRoom('')}
                   style={{ fontSize: 12, padding: '3px 10px', borderRadius: 0, border: `1px solid ${!filterRoom ? NAVY : '#cccccc'}`, background: !filterRoom ? NAVY_LIGHT : '#fff', cursor: 'pointer', color: !filterRoom ? NAVY : '#6B7280' }}>
                   All rooms
                 </button>
-                {overviewRooms.map((r: any) => (
+                {(filterRoomType ? overviewRooms.filter((r: any) => r.room_type === filterRoomType) : overviewRooms).map((r: any) => (
                   <button key={r.id} onClick={() => setFilterRoom(r.id)}
                     style={{ fontSize: 12, padding: '3px 10px', borderRadius: 0, border: `1px solid ${filterRoom === r.id ? NAVY : '#cccccc'}`, background: filterRoom === r.id ? NAVY_LIGHT : '#fff', cursor: 'pointer', color: filterRoom === r.id ? NAVY : '#6B7280' }}>
                     {r.name}
@@ -442,7 +599,7 @@ export default function AdminPage() {
                 ))}
               </div>
 
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 8, marginBottom: 14, maxWidth: 480 }}>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 8, marginBottom: totals.outside_display_hours > 0 ? 8 : 14, maxWidth: 480 }}>
                 {[
                   { label: 'Total bookings', value: totals.total_bookings },
                   { label: 'Hours booked', value: totals.total_hours },
@@ -455,6 +612,50 @@ export default function AdminPage() {
                   </div>
                 ))}
               </div>
+              {totals.outside_display_hours > 0 && (
+                <div style={{ fontSize: 11, color: '#9CA3AF', marginBottom: 14 }}>
+                  + {totals.outside_display_hours} booking{totals.outside_display_hours !== 1 ? 's' : ''} outside display hours ({Math.round(totals.outside_display_hours / totals.total_bookings * 100)}% of total)
+                </div>
+              )}
+
+              {!filterRoom && concurrentStats && concurrentStats.total_rooms >= 2 && (() => {
+                const cs = concurrentStats
+                const maxSlots = Math.max(...cs.distribution.map((d: any) => d.slots), 1)
+                return (
+                  <div style={{ background: '#fff', border: '1px solid #dddddd', borderRadius: 0, padding: 13, marginBottom: 14 }}>
+                    <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', marginBottom: 10, flexWrap: 'wrap', gap: 8 }}>
+                      <div style={{ fontSize: 12, fontWeight: 500, color: '#374151' }}>Space pressure</div>
+                      <div style={{ display: 'flex', gap: 14, flexWrap: 'wrap' }}>
+                        <span style={{ fontSize: 11, color: '#9CA3AF' }}>
+                          Peak: <span style={{ color: '#374151', fontWeight: 500 }}>{cs.peak_concurrent} / {cs.total_rooms} rooms</span>
+                        </span>
+                        <span style={{ fontSize: 11, color: '#9CA3AF' }}>
+                          At capacity: <span style={{ color: cs.full_pct >= 10 ? BUSY : '#374151', fontWeight: 500 }}>{cs.full_pct}%</span> of hours
+                        </span>
+                        <span style={{ fontSize: 11, color: '#9CA3AF' }}>
+                          High demand: <span style={{ color: cs.high_demand_pct >= 20 ? '#D97706' : '#374151', fontWeight: 500 }}>{cs.high_demand_pct}%</span>
+                        </span>
+                      </div>
+                    </div>
+                    <div style={{ display: 'flex', alignItems: 'flex-end', gap: 3, height: 64 }}>
+                      {cs.distribution.map((d: any) => {
+                        const barH = Math.max(2, Math.round(d.slots / maxSlots * 60))
+                        const pct = cs.total_slots > 0 ? Math.round(d.slots / cs.total_slots * 100) : 0
+                        const fraction = cs.total_rooms > 0 ? d.rooms_in_use / cs.total_rooms : 0
+                        const color = fraction >= 1 ? BUSY : fraction >= 0.8 ? '#D97706' : fraction >= 0.5 ? '#7A9A4A' : SAGE
+                        return (
+                          <div key={d.rooms_in_use} style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 3, flex: 1 }}>
+                            <div title={`${d.rooms_in_use} room${d.rooms_in_use !== 1 ? 's' : ''} occupied: ${pct}% of business hours`}
+                              style={{ borderRadius: '2px 2px 0 0', width: '100%', height: barH, background: color, opacity: d.slots === 0 ? 0.15 : 0.82 }} />
+                            <div style={{ fontSize: 10, color: '#9CA3AF' }}>{d.rooms_in_use}</div>
+                          </div>
+                        )
+                      })}
+                    </div>
+                    <div style={{ fontSize: 10, color: '#C0C8D0', marginTop: 2 }}>rooms occupied simultaneously · sampled every 30 min</div>
+                  </div>
+                )
+              })()}
 
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 10, marginBottom: 14 }}>
                 {!filterRoom && (
@@ -514,6 +715,68 @@ export default function AdminPage() {
                   })()}
                 </div>
               </div>
+
+              {dowHourStats && dowHourStats.length > 0 && (() => {
+                const dhs: { dow: number; hour: number; count: number }[] = dowHourStats
+                const hours = [...new Set(dhs.map((d: any) => d.hour))].sort((a: number, b: number) => a - b)
+                const maxCount = Math.max(...dhs.map((d: any) => d.count), 1)
+                const DOW = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun']
+                const fmtH = (h: number) => h === 12 ? '12p' : h > 12 ? `${h - 12}p` : `${h}a`
+                const busiestDow = stats.dowStats ? [...stats.dowStats].sort((a: any, b: any) => b.total_bookings - a.total_bookings)[0] : null
+                return (
+                  <div style={{ background: '#fff', border: '1px solid #dddddd', borderRadius: 0, padding: 13, marginBottom: 14 }}>
+                    <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', marginBottom: 10, flexWrap: 'wrap', gap: 8 }}>
+                      <div style={{ fontSize: 12, fontWeight: 500, color: '#374151' }}>Bookings by day & hour</div>
+                      <div style={{ display: 'flex', gap: 14, flexWrap: 'wrap' }}>
+                        {busiestDate && (
+                          <span style={{ fontSize: 11, color: '#9CA3AF' }}>
+                            Busiest day: <span style={{ color: NAVY, fontWeight: 500 }}>
+                              {new Date(busiestDate.date + 'T12:00:00').toLocaleDateString('en-AU', { weekday: 'short', day: 'numeric', month: 'short' })}
+                            </span>
+                            {' · '}{busiestDate.total_bookings} bookings
+                          </span>
+                        )}
+                        {busiestDow && busiestDow.total_bookings > 0 && (
+                          <span style={{ fontSize: 11, color: '#9CA3AF' }}>
+                            Busiest day of week: <span style={{ color: NAVY, fontWeight: 500 }}>{busiestDow.label}</span>
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                    <div style={{ display: 'flex' }}>
+                      <div style={{ display: 'flex', flexDirection: 'column', marginRight: 5, marginTop: 22 }}>
+                        {hours.map((h: number) => (
+                          <div key={h} style={{ height: 14, marginBottom: 2, display: 'flex', alignItems: 'center', fontSize: 9, color: '#C0C8D0', width: 22, justifyContent: 'flex-end' }}>
+                            {fmtH(h)}
+                          </div>
+                        ))}
+                      </div>
+                      {DOW.map((day, dow) => {
+                        const dowTotal = stats.dowStats?.find((d: any) => d.dow === dow)?.total_bookings ?? 0
+                        const isBusiestDow = busiestDow?.dow === dow && dowTotal > 0
+                        return (
+                          <div key={dow} style={{ flex: 1, display: 'flex', flexDirection: 'column' }}>
+                            <div style={{ height: 22, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 10, color: isBusiestDow ? NAVY : '#9CA3AF', fontWeight: isBusiestDow ? 600 : 400 }}>
+                              {day}
+                            </div>
+                            {hours.map((h: number) => {
+                              const cell = dhs.find((d: any) => d.dow === dow && d.hour === h)
+                              const count = cell?.count ?? 0
+                              const opacity = count === 0 ? 0.04 : 0.15 + 0.85 * (count / maxCount)
+                              return (
+                                <div key={h}
+                                  title={`${day} ${fmtH(h)}: ${count} booking${count !== 1 ? 's' : ''}`}
+                                  style={{ height: 14, borderRadius: 2, background: SAGE, opacity, margin: '0 1px 2px' }}
+                                />
+                              )
+                            })}
+                          </div>
+                        )
+                      })}
+                    </div>
+                  </div>
+                )
+              })()}
             </>
           )}
 
@@ -639,6 +902,62 @@ export default function AdminPage() {
           {/* ── Rooms ── */}
           {nav === 'Rooms' && (
             <>
+              <div style={{ background: '#fff', border: '1px solid #dddddd', borderRadius: 0, padding: '12px 14px', marginBottom: 14 }}>
+                <div style={{ fontSize: 12, fontWeight: 500, color: '#374151', marginBottom: 8 }}>Room types</div>
+                <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginBottom: 10 }}>
+                  {roomTypes.map(t => (
+                    <div key={t} style={{ display: 'inline-flex', alignItems: 'center', gap: 4, background: '#f0f0f0', padding: '3px 8px', fontSize: 12, color: '#374151' }}>
+                      {t}
+                      <button onClick={() => deleteType(t)} disabled={deletingType === t}
+                        style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#9CA3AF', fontSize: 13, padding: '0 2px', lineHeight: 1, fontFamily: 'inherit' }}>
+                        ×
+                      </button>
+                    </div>
+                  ))}
+                  {roomTypes.length === 0 && <span style={{ fontSize: 12, color: '#9CA3AF' }}>No types yet</span>}
+                </div>
+                <div style={{ display: 'flex', gap: 6 }}>
+                  <input value={newTypeText} onChange={e => { setNewTypeText(e.target.value); setTypeError('') }}
+                    placeholder="New type…"
+                    style={{ ...inp, flex: 1 }}
+                    onKeyDown={e => { if (e.key === 'Enter') addType() }}
+                  />
+                  <button onClick={addType} disabled={typeAdding || !newTypeText.trim()}
+                    style={{ fontSize: 12, padding: '5px 14px', border: 'none', background: SAGE, color: '#fff', cursor: 'pointer', borderRadius: 0, opacity: typeAdding ? 0.7 : 1 }}>
+                    {typeAdding ? '…' : 'Add'}
+                  </button>
+                </div>
+                {typeError && <div style={{ fontSize: 12, color: BUSY, marginTop: 6 }}>{typeError}</div>}
+              </div>
+
+              <div style={{ background: '#fff', border: '1px solid #dddddd', borderRadius: 0, padding: '12px 14px', marginBottom: 14 }}>
+                <div style={{ fontSize: 12, fontWeight: 500, color: '#374151', marginBottom: 8 }}>Amenities</div>
+                <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginBottom: 10 }}>
+                  {amenityOptions.map(a => (
+                    <div key={a} style={{ display: 'inline-flex', alignItems: 'center', gap: 4, background: '#f0f0f0', padding: '3px 8px', fontSize: 12, color: '#374151' }}>
+                      {a}
+                      <button onClick={() => deleteAmenity(a)} disabled={deletingAmenity === a}
+                        style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#9CA3AF', fontSize: 13, padding: '0 2px', lineHeight: 1, fontFamily: 'inherit' }}>
+                        ×
+                      </button>
+                    </div>
+                  ))}
+                  {amenityOptions.length === 0 && <span style={{ fontSize: 12, color: '#9CA3AF' }}>No amenities yet</span>}
+                </div>
+                <div style={{ display: 'flex', gap: 6 }}>
+                  <input value={newAmenityText} onChange={e => { setNewAmenityText(e.target.value); setAmenityError('') }}
+                    placeholder="New amenity…"
+                    style={{ ...inp, flex: 1 }}
+                    onKeyDown={e => { if (e.key === 'Enter') addAmenity() }}
+                  />
+                  <button onClick={addAmenity} disabled={amenityAdding || !newAmenityText.trim()}
+                    style={{ fontSize: 12, padding: '5px 14px', border: 'none', background: SAGE, color: '#fff', cursor: 'pointer', borderRadius: 0, opacity: amenityAdding ? 0.7 : 1 }}>
+                    {amenityAdding ? '…' : 'Add'}
+                  </button>
+                </div>
+                {amenityError && <div style={{ fontSize: 12, color: BUSY, marginTop: 6 }}>{amenityError}</div>}
+              </div>
+
               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
                 <span style={{ fontSize: 13, fontWeight: 500, color: '#374151' }}>Rooms</span>
                 <button onClick={() => setAddingRoom(true)}
@@ -655,10 +974,22 @@ export default function AdminPage() {
                         {!r.is_active && <span style={{ fontSize: 11, color: '#9CA3AF', background: '#f0f0f0', padding: '1px 6px', borderRadius: 0 }}>inactive</span>}
                       </div>
                       <div style={{ fontSize: 11, color: '#9CA3AF', marginTop: 3 }}>
-                        {r.capacity} people · {r.amenities.length > 0 ? r.amenities.join(', ') : 'No amenities listed'}
+                        {r.room_type && <>{r.room_type} · </>}{r.capacity} people · {r.amenities.length > 0 ? r.amenities.join(', ') : 'No amenities listed'}
                       </div>
                     </div>
                     <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                      {r.gcal_connected ? (
+                        <button onClick={() => disconnectGcal(r.id)} disabled={disconnectingRoomId === r.id}
+                          title="Disconnect Google Calendar"
+                          style={{ fontSize: 11, padding: '4px 9px', borderRadius: 0, border: '1px solid #C8E6C9', background: '#F1F8F2', cursor: 'pointer', color: FREE, whiteSpace: 'nowrap' }}>
+                          {disconnectingRoomId === r.id ? '…' : '✓ GCal'}
+                        </button>
+                      ) : (
+                        <a href={`/api/gcal/auth?room_id=${r.id}`}
+                          style={{ fontSize: 11, padding: '4px 9px', borderRadius: 0, border: '1px solid #cccccc', background: 'none', cursor: 'pointer', color: '#6B7280', textDecoration: 'none', whiteSpace: 'nowrap' }}>
+                          + GCal
+                        </a>
+                      )}
                       <div onClick={() => toggleRoom(r)} title={r.is_active ? 'Deactivate room' : 'Activate room'}
                         style={{ width: 30, height: 17, borderRadius: 9, background: r.is_active ? SAGE : '#C8CDD4', position: 'relative', cursor: 'pointer', flexShrink: 0 }}>
                         <div style={{ position: 'absolute', width: 11, height: 11, borderRadius: '50%', background: '#fff', top: 3, left: r.is_active ? 16 : 3, transition: 'left .2s' }} />
@@ -687,7 +1018,10 @@ export default function AdminPage() {
                     </div>
                     <div style={{ marginBottom: 12 }}>
                       <label style={lbl}>Room type</label>
-                      <input style={{ ...inp, width: '100%' }} placeholder="e.g. Conference Room, Workshop" value={editDraft.room_type} onChange={e => setEditDraft((d: any) => ({ ...d, room_type: e.target.value }))} />
+                      <select style={{ ...inp, width: '100%' }} value={editDraft.room_type} onChange={e => setEditDraft((d: any) => ({ ...d, room_type: e.target.value }))}>
+                        <option value="">None</option>
+                        {roomTypes.map(t => <option key={t} value={t}>{t}</option>)}
+                      </select>
                     </div>
                     <div style={{ marginBottom: 12 }}>
                       <label style={lbl}>Capacity</label>
@@ -696,7 +1030,7 @@ export default function AdminPage() {
                     <div style={{ marginBottom: 20 }}>
                       <label style={lbl}>Amenities</label>
                       <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
-                        {AMENITIES.map(a => {
+                        {amenityOptions.map(a => {
                           const on = editDraft.amenities.includes(a)
                           return (
                             <button key={a} type="button"
@@ -733,7 +1067,10 @@ export default function AdminPage() {
                     </div>
                     <div style={{ marginBottom: 12 }}>
                       <label style={lbl}>Room type</label>
-                      <input style={{ ...inp, width: '100%' }} placeholder="e.g. Conference Room, Workshop" value={newDraft.room_type} onChange={e => setNewDraft(d => ({ ...d, room_type: e.target.value }))} />
+                      <select style={{ ...inp, width: '100%' }} value={newDraft.room_type} onChange={e => setNewDraft(d => ({ ...d, room_type: e.target.value }))}>
+                        <option value="">None</option>
+                        {roomTypes.map(t => <option key={t} value={t}>{t}</option>)}
+                      </select>
                     </div>
                     <div style={{ marginBottom: 12 }}>
                       <label style={lbl}>Capacity</label>
@@ -742,7 +1079,7 @@ export default function AdminPage() {
                     <div style={{ marginBottom: 20 }}>
                       <label style={lbl}>Amenities</label>
                       <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
-                        {AMENITIES.map(a => {
+                        {amenityOptions.map(a => {
                           const on = newDraft.amenities.includes(a)
                           return (
                             <button key={a} type="button"
@@ -855,7 +1192,7 @@ export default function AdminPage() {
                             onChange={e => setSelectedMembers(e.target.checked ? new Set(members.map((m: any) => m.id)) : new Set())}
                           />
                         </th>
-                        {([['Name', 'name'], ['Email', 'email'], ['Joined', 'joined'], ['Last used', 'last_used'], ['', null]] as [string, string | null][]).map(([label, col]) => (
+                        {([['Name', 'name'], ['Email', 'email'], ['Role', null], ['Joined', 'joined'], ['Last active', 'last_used'], ['', null]] as [string, string | null][]).map(([label, col]) => (
                           <th key={label} onClick={col ? () => handleMemberSort(col as any) : undefined}
                             style={{ background: '#ffffff', padding: '8px 12px', textAlign: 'left', fontSize: 11, fontWeight: 500, color: col ? NAVY : '#9CA3AF', borderBottom: '1px solid #dddddd', whiteSpace: 'nowrap', cursor: col ? 'pointer' : 'default', userSelect: 'none' }}>
                             {label}{col ? mSortIndicator(col as any) : ''}
@@ -886,6 +1223,42 @@ export default function AdminPage() {
                                     onKeyDown={e => { if (e.key === 'Enter') saveMemberEdit(); if (e.key === 'Escape') setEditingMemberId(null) }}
                                     style={{ ...inp, width: '100%', fontSize: 12, padding: '3px 6px' }} />
                                 : m.email}
+                            </td>
+                            <td style={{ padding: '8px 12px', borderBottom: '1px solid #eeeeee', whiteSpace: 'nowrap' }}>
+                              {(() => {
+                                const adminEntry = adminList.find(a => a.email.toLowerCase() === m.email.toLowerCase())
+                                const role = adminEntry?.role
+                                if (!role) return <span style={{ fontSize: 11, color: '#9CA3AF' }}>User</span>
+                                return (
+                                  <span style={{ fontSize: 11, color: role === 'super_admin' ? '#7C3AED' : SAGE, background: role === 'super_admin' ? '#F5F3FF' : SAGE_LIGHT, padding: '2px 7px', borderRadius: 0 }}>
+                                    {role === 'super_admin' ? 'Super admin' : 'Admin'}
+                                  </span>
+                                )
+                              })()}
+                              {myRole === 'super_admin' && (() => {
+                                const adminEntry = adminList.find(a => a.email.toLowerCase() === m.email.toLowerCase())
+                                const role = adminEntry?.role
+                                return (
+                                  <select
+                                    value={role ?? ''}
+                                    onChange={async e => {
+                                      const newRole = e.target.value
+                                      if (!newRole) {
+                                        await fetch('/api/admin/admins', { method: 'DELETE', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ email: m.email }) })
+                                      } else {
+                                        await fetch('/api/admin/admins', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ email: m.email, role: newRole }) })
+                                      }
+                                      const list = await fetch('/api/admin/admins').then(r => r.json())
+                                      setAdminList(list)
+                                    }}
+                                    style={{ marginLeft: 6, fontSize: 11, border: '1px solid #dddddd', background: '#fff', padding: '2px 4px', cursor: 'pointer', color: '#374151', fontFamily: 'inherit' }}
+                                  >
+                                    <option value="">User</option>
+                                    <option value="admin">Admin</option>
+                                    <option value="super_admin">Super admin</option>
+                                  </select>
+                                )
+                              })()}
                             </td>
                             <td style={{ padding: '8px 12px', borderBottom: '1px solid #eeeeee', color: '#9CA3AF', whiteSpace: 'nowrap' }}>{fmtJoined(m.added_at)}</td>
                             <td style={{ padding: '8px 12px', borderBottom: '1px solid #eeeeee', color: '#9CA3AF', whiteSpace: 'nowrap' }}>{m.last_used ? fmtDate(m.last_used) : '—'}</td>
@@ -939,18 +1312,127 @@ export default function AdminPage() {
                 </button>
               </div>
 
-              <div style={{ background: '#fff', border: '1px solid #dddddd', borderRadius: 0, padding: 16 }}>
+              <div style={{ background: '#fff', border: '1px solid #dddddd', borderRadius: 0, padding: 16, marginBottom: 10 }}>
                 <div style={{ fontSize: 12, fontWeight: 500, color: '#374151', marginBottom: 4 }}>User directory</div>
                 <div style={{ fontSize: 12, color: '#9CA3AF' }}>
                   Name/email autocomplete is populated from <code style={{ background: '#f0f0f0', padding: '1px 4px', borderRadius: 4 }}>public/users.json</code>.
                   Replace this file with your Slack export (array of <code style={{ background: '#f0f0f0', padding: '1px 4px', borderRadius: 4 }}>{`{name, email}`}</code> objects).
                 </div>
               </div>
+
+              {(() => {
+                const fmtH = (h: number) => h === 0 ? '12 AM' : h < 12 ? `${h} AM` : h === 12 ? '12 PM' : `${h - 12} PM`
+                const selStyle = { fontSize: 12, padding: '6px 8px', border: '1px solid #dddddd', borderRadius: 0, outline: 'none', fontFamily: 'inherit', background: '#fff', cursor: 'pointer' }
+                return (<>
+                  <div style={{ background: '#fff', border: '1px solid #dddddd', borderRadius: 0, padding: 16, marginBottom: 10 }}>
+                    <div style={{ fontSize: 12, fontWeight: 500, color: '#374151', marginBottom: 4 }}>Display hours</div>
+                    <div style={{ fontSize: 12, color: '#9CA3AF', marginBottom: 12 }}>The time range shown in the calendar grid. Drives utilization and heatmap stats.</div>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 12 }}>
+                      <div>
+                        <div style={{ fontSize: 11, color: '#6B7280', marginBottom: 4 }}>From</div>
+                        <select value={dispStart} onChange={e => setDispStart(Number(e.target.value))} style={selStyle}>
+                          {Array.from({ length: 24 }, (_, h) => <option key={h} value={h} disabled={h >= dispEnd - 1}>{fmtH(h)}</option>)}
+                        </select>
+                      </div>
+                      <div style={{ fontSize: 12, color: '#9CA3AF', paddingTop: 18 }}>to</div>
+                      <div>
+                        <div style={{ fontSize: 11, color: '#6B7280', marginBottom: 4 }}>To</div>
+                        <select value={dispEnd} onChange={e => setDispEnd(Number(e.target.value))} style={selStyle}>
+                          {Array.from({ length: 24 }, (_, h) => <option key={h} value={h} disabled={h <= dispStart + 1}>{fmtH(h)}</option>)}
+                        </select>
+                      </div>
+                    </div>
+                    <button
+                      onClick={async () => {
+                        setDispSaving(true)
+                        await fetch('/api/settings', { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ displayHours: { start: dispStart, end: dispEnd } }) })
+                        setDispSaving(false); setDispSaved(true); setTimeout(() => setDispSaved(false), 2000)
+                      }}
+                      disabled={dispSaving}
+                      style={{ fontSize: 12, padding: '7px 14px', borderRadius: 0, border: `1px solid ${dispSaved ? '#a3d9a5' : SAGE}`, background: dispSaved ? '#eef7f0' : 'none', cursor: dispSaving ? 'default' : 'pointer', color: dispSaved ? FREE : SAGE }}>
+                      {dispSaved ? 'Saved' : dispSaving ? 'Saving…' : 'Save'}
+                    </button>
+                  </div>
+
+                  <div style={{ background: '#fff', border: '1px solid #dddddd', borderRadius: 0, padding: 16 }}>
+                    <div style={{ fontSize: 12, fontWeight: 500, color: '#374151', marginBottom: 4 }}>Booking hours</div>
+                    <div style={{ fontSize: 12, color: '#9CA3AF', marginBottom: 12 }}>The full range for data collection — early and late bookings outside display hours are counted separately in stats.</div>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 12 }}>
+                      <div>
+                        <div style={{ fontSize: 11, color: '#6B7280', marginBottom: 4 }}>From</div>
+                        <select value={bhStart} onChange={e => setBhStart(Number(e.target.value))} style={selStyle}>
+                          {Array.from({ length: 24 }, (_, h) => <option key={h} value={h} disabled={h >= bhEnd - 1}>{fmtH(h)}</option>)}
+                        </select>
+                      </div>
+                      <div style={{ fontSize: 12, color: '#9CA3AF', paddingTop: 18 }}>to</div>
+                      <div>
+                        <div style={{ fontSize: 11, color: '#6B7280', marginBottom: 4 }}>To</div>
+                        <select value={bhEnd} onChange={e => setBhEnd(Number(e.target.value))} style={selStyle}>
+                          {Array.from({ length: 24 }, (_, h) => <option key={h} value={h} disabled={h <= bhStart + 1}>{fmtH(h)}</option>)}
+                        </select>
+                      </div>
+                    </div>
+                    <button
+                      onClick={async () => {
+                        setBhSaving(true)
+                        await fetch('/api/settings', { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ bookingHours: { start: bhStart, end: bhEnd } }) })
+                        setBhSaving(false); setBhSaved(true); setTimeout(() => setBhSaved(false), 2000)
+                      }}
+                      disabled={bhSaving}
+                      style={{ fontSize: 12, padding: '7px 14px', borderRadius: 0, border: `1px solid ${bhSaved ? '#a3d9a5' : SAGE}`, background: bhSaved ? '#eef7f0' : 'none', cursor: bhSaving ? 'default' : 'pointer', color: bhSaved ? FREE : SAGE }}>
+                      {bhSaved ? 'Saved' : bhSaving ? 'Saving…' : 'Save'}
+                    </button>
+                  </div>
+                </>)
+              })()}
+
+              <div style={{ background: '#fff', border: '1px solid #dddddd', borderRadius: 0, padding: 16 }}>
+                <div style={{ fontSize: 12, fontWeight: 500, color: '#374151', marginBottom: 4 }}>Booking visibility</div>
+                <div style={{ fontSize: 12, color: '#9CA3AF', marginBottom: 14 }}>
+                  What other users can see on bookings that aren't theirs. Your own bookings always show full detail.
+                </div>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 10, marginBottom: 14 }}>
+                  {([
+                    [visShowTitle,     setVisShowTitle,     'Show meeting title'],
+                    [visShowOrganizer, setVisShowOrganizer, 'Show organizer name'],
+                  ] as [boolean, (v: boolean) => void, string][]).map(([val, set, label]) => (
+                    <label key={label} style={{ display: 'flex', alignItems: 'center', gap: 10, cursor: 'pointer' }}>
+                      <div onClick={() => set(!val)}
+                        style={{ width: 30, height: 17, borderRadius: 9, background: val ? SAGE : '#C8CDD4', position: 'relative', cursor: 'pointer', flexShrink: 0 }}>
+                        <div style={{ position: 'absolute', width: 11, height: 11, borderRadius: '50%', background: '#fff', top: 3, left: val ? 16 : 3, transition: 'left .2s' }} />
+                      </div>
+                      <span style={{ fontSize: 12, color: '#374151' }}>{label}</span>
+                    </label>
+                  ))}
+                </div>
+                <div style={{ fontSize: 11, color: '#9CA3AF', marginBottom: 12 }}>
+                  {!visShowTitle && !visShowOrganizer && 'Others see: occupied blocks only'}
+                  {!visShowTitle && visShowOrganizer && 'Others see: occupied blocks · name revealed on click'}
+                  {visShowTitle && !visShowOrganizer && 'Others see: meeting title on block'}
+                  {visShowTitle && visShowOrganizer && 'Others see: meeting title on block · name revealed on click'}
+                </div>
+                <button
+                  onClick={async () => {
+                    setVisSaving(true)
+                    await fetch('/api/settings', { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ bookingVisibility: { showTitle: visShowTitle, showOrganizer: visShowOrganizer } }) })
+                    setVisSaving(false); setVisSaved(true); setTimeout(() => setVisSaved(false), 2000)
+                  }}
+                  disabled={visSaving}
+                  style={{ fontSize: 12, padding: '7px 14px', borderRadius: 0, border: `1px solid ${visSaved ? '#a3d9a5' : SAGE}`, background: visSaved ? '#eef7f0' : 'none', cursor: visSaving ? 'default' : 'pointer', color: visSaved ? FREE : SAGE }}>
+                  {visSaved ? 'Saved' : visSaving ? 'Saving…' : 'Save'}
+                </button>
+              </div>
             </div>
           )}
 
         </div>
       </div>
+
+      {gcalToast && (
+        <div style={{ position: 'fixed', bottom: 24, left: '50%', transform: 'translateX(-50%)', background: NAVY, color: '#fff', fontSize: 13, padding: '10px 18px', borderRadius: 0, zIndex: 200, pointerEvents: 'none', whiteSpace: 'nowrap' }}>
+          {gcalToast}
+        </div>
+      )}
     </div>
   )
 }

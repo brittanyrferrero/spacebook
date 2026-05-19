@@ -1,11 +1,10 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { useParams, useRouter } from 'next/navigation'
+import { useParams } from 'next/navigation'
 
 export default function EnterTokenPage() {
   const { token } = useParams<{ token: string }>()
-  const router = useRouter()
 
   const [name, setName] = useState('')
   const [email, setEmail] = useState('')
@@ -14,7 +13,14 @@ export default function EnterTokenPage() {
   const [tokenValid, setTokenValid] = useState<boolean | null>(null)
 
   useEffect(() => {
-    fetch(`/api/enter-check?token=${token}`).then(r => setTokenValid(r.ok))
+    fetch(`/api/enter-check?token=${token}`).then(async r => {
+      if (r.ok) {
+        // If already have workspace access, skip the form and go straight in
+        const cookieRes = await fetch(`/api/enter-set-cookie?token=${token}`)
+        if (cookieRes.ok) { window.location.href = '/'; return }
+      }
+      setTokenValid(r.ok)
+    })
   }, [token])
 
   async function handleSubmit(e: React.FormEvent) {
@@ -38,7 +44,8 @@ export default function EnterTokenPage() {
       }
 
       await fetch(`/api/enter-set-cookie?token=${token}`)
-      router.push('/')
+      try { localStorage.setItem('spacebook_user', JSON.stringify({ name: name.trim(), email: email.trim().toLowerCase() })) } catch {}
+      window.location.href = '/'
     } catch {
       setError('Something went wrong. Please try again.')
       setSubmitting(false)
@@ -75,7 +82,7 @@ export default function EnterTokenPage() {
           space<span style={{ fontStyle: 'italic', fontWeight: 400 }}>book</span>
         </div>
         <p style={{ fontSize: 13, color: 'rgba(255,255,255,0.45)', textAlign: 'center', margin: '0 0 28px' }}>
-          Enter your details to get access
+          Enter your details to get started
         </p>
         <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
           <input

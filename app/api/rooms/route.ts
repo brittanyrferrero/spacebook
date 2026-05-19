@@ -3,9 +3,16 @@ import { getRooms } from '@/lib/data'
 
 export async function GET(req: NextRequest) {
   const all = req.nextUrl.searchParams.get('all') === '1'
-  if (all && process.env.MOCK_MODE === 'true') {
-    const [{ getAllRooms }, { getSessionStore }] = await Promise.all([import('@/lib/mock/api'), import('@/lib/mock/store')])
-    return Response.json(getAllRooms(await getSessionStore()))
+  if (process.env.MOCK_MODE === 'true') {
+    const [{ getRooms: getMockRooms, getAllRooms }, { getSessionStore }] = await Promise.all([import('@/lib/mock/api'), import('@/lib/mock/store')])
+    const store = await getSessionStore()
+    return Response.json(all ? getAllRooms(store) : getMockRooms(store))
+  }
+  if (all) {
+    const { createClient } = await import('@/lib/supabase/server')
+    const supabase = await createClient()
+    const { data } = await supabase.from('rooms').select('*').order('display_order')
+    return Response.json(data ?? [])
   }
   const rooms = await getRooms()
   return Response.json(rooms)
@@ -16,8 +23,11 @@ export async function POST(req: NextRequest) {
   if (!data.name || !data.capacity) return Response.json({ error: 'name and capacity required' }, { status: 400 })
 
   if (process.env.MOCK_MODE === 'true') {
-    const [{ createRoom }, { getSessionStore }] = await Promise.all([import('@/lib/mock/api'), import('@/lib/mock/store')])
-    return Response.json(createRoom(await getSessionStore(), data), { status: 201 })
+    const [{ createRoom }, { getSessionStore, saveSessionStore }] = await Promise.all([import('@/lib/mock/api'), import('@/lib/mock/store')])
+    const store = await getSessionStore()
+    const room = createRoom(store, data)
+    await saveSessionStore(store)
+    return Response.json(room, { status: 201 })
   }
 
   const { createClient } = await import('@/lib/supabase/server')

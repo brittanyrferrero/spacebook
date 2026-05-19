@@ -8,13 +8,14 @@ import { NameAutocomplete } from '@/components/NameAutocomplete'
 const SAGE = '#5C7A6B'
 const NAVY = '#111111'
 const ROSE = '#db95ab'
-const FREE_BG = '#eef7f1'; const FREE_TEXT = '#1E5C30'; const FREE_BAR = '#3B7A4A'
+const BOOK_GREEN = '#1db954'
+const FREE_BG = '#e0f0e8'; const FREE_TEXT = '#2d7a42'; const FREE_BAR = '#4d8f5c'
 const BUSY_BG = '#f0f0f0'; const BUSY_TEXT = '#333333'; const BUSY_BAR = '#555555'
-const WEEKEND_BG = 'rgba(0,0,0,0.024)'
-const PAST_BG    = 'rgba(0,0,0,0.06)'
+const WEEKEND_BG = 'rgba(0,0,0,0.014)'
+const PAST_BG    = 'rgba(0,0,0,0.30)'
 const PAST_TEXT  = '#aaaaaa'
 
-const GRID_START = 8, GRID_END = 19, GRID_HOURS = GRID_END - GRID_START, HOUR_H = 38, GRID_H = GRID_HOURS * HOUR_H
+const GRID_START = 8, GRID_END = 20, GRID_HOURS = GRID_END - GRID_START, HOUR_H = 38, GRID_H = GRID_HOURS * HOUR_H
 
 const NAV_STARS = [
   { top: '22%', left: '5%',  size: 1.5, o: 0.55 },
@@ -68,11 +69,11 @@ function mkT(dark: boolean) {
     navBorder:       dark ? '1px solid #222222'         : '1px solid #d8d4cc',
     activeRoom:      dark ? 'rgba(59,122,74,0.18)'      : 'rgba(59,122,74,0.10)',
     activeBorder:    FREE_BAR,
-    bandOdd:         dark ? 'rgba(255,255,255,0.018)'   : 'rgba(0,0,0,0.015)',
+    bandOdd:         dark ? 'rgba(255,255,255,0.055)'   : 'rgba(0,0,0,0.015)',
     gridLine:        dark ? 'rgba(255,255,255,0.06)'    : '#e4e4e4',
     colSep:          dark ? 'rgba(255,255,255,0.06)'    : '#eeeeee',
-    weekendBg:       dark ? 'rgba(0,0,0,0.10)'           : WEEKEND_BG,
-    pastBg:          dark ? 'rgba(0,0,0,0.25)'          : PAST_BG,
+    weekendBg:       dark ? 'rgba(0,0,0,0.09)'           : WEEKEND_BG,
+    pastBg:          dark ? 'rgba(0,0,0,0.50)'          : PAST_BG,
     pastText:        dark ? '#424242'                   : PAST_TEXT,
     blockBg:         dark ? '#1e2838'                   : '#dce0e6',
     blockBorder:     dark ? '#3a4e68'                   : '#5a6e84',
@@ -88,7 +89,7 @@ function mkT(dark: boolean) {
 }
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
-const dateStr = (d: Date) => d.toISOString().slice(0, 10)
+const dateStr = (d: Date) => `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`
 
 function isoMonday(d: Date): Date {
   const copy = new Date(d)
@@ -131,8 +132,8 @@ function toHHMM(d: Date) {
   return `${String(Math.floor(snapped / 60) % 24).padStart(2, '0')}:${String(snapped % 60).padStart(2, '0')}`
 }
 
-function toGridPct(h: number, m: number) {
-  return ((h - GRID_START) + m / 60) / GRID_HOURS
+function toGridPct(h: number, m: number, gs = GRID_START, gh = GRID_HOURS) {
+  return ((h - gs) + m / 60) / gh
 }
 
 function fmtHour(h: number) {
@@ -154,17 +155,17 @@ function fmtTime(hhmm: string) {
   return m === 0 ? `${h12}${ampm}` : `${h12}:${String(m).padStart(2, '0')}${ampm}`
 }
 
-function findNextAvailable(date: string, startHHMM: string, endHHMM: string, bookings: Booking[]): string | null {
+function findNextAvailable(date: string, startHHMM: string, endHHMM: string, bookings: Booking[], gridEnd = GRID_END): string | null {
   const dur = toMins(endHHMM) - toMins(startHHMM)
   if (dur <= 0) return null
   const slots = bookings
-    .filter(b => !b.cancelled_at && b.start_time.slice(0, 10) === date)
+    .filter(b => !b.cancelled_at && dateStr(new Date(b.start_time)) === date)
     .map(b => ({ start: new Date(b.start_time).getHours() * 60 + new Date(b.start_time).getMinutes(), end: new Date(b.end_time).getHours() * 60 + new Date(b.end_time).getMinutes() }))
     .sort((a, b) => a.start - b.start)
   const conflicts = slots.filter(b => b.start < toMins(endHHMM) && b.end > toMins(startHHMM))
   if (conflicts.length === 0) return null
   let candidate = Math.max(...conflicts.map(b => b.end))
-  while (candidate + dur <= GRID_END * 60) {
+  while (candidate + dur <= gridEnd * 60) {
     const blocking = slots.find(b => b.start < candidate + dur && b.end > candidate)
     if (!blocking) return fromMins(candidate)
     candidate = blocking.end
@@ -188,8 +189,8 @@ function getRoomStatusFull(bookings: Booking[]): { status: 'free' | 'busy'; unti
 }
 
 // ─── NowLine ──────────────────────────────────────────────────────────────────
-function NowLine({ now, gridH }: { now: Date; gridH: number }) {
-  const pct = toGridPct(now.getHours(), now.getMinutes())
+function NowLine({ now, gridH, gridStart = GRID_START, gridHours = GRID_HOURS }: { now: Date; gridH: number; gridStart?: number; gridHours?: number }) {
+  const pct = toGridPct(now.getHours(), now.getMinutes(), gridStart, gridHours)
   if (pct < 0 || pct > 1) return null
   const top = pct * gridH
   return (
@@ -220,29 +221,46 @@ function TimePicker({ value, onChange, dark }: { value: string; onChange: (v: st
 }
 
 // ─── DayView ──────────────────────────────────────────────────────────────────
-function DayView({ bookings, viewDate, onSlotClick, onBookingClick, pendingSlot, now, dark, myEmail, hourH = HOUR_H }: {
+function DayView({ bookings, viewDate, onSlotClick, onBookingClick, pendingSlot, now, dark, myEmail, hourH = HOUR_H, gridStart = GRID_START, gridEnd = GRID_END, visShowTitle = false, visShowOrganizer = false }: {
   bookings: Booking[]; viewDate: Date;
   onSlotClick?: (date: Date, time: string) => void;
   onBookingClick?: (b: Booking) => void;
   pendingSlot?: { ds: string; startHHMM: string; endHHMM: string } | null;
-  now?: Date; dark?: boolean; myEmail?: string; hourH?: number;
+  now?: Date; dark?: boolean; myEmail?: string; hourH?: number; gridStart?: number; gridEnd?: number; visShowTitle?: boolean; visShowOrganizer?: boolean;
 }) {
   const T = mkT(dark ?? false)
-  const gridH = hourH * GRID_HOURS
+  const gridHours = gridEnd - gridStart
+  const gridH = hourH * gridHours
+  const gp = (h: number, m: number) => toGridPct(h, m, gridStart, gridHours)
   const ds = dateStr(viewDate)
   const todayStr = now ? dateStr(now) : ''
   const isPast = ds < todayStr
   const [hoverTime, setHoverTime] = useState<string | null>(null)
+  const [chronoFlash, setChronoFlash] = useState(false)
+  const isToday = ds === todayStr
+
+  function flashChrono() {
+    setChronoFlash(false)
+    requestAnimationFrame(() => requestAnimationFrame(() => setChronoFlash(true)))
+    setTimeout(() => setChronoFlash(false), 1800)
+  }
+
+  function isPastSlot(hhmm: string): boolean {
+    if (!isToday || !now) return false
+    const [h, m] = hhmm.split(':').map(Number)
+    const t = new Date(viewDate); t.setHours(h, m, 0, 0)
+    return t < now
+  }
 
   function snapY(y: number) {
-    const totalMins = Math.round((GRID_START * 60 + (Math.max(0, Math.min(y, gridH)) / gridH) * GRID_HOURS * 60) / 15) * 15
-    const h = Math.min(Math.floor(totalMins / 60), GRID_END - 1)
+    const totalMins = Math.round((gridStart * 60 + (Math.max(0, Math.min(y, gridH)) / gridH) * gridHours * 60) / 15) * 15
+    const h = Math.min(Math.floor(totalMins / 60), gridEnd - 1)
     const m = totalMins % 60
     return `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`
   }
   const activeBookings = bookings.filter(b => !b.cancelled_at)
-  const hourLabels = Array.from({ length: GRID_HOURS + 1 }, (_, i) => {
-    const h = GRID_START + i
+  const hourLabels = Array.from({ length: gridHours + 1 }, (_, i) => {
+    const h = gridStart + i
     return h < 12 ? `${h}am` : h === 12 ? '12pm' : `${h - 12}pm`
   })
 
@@ -255,38 +273,49 @@ function DayView({ bookings, viewDate, onSlotClick, onBookingClick, pendingSlot,
       </div>
       <div style={{ flex: 1, borderLeft: `0.5px solid ${T.borderFaint}` }}>
         <div
-          style={{ position: 'relative', height: gridH, cursor: onSlotClick && !isPast ? 'pointer' : 'default', background: isPast ? T.pastBg : T.calDayBg }}
-          onClick={onSlotClick && !isPast ? (e) => { const rect = e.currentTarget.getBoundingClientRect(); onSlotClick(viewDate, snapY(e.clientY - rect.top)) } : undefined}
-          onMouseMove={onSlotClick && !isPast ? (e) => { const rect = e.currentTarget.getBoundingClientRect(); setHoverTime(snapY(e.clientY - rect.top)) } : undefined}
+          style={{ position: 'relative', height: gridH, overflow: 'hidden', cursor: onSlotClick && !isPast ? 'pointer' : 'default', background: isPast ? T.pastBg : T.calDayBg }}
+          onClick={onSlotClick && !isPast ? (e) => { const rect = e.currentTarget.getBoundingClientRect(); const t = snapY(e.clientY - rect.top); if (isPastSlot(t)) { flashChrono(); return } onSlotClick(viewDate, t) } : undefined}
+          onMouseMove={onSlotClick && !isPast ? (e) => { const rect = e.currentTarget.getBoundingClientRect(); const t = snapY(e.clientY - rect.top); if (isPastSlot(t)) setHoverTime(null); else setHoverTime(t) } : undefined}
           onMouseLeave={() => setHoverTime(null)}>
-          {Array.from({ length: GRID_HOURS }, (_, i) => (
-            <div key={i} style={{ position: 'absolute', top: i * hourH, left: 0, right: 0, height: hourH, background: i % 2 === 0 ? T.bandOdd : 'transparent', borderTop: `0.5px solid ${isPast ? T.gridLine : (dark ? 'rgba(255,255,255,0.12)' : '#C8C8C8')}` }} />
+          {Array.from({ length: gridHours }, (_, i) => (
+            <div key={i} style={{ position: 'absolute', top: i * hourH, left: 0, right: 0, height: hourH, background: i % 2 === 0 ? T.bandOdd : 'transparent', borderTop: `0.5px solid ${isPast ? (dark ? 'rgba(255,255,255,0.04)' : '#a8a8a8') : (dark ? 'rgba(255,255,255,0.12)' : '#C8C8C8')}` }} />
           ))}
           {hoverTime && (() => {
             const [sh, sm] = hoverTime.split(':').map(Number)
-            const topPx = Math.max(0, toGridPct(sh, sm) * gridH)
+            const topPx = Math.max(0, gp(sh, sm) * gridH)
             return <div style={{ position: 'absolute', top: topPx, left: 0, right: 0, height: hourH / 4, background: dark ? 'rgba(219,149,171,0.13)' : 'rgba(44,62,107,0.08)', borderTop: `1px solid ${dark ? 'rgba(219,149,171,0.3)' : 'rgba(44,62,107,0.18)'}`, pointerEvents: 'none', transition: 'top 0.08s ease-out' }} />
           })()}
           {pendingSlot?.ds === ds && (() => {
             const [sh, sm] = pendingSlot.startHHMM.split(':').map(Number)
             const [eh, em] = pendingSlot.endHHMM.split(':').map(Number)
-            const topPx = Math.max(0, toGridPct(sh, sm) * gridH)
-            const heightPx = Math.max(8, (toGridPct(eh, em) - toGridPct(sh, sm)) * gridH)
+            const topPx = Math.max(0, gp(sh, sm) * gridH)
+            const heightPx = Math.max(8, (gp(eh, em) - gp(sh, sm)) * gridH)
             return <div style={{ position: 'absolute', top: topPx, left: 2, right: 2, height: heightPx, background: 'rgba(148,163,184,0.25)', borderRadius: 4, border: '1.5px dashed #94A3B8', pointerEvents: 'none' }} />
           })()}
-          {now && !isPast && dateStr(viewDate) === dateStr(now) && <NowLine now={now} gridH={gridH} />}
+          {now && isToday && (() => {
+            const pastH = Math.max(0, gp(now.getHours(), now.getMinutes()) * gridH)
+            return pastH > 0 ? <div style={{ position: 'absolute', top: 0, left: 0, right: 0, height: pastH, background: dark ? 'rgba(0,0,0,0.50)' : 'rgba(0,0,0,0.30)', pointerEvents: 'none', zIndex: 2 }} /> : null
+          })()}
+          {chronoFlash && (
+            <div style={{ position: 'absolute', top: '38%', left: 0, right: 0, display: 'flex', justifyContent: 'center', pointerEvents: 'none', zIndex: 10 }}>
+              <span style={{ fontSize: 11, fontWeight: 600, color: dark ? '#888888' : '#6B7280', letterSpacing: '0.07em', animation: 'chronoFlash 1.8s ease-out forwards', whiteSpace: 'nowrap' }}>Chronology protection enforced.</span>
+            </div>
+          )}
+          {now && !isPast && dateStr(viewDate) === dateStr(now) && <NowLine now={now} gridH={gridH} gridStart={gridStart} gridHours={gridHours} />}
           {activeBookings.map(b => {
             const bs = new Date(b.start_time), be = new Date(b.end_time)
-            const topPx = Math.max(0, toGridPct(bs.getHours(), bs.getMinutes()) * gridH)
-            const heightPx = Math.max(16, (toGridPct(be.getHours(), be.getMinutes()) - toGridPct(bs.getHours(), bs.getMinutes())) * gridH)
+            const topPx = Math.max(0, gp(bs.getHours(), bs.getMinutes()) * gridH)
+            const heightPx = Math.max(16, (gp(be.getHours(), be.getMinutes()) - gp(bs.getHours(), bs.getMinutes())) * gridH)
             const isMine = !!myEmail && b.booker_email === myEmail
-            const bg     = isPast ? T.pastBlockBg : isMine ? (dark ? '#4a2535' : '#f5e0e7') : T.blockBg
-            const border = isPast ? T.pastBlockBorder : isMine ? ROSE : T.blockBorder
-            const label  = isMine ? (b.title || b.booker_name) : b.booker_name
-            const textColor = isPast ? T.textFaint : isMine ? (dark ? '#e8b4c4' : '#8a3d58') : (dark ? '#a0b4c8' : '#3d5068')
+            const othersClickable = !isMine && (visShowTitle || visShowOrganizer)
+            const isBlockPast = !!now && new Date(b.end_time) < now
+            const bg     = isBlockPast ? (isMine ? (dark ? '#2e2030' : '#e0c8d0') : (dark ? '#1e222a' : '#c8cdd4')) : isMine ? (dark ? '#4a2535' : '#f5e0e7') : T.blockBg
+            const border = isBlockPast ? (isMine ? (dark ? '#3e3048' : '#c0a0b4') : (dark ? '#2a303a' : '#a8b0bc')) : isMine ? ROSE : T.blockBorder
+            const label  = isMine ? (b.title || b.booker_name) : visShowTitle ? (b.title || 'Occupied') : visShowOrganizer ? b.booker_name : 'Occupied'
+            const textColor = isBlockPast ? T.textFaint : isMine ? (dark ? '#e8b4c4' : '#8a3d58') : (dark ? '#a0b4c8' : '#3d5068')
             return (
-              <div key={b.id} onClick={e => { e.stopPropagation(); onBookingClick?.(b) }}
-                style={{ position: 'absolute', top: topPx, left: 4, right: 4, height: heightPx, background: bg, borderRadius: 0, cursor: onBookingClick ? 'pointer' : 'default', overflow: 'hidden' }}>
+              <div key={b.id} onClick={e => { e.stopPropagation(); if (isMine || othersClickable) onBookingClick?.(b) }}
+                style={{ position: 'absolute', top: topPx, left: 4, right: 4, height: heightPx, background: bg, borderRadius: 0, cursor: (isMine || othersClickable) && onBookingClick ? 'pointer' : 'default', overflow: 'hidden' }}>
                 {heightPx > 18 && <div style={{ padding: '2px 5px', fontSize: 10, color: textColor, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', fontWeight: 500 }}>{b.recurring_series_id ? `↻ ${label}` : label}</div>}
               </div>
             )
@@ -298,32 +327,42 @@ function DayView({ bookings, viewDate, onSlotClick, onBookingClick, pendingSlot,
 }
 
 // ─── WeekView ─────────────────────────────────────────────────────────────────
-function WeekView({ bookings, weekDays, onSlotClick, onBookingClick, pendingSlot, now, dark, myEmail, hourH = HOUR_H }: {
+function WeekView({ bookings, weekDays, onSlotClick, onBookingClick, pendingSlot, now, dark, myEmail, hourH = HOUR_H, gridStart = GRID_START, gridEnd = GRID_END, visShowTitle = false, visShowOrganizer = false }: {
   bookings: Booking[]; weekDays: Date[];
   onSlotClick?: (date: Date, time: string) => void;
   onBookingClick?: (b: Booking) => void;
   pendingSlot?: { ds: string; startHHMM: string; endHHMM: string } | null;
-  now?: Date; dark?: boolean; myEmail?: string; hourH?: number;
+  now?: Date; dark?: boolean; myEmail?: string; hourH?: number; gridStart?: number; gridEnd?: number; visShowTitle?: boolean; visShowOrganizer?: boolean;
 }) {
   const T = mkT(dark ?? false)
-  const gridH = hourH * GRID_HOURS
+  const gridHours = gridEnd - gridStart
+  const gridH = hourH * gridHours
+  const gp = (h: number, m: number) => toGridPct(h, m, gridStart, gridHours)
   const todayStr = dateStr(new Date())
   const [hoverSlot, setHoverSlot] = useState<{ ds: string; time: string } | null>(null)
+  const [chronoFlash, setChronoFlash] = useState(false)
+
+  function flashChrono() {
+    setChronoFlash(false)
+    requestAnimationFrame(() => requestAnimationFrame(() => setChronoFlash(true)))
+    setTimeout(() => setChronoFlash(false), 1800)
+  }
+
   const byDay: Record<string, Booking[]> = {}
   for (const b of bookings) {
-    const d = b.start_time.slice(0, 10)
+    const d = dateStr(new Date(b.start_time))
     if (!byDay[d]) byDay[d] = []
     byDay[d].push(b)
   }
 
   function snapY(y: number) {
-    const totalMins = Math.round((GRID_START * 60 + (Math.max(0, Math.min(y, gridH)) / gridH) * GRID_HOURS * 60) / 15) * 15
-    const h = Math.min(Math.floor(totalMins / 60), GRID_END - 1)
+    const totalMins = Math.round((gridStart * 60 + (Math.max(0, Math.min(y, gridH)) / gridH) * gridHours * 60) / 15) * 15
+    const h = Math.min(Math.floor(totalMins / 60), gridEnd - 1)
     const m = totalMins % 60
     return `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`
   }
-  const hourLabels = Array.from({ length: GRID_HOURS + 1 }, (_, i) => {
-    const h = GRID_START + i
+  const hourLabels = Array.from({ length: gridHours + 1 }, (_, i) => {
+    const h = gridStart + i
     return h < 12 ? `${h}am` : h === 12 ? '12pm' : `${h - 12}pm`
   })
 
@@ -362,37 +401,48 @@ function WeekView({ bookings, weekDays, onSlotClick, onBookingClick, pendingSlot
             return (
               <div key={ds} style={{ borderRight: colIdx < 6 ? `0.5px solid ${T.colSep}` : 'none' }}>
                 <div
-                  style={{ position: 'relative', height: gridH, background: colBg, cursor: onSlotClick && !isPast ? 'pointer' : 'default' }}
-                  onClick={onSlotClick && !isPast ? (e) => { const rect = e.currentTarget.getBoundingClientRect(); onSlotClick(day, snapY(e.clientY - rect.top)) } : undefined}
-                  onMouseMove={onSlotClick && !isPast ? (e) => { const rect = e.currentTarget.getBoundingClientRect(); setHoverSlot({ ds, time: snapY(e.clientY - rect.top) }) } : undefined}
+                  style={{ position: 'relative', height: gridH, overflow: 'hidden', background: colBg, cursor: onSlotClick && !isPast ? 'pointer' : 'default' }}
+                  onClick={onSlotClick && !isPast ? (e) => { const rect = e.currentTarget.getBoundingClientRect(); const t = snapY(e.clientY - rect.top); if (isToday && now) { const [h,m] = t.split(':').map(Number); const s = new Date(day); s.setHours(h,m,0,0); if (s < now) { flashChrono(); return } } onSlotClick(day, t) } : undefined}
+                  onMouseMove={onSlotClick && !isPast ? (e) => { const rect = e.currentTarget.getBoundingClientRect(); const t = snapY(e.clientY - rect.top); if (isToday && now) { const [h,m] = t.split(':').map(Number); const s = new Date(day); s.setHours(h,m,0,0); if (s < now) { setHoverSlot(null); return } } setHoverSlot({ ds, time: t }) } : undefined}
                   onMouseLeave={() => setHoverSlot(null)}>
-                  {Array.from({ length: GRID_HOURS }, (_, i) => (
-                    <div key={i} style={{ position: 'absolute', top: i * hourH, left: 0, right: 0, height: hourH, background: i % 2 === 0 ? T.bandOdd : 'transparent', borderTop: `0.5px solid ${isPast ? T.gridLine : (dark ? 'rgba(255,255,255,0.12)' : '#C8C8C8')}` }} />
+                  {Array.from({ length: gridHours }, (_, i) => (
+                    <div key={i} style={{ position: 'absolute', top: i * hourH, left: 0, right: 0, height: hourH, background: i % 2 === 0 ? T.bandOdd : 'transparent', borderTop: `0.5px solid ${isPast ? (dark ? 'rgba(255,255,255,0.04)' : '#a8a8a8') : (dark ? 'rgba(255,255,255,0.12)' : '#C8C8C8')}` }} />
                   ))}
                   {hoverSlot?.ds === ds && (() => {
                     const [sh, sm] = hoverSlot.time.split(':').map(Number)
-                    return <div style={{ position: 'absolute', top: Math.max(0, toGridPct(sh, sm) * gridH), left: 0, right: 0, height: hourH / 4, background: dark ? 'rgba(219,149,171,0.13)' : 'rgba(44,62,107,0.08)', borderTop: `1px solid ${dark ? 'rgba(219,149,171,0.3)' : 'rgba(44,62,107,0.18)'}`, pointerEvents: 'none', transition: 'top 0.08s ease-out' }} />
+                    return <div style={{ position: 'absolute', top: Math.max(0, gp(sh, sm) * gridH), left: 0, right: 0, height: hourH / 4, background: dark ? 'rgba(219,149,171,0.13)' : 'rgba(44,62,107,0.08)', borderTop: `1px solid ${dark ? 'rgba(219,149,171,0.3)' : 'rgba(44,62,107,0.18)'}`, pointerEvents: 'none', transition: 'top 0.08s ease-out' }} />
                   })()}
                   {pendingSlot?.ds === ds && (() => {
                     const [sh, sm] = pendingSlot.startHHMM.split(':').map(Number)
                     const [eh, em] = pendingSlot.endHHMM.split(':').map(Number)
-                    const topPx = Math.max(0, toGridPct(sh, sm) * gridH)
-                    const heightPx = Math.max(8, (toGridPct(eh, em) - toGridPct(sh, sm)) * gridH)
+                    const topPx = Math.max(0, gp(sh, sm) * gridH)
+                    const heightPx = Math.max(8, (gp(eh, em) - gp(sh, sm)) * gridH)
                     return <div style={{ position: 'absolute', top: topPx, left: 2, right: 2, height: heightPx, background: 'rgba(148,163,184,0.25)', borderRadius: 4, border: '1.5px dashed #94A3B8', pointerEvents: 'none' }} />
                   })()}
-                  {now && isToday && <NowLine now={now} gridH={gridH} />}
+                  {now && isToday && (() => {
+                    const pastH = Math.max(0, gp(now.getHours(), now.getMinutes()) * gridH)
+                    return pastH > 0 ? <div style={{ position: 'absolute', top: 0, left: 0, right: 0, height: pastH, background: dark ? 'rgba(0,0,0,0.50)' : 'rgba(0,0,0,0.30)', pointerEvents: 'none', zIndex: 2 }} /> : null
+                  })()}
+                  {chronoFlash && isToday && (
+                    <div style={{ position: 'absolute', top: '35%', left: '50%', transform: 'translateX(-50%)', pointerEvents: 'none', zIndex: 10, whiteSpace: 'nowrap' }}>
+                      <span style={{ fontSize: 9, fontWeight: 600, color: dark ? '#888888' : '#6B7280', letterSpacing: '0.04em', animation: 'chronoFlash 1.8s ease-out forwards' }}>Chronology protection enforced.</span>
+                    </div>
+                  )}
+                  {now && isToday && <NowLine now={now} gridH={gridH} gridStart={gridStart} gridHours={gridHours} />}
                   {dayBookings.map(b => {
                     const bs = new Date(b.start_time), be = new Date(b.end_time)
-                    const topPx = Math.max(0, toGridPct(bs.getHours(), bs.getMinutes()) * gridH)
-                    const heightPx = Math.max(16, (toGridPct(be.getHours(), be.getMinutes()) - toGridPct(bs.getHours(), bs.getMinutes())) * gridH)
+                    const topPx = Math.max(0, gp(bs.getHours(), bs.getMinutes()) * gridH)
+                    const heightPx = Math.max(16, (gp(be.getHours(), be.getMinutes()) - gp(bs.getHours(), bs.getMinutes())) * gridH)
                     const isMine = !!myEmail && b.booker_email === myEmail
-                    const bg     = isPast ? T.pastBlockBg : isMine ? (dark ? '#4a2535' : '#f5e0e7') : T.blockBg
-                    const border = isPast ? T.pastBlockBorder : isMine ? ROSE : T.blockBorder
-                    const label  = isMine ? (b.title || b.booker_name) : b.booker_name
-                    const textColor = isPast ? T.textFaint : isMine ? (dark ? '#e8b4c4' : '#8a3d58') : (dark ? '#a0b4c8' : '#3d5068')
+                    const othersClickable = !isMine && (visShowTitle || visShowOrganizer)
+                    const isBlockPast = !!now && new Date(b.end_time) < now
+                    const bg     = isBlockPast ? (isMine ? (dark ? '#2e2030' : '#e0c8d0') : (dark ? '#1e222a' : '#c8cdd4')) : isMine ? (dark ? '#4a2535' : '#f5e0e7') : T.blockBg
+                    const border = isBlockPast ? (isMine ? (dark ? '#3e3048' : '#c0a0b4') : (dark ? '#2a303a' : '#a8b0bc')) : isMine ? ROSE : T.blockBorder
+                    const label  = isMine ? (b.title || b.booker_name) : visShowTitle ? (b.title || 'Occupied') : visShowOrganizer ? b.booker_name : 'Occupied'
+                    const textColor = isBlockPast ? T.textFaint : isMine ? (dark ? '#e8b4c4' : '#8a3d58') : (dark ? '#a0b4c8' : '#3d5068')
                     return (
-                      <div key={b.id} onClick={e => { e.stopPropagation(); onBookingClick?.(b) }}
-                        style={{ position: 'absolute', top: topPx, left: 2, right: 2, height: heightPx, background: bg, borderRadius: 0, cursor: onBookingClick ? 'pointer' : 'default', overflow: 'hidden' }}>
+                      <div key={b.id} onClick={e => { e.stopPropagation(); if (isMine || othersClickable) onBookingClick?.(b) }}
+                        style={{ position: 'absolute', top: topPx, left: 2, right: 2, height: heightPx, background: bg, borderRadius: 0, cursor: (isMine || othersClickable) && onBookingClick ? 'pointer' : 'default', overflow: 'hidden' }}>
                         {heightPx > 18 && <div style={{ padding: '2px 4px', fontSize: 9, color: textColor, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', fontWeight: 500 }}>{b.recurring_series_id ? `↻ ${label}` : label}</div>}
                       </div>
                     )
@@ -416,7 +466,7 @@ function MonthView({ bookings, viewDate, onDayClick, dark }: { bookings: Booking
   const byDay: Record<string, number> = {}
   for (const b of bookings) {
     if (b.cancelled_at) continue
-    const d = b.start_time.slice(0, 10)
+    const d = dateStr(new Date(b.start_time))
     byDay[d] = (byDay[d] ?? 0) + 1
   }
 
@@ -439,8 +489,8 @@ function MonthView({ bookings, viewDate, onDayClick, dark }: { bookings: Booking
             const cellBg    = isWeekend ? T.weekendBg : T.cardBg
             const numColor  = isToday ? '#fff' : isPast ? T.pastText : isWeekend && inMonth ? '#8a7a60' : inMonth ? T.text : T.borderFaint
             return (
-              <div key={ds} onClick={() => onDayClick(day)}
-                style={{ padding: '6px 4px 8px', minHeight: 64, cursor: 'pointer', borderRight: di < 6 ? `0.5px solid ${T.colSep}` : 'none', background: isPast ? T.pastBg : cellBg }}>
+              <div key={ds} onClick={() => { if (!isPast) onDayClick(day) }}
+                style={{ padding: '6px 4px 8px', minHeight: 64, cursor: isPast ? 'default' : 'pointer', borderRight: di < 6 ? `0.5px solid ${T.colSep}` : 'none', background: isPast ? T.pastBg : cellBg }}>
                 <div style={{ display: 'flex', justifyContent: 'center' }}>
                   <div style={{ width: 22, height: 22, borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', background: isToday ? ROSE : 'transparent', color: numColor, fontSize: 11, fontWeight: isToday ? 600 : 400 }}>
                     {day.getDate()}
@@ -466,19 +516,24 @@ function MonthView({ bookings, viewDate, onDayClick, dark }: { bookings: Booking
 // ─── Main Page ────────────────────────────────────────────────────────────────
 export default function BookingPage() {
   const [rooms,          setRooms]         = useState<Room[]>([])
+  const [roomTypes,      setRoomTypes]     = useState<string[]>([])
+  const [filterRoomType, setFilterRoomType] = useState('')
   const [sidebarBkgs,   setSidebarBkgs]   = useState<Booking[]>([])
   const [rangeBkgs,     setRangeBkgs]     = useState<Booking[]>([])
   const [selectedRoomId, setSelectedRoomId] = useState('')
+  const [busyFlash,     setBusyFlash]     = useState(false)
   const [now,           setNow]           = useState(new Date())
   const [calView,       setCalView]       = useState<CalView>('week')
   const [viewDate,      setViewDate]      = useState(new Date())
   const [theme,         setTheme]         = useState<'light' | 'dark'>('light')
   const [lotr,          setLotr]          = useState(false)
+  const [gridStart,     setGridStart]     = useState(8)
+  const [gridEnd,       setGridEnd]       = useState(20)
 
   const [showModal,   setShowModal]   = useState<'now' | 'later' | null>(null)
   const [mName,       setMName]       = useState('')
   const [mEmail,      setMEmail]      = useState('')
-  const [mDate,       setMDate]       = useState(() => new Date().toISOString().slice(0, 10))
+  const [mDate,       setMDate]       = useState(() => dateStr(new Date()))
   const [mTitle,      setMTitle]      = useState('')
   const [mTime,       setMTime]       = useState('')
   const [mEndTime,    setMEndTime]    = useState('')
@@ -486,7 +541,19 @@ export default function BookingPage() {
   const [mDone,       setMDone]       = useState(false)
   const [mError,      setMError]      = useState('')
   const [recurFreq,   setRecurFreq]   = useState<'none' | 'weekly' | 'monthly'>('none')
-  const [recurUntil,  setRecurUntil]  = useState(() => { const d = new Date(); d.setMonth(d.getMonth() + 3); return d.toISOString().slice(0, 10) })
+  const [recurUntil,  setRecurUntil]  = useState(() => { const d = new Date(); d.setMonth(d.getMonth() + 3); return dateStr(d) })
+
+  // Visibility settings
+  const [visShowTitle,     setVisShowTitle]     = useState(false)
+  const [visShowOrganizer, setVisShowOrganizer] = useState(false)
+
+  // My bookings panel
+  const [showMyBookings,  setShowMyBookings]  = useState(false)
+  const [myBkEmail,       setMyBkEmail]       = useState('')
+  const [myBkgs,          setMyBkgs]          = useState<any[] | null>(null)
+  const [myBkLoading,     setMyBkLoading]     = useState(false)
+  const [myBkSelected,    setMyBkSelected]    = useState<Set<string>>(new Set())
+  const [myBkCancelling,  setMyBkCancelling]  = useState(false)
 
   // Edit existing booking
   const [editBooking,     setEditBooking]     = useState<Booking | null>(null)
@@ -497,11 +564,12 @@ export default function BookingPage() {
   const [editStart,       setEditStart]       = useState('')
   const [editEnd,         setEditEnd]         = useState('')
   const [editSubmitting,  setEditSubmitting]  = useState(false)
+  const [confirmCancel,   setConfirmCancel]   = useState<{ message: string; onConfirm: () => void } | null>(null)
 
   const dark = theme === 'dark'
   const T = mkT(dark)
 
-  const todayStr     = now.toISOString().slice(0, 10)
+  const todayStr     = dateStr(now)
   const viewDateStr  = dateStr(viewDate)
   const weekDays     = getWeekDays(viewDate)
   const selectedRoom = rooms.find(r => r.id === selectedRoomId) ?? null
@@ -531,6 +599,7 @@ export default function BookingPage() {
       setRooms(data)
       setSelectedRoomId(prev => prev || data[0]?.id || '')
     })
+    fetch('/api/room-types').then(r => r.json()).then(setRoomTypes)
   }, [])
 
   const fetchSidebar = useCallback(() => {
@@ -546,6 +615,22 @@ export default function BookingPage() {
   }, [selectedRoomId, calView, viewDateStr])
 
   useEffect(() => { fetchRooms() }, [fetchRooms])
+  useEffect(() => {
+    fetch('/api/settings').then(r => r.json()).then(d => {
+      setGridStart(d.displayHours?.start ?? 8)
+      setGridEnd(d.displayHours?.end ?? 20)
+      setVisShowTitle(d.bookingVisibility?.showTitle ?? false)
+      setVisShowOrganizer(d.bookingVisibility?.showOrganizer ?? false)
+    }).catch(() => {})
+  }, [])
+
+  useEffect(() => {
+    if (!filterRoomType) return
+    const visible = rooms.filter(r => r.room_type === filterRoomType)
+    if (visible.length > 0 && !visible.find(r => r.id === selectedRoomId)) {
+      setSelectedRoomId(visible[0].id)
+    }
+  }, [filterRoomType, rooms])
   useEffect(() => { fetchSidebar() }, [fetchSidebar])
   useEffect(() => { fetchRange() }, [fetchRange])
 
@@ -596,7 +681,7 @@ export default function BookingPage() {
   const WEEK_HEADER_H = 52 // day-name + number circle rows
   const CAL_PAD = 32       // 16px top + 16px bottom padding on the container
   const dynHourH = calContainerH > 100
-    ? Math.max(28, Math.floor((calContainerH - CAL_PAD - (calView === 'week' ? WEEK_HEADER_H : 0)) / GRID_HOURS))
+    ? Math.max(28, Math.floor((calContainerH - CAL_PAD - (calView === 'week' ? WEEK_HEADER_H : 0)) / (gridEnd - gridStart)))
     : HOUR_H
 
   function shiftView(dir: -1 | 1) {
@@ -627,7 +712,46 @@ export default function BookingPage() {
     const [h, m] = time.split(':').map(Number)
     const endTotal = Math.min(h * 60 + m + 60, 23 * 60)
     const endHHMM = `${String(Math.floor(endTotal / 60)).padStart(2, '0')}:${String(endTotal % 60).padStart(2, '0')}`
-    setMDate(ds); setMTime(time); setMEndTime(endHHMM); setRecurFreq('none'); setMError(''); setMDone(false); setShowModal('later')
+    setMDate(ds); setMTime(time); setMEndTime(endHHMM); setMTitle('Occupied'); setRecurFreq('none'); setMError(''); setMDone(false); setShowModal('later')
+  }
+
+  async function fetchMyBkgs(email: string) {
+    setMyBkLoading(true)
+    const res = await fetch(`/api/bookings?email=${encodeURIComponent(email)}`)
+    setMyBkgs(await res.json())
+    setMyBkLoading(false)
+    setMyBkSelected(new Set())
+  }
+
+  function openMyBookings() {
+    setShowMyBookings(true)
+    setMyBkSelected(new Set())
+    if (mEmail) { setMyBkEmail(mEmail); fetchMyBkgs(mEmail) }
+    else { setMyBkgs(null); setMyBkEmail('') }
+  }
+
+  async function cancelMyBkSelected() {
+    const count = myBkSelected.size
+    if (!confirm(`Cancel ${count} booking${count !== 1 ? 's' : ''}? For recurring bookings, only these specific occurrences will be cancelled.`)) return
+    setMyBkCancelling(true)
+    await Promise.all(
+      (myBkgs ?? []).filter(b => myBkSelected.has(b.id)).map(b =>
+        fetch(`/api/cancel/${b.cancel_token}`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ scope: 'this' }) })
+      )
+    )
+    setMyBkCancelling(false)
+    fetchMyBkgs(myBkEmail)
+    fetchSidebar(); fetchRange()
+  }
+
+  async function cancelOneMyBk(b: any) {
+    const msg = b.recurring_series_id ? 'This will cancel only this occurrence.' : 'This will cancel the booking.'
+    setConfirmCancel({ message: msg, onConfirm: async () => {
+      setConfirmCancel(null)
+      await fetch(`/api/cancel/${b.cancel_token}`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ scope: 'this' }) })
+      fetchMyBkgs(myBkEmail)
+      fetchSidebar(); fetchRange()
+    }})
   }
 
   function openEdit(b: Booking) {
@@ -636,7 +760,7 @@ export default function BookingPage() {
     setEditTitle(b.title ?? '')
     setEditName(b.booker_name)
     setEditEmail(b.booker_email)
-    setEditDate(b.start_time.slice(0, 10))
+    setEditDate(dateStr(new Date(b.start_time)))
     setEditStart(`${String(bs.getHours()).padStart(2, '0')}:${String(bs.getMinutes()).padStart(2, '0')}`)
     setEditEnd(`${String(be.getHours()).padStart(2, '0')}:${String(be.getMinutes()).padStart(2, '0')}`)
   }
@@ -665,11 +789,14 @@ export default function BookingPage() {
   }
 
   async function handleEditCancel() {
-    if (!editBooking || !confirm('Cancel this booking?')) return
-    await fetch(`/api/cancel/${editBooking.cancel_token}`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ scope: 'this' }) })
-    setEditBooking(null)
-    fetchRange()
-    fetchSidebar()
+    if (!editBooking) return
+    setConfirmCancel({ message: 'This will cancel the booking.', onConfirm: async () => {
+      setConfirmCancel(null)
+      await fetch(`/api/cancel/${editBooking.cancel_token}`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ scope: 'this' }) })
+      setEditBooking(null)
+      fetchRange()
+      fetchSidebar()
+    }})
   }
 
   function handleStartTime(time: string) {
@@ -685,7 +812,7 @@ export default function BookingPage() {
     ? { ds: mDate, startHHMM: mTime, endHHMM: mEndTime }
     : null
 
-  const dayBookings = rangeBkgs.filter(b => b.start_time.slice(0, 10) === viewDateStr)
+  const dayBookings = rangeBkgs.filter(b => dateStr(new Date(b.start_time)) === viewDateStr)
 
   const selectedRoomTodayBkgs = sidebarBkgs.filter(b => b.room_id === selectedRoomId)
   const isFree = getRoomStatusFull(selectedRoomTodayBkgs).status === 'free'
@@ -710,12 +837,12 @@ export default function BookingPage() {
     })
     if (res.ok) {
       try { localStorage.setItem('spacebook_user', JSON.stringify({ name: mName, email: mEmail })) } catch {}
-      setMTitle(''); setRecurFreq('none'); setMError(''); setMDone(true); fetchSidebar(); fetchRange()
+      setMTitle('Occupied'); setRecurFreq('none'); setMError(''); setMDone(true); fetchSidebar(); fetchRange()
     } else {
       const body = await res.json().catch(() => ({}))
       let errorMsg = body.error ?? 'Something went wrong. Please try again.'
       if (res.status === 409) {
-        const next = findNextAvailable(mDate, mTime, mEndTime, rangeBkgs)
+        const next = findNextAvailable(mDate, mTime, mEndTime, rangeBkgs, gridEnd)
         const dur = toMins(mEndTime) - toMins(mTime)
         errorMsg = next
           ? `There's a conflict! Next available: ${fmtTime(next)}–${fmtTime(fromMins(toMins(next) + dur))}.`
@@ -735,7 +862,7 @@ export default function BookingPage() {
 
   return (
     <div style={{ background: T.pageBg, height: '100vh', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
-      <style dangerouslySetInnerHTML={{ __html: `@import url('https://fonts.googleapis.com/css2?family=Spectral:ital,wght@0,400;0,500;0,600;1,400&display=swap');@keyframes tabShine{0%,100%{border-bottom-color:rgba(219,149,171,0.6)}50%{border-bottom-color:rgba(219,149,171,1)}}` }} />
+      <style dangerouslySetInnerHTML={{ __html: `@import url('https://fonts.googleapis.com/css2?family=Spectral:ital,wght@0,400;0,500;0,600;1,400&display=swap');@keyframes tabShine{0%,100%{border-bottom-color:rgba(219,149,171,0.6)}50%{border-bottom-color:rgba(219,149,171,1)}}@keyframes chronoFlash{0%{opacity:0;transform:translateY(3px)}12%{opacity:1;transform:translateY(0)}70%{opacity:1}100%{opacity:0}}` }} />
 
       {/* Top bar */}
       <div style={{ background: T.navBg, padding: '14px 24px', display: 'flex', alignItems: 'center', borderBottom: T.navBorder }}>
@@ -797,31 +924,49 @@ export default function BookingPage() {
         </div>
 
         {/* [1,0] Sidebar rooms list */}
-        <div style={{ background: T.cardBg, overflowY: 'auto', padding: '8px 14px' }}>
-          {rooms.map(room => {
-            const { status, until } = getRoomStatusFull(sidebarBkgs.filter(b => b.room_id === room.id))
-            const isBusy = status === 'busy'
-            const dot = isBusy ? '#DC2626' : FREE_BAR
-            const active = room.id === selectedRoomId
-            return (
-              <div key={room.id} onClick={() => setSelectedRoomId(room.id)}
-                style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '8px 10px', borderRadius: 0, cursor: 'pointer', marginBottom: 1, background: active ? T.activeRoom : 'transparent', border: active ? `1px solid ${T.activeBorder}` : '1px solid transparent', transition: 'background 0.12s ease-out, border-color 0.12s ease-out' }}>
-                <div style={{ width: 8, height: 8, borderRadius: '50%', background: dot, flexShrink: 0 }} />
-                <div style={{ flex: 1, minWidth: 0 }}>
-                  <div style={{ fontSize: 13, color: T.text, fontWeight: active ? 600 : 400, letterSpacing: active ? '-0.01em' : 0 }}>{room.name}</div>
-                  {room.room_type && <div style={{ fontSize: 10, color: T.textMuted, marginBottom: 1 }}>{room.room_type}</div>}
-                  <div style={{ fontSize: 10, color: T.textFaint }}>{room.capacity} people</div>
-                  <div style={{ fontSize: 10, color: isBusy ? '#DC2626' : T.textMuted, letterSpacing: '0.03em' }}>{isBusy ? `In use · free at ${until}` : `Free until ${until}`}</div>
-                </div>
-              </div>
-            )
-          })}
+        <div style={{ background: T.cardBg, overflowY: 'auto', display: 'flex', flexDirection: 'column' }}>
+          {roomTypes.length > 0 && (
+            <div style={{ padding: '8px 14px 4px', display: 'flex', flexWrap: 'wrap', gap: 4, borderBottom: `1px solid ${T.borderFaint}` }}>
+              <button onClick={() => setFilterRoomType('')}
+                style={{ fontSize: 10, padding: '3px 8px', borderRadius: 0, border: `1px solid ${!filterRoomType ? T.activeBorder : T.border}`, background: !filterRoomType ? T.activeRoom : 'transparent', cursor: 'pointer', color: !filterRoomType ? FREE_TEXT : T.textMuted, fontFamily: 'inherit' }}>
+                All
+              </button>
+              {roomTypes.map(t => (
+                <button key={t} onClick={() => setFilterRoomType(filterRoomType === t ? '' : t)}
+                  style={{ fontSize: 10, padding: '3px 8px', borderRadius: 0, border: `1px solid ${filterRoomType === t ? T.activeBorder : T.border}`, background: filterRoomType === t ? T.activeRoom : 'transparent', cursor: 'pointer', color: filterRoomType === t ? FREE_TEXT : T.textMuted, fontFamily: 'inherit' }}>
+                  {t}
+                </button>
+              ))}
+            </div>
+          )}
+          <div style={{ padding: '8px 14px', flex: 1 }}>
+            {rooms
+              .filter(r => !filterRoomType || r.room_type === filterRoomType)
+              .map(room => {
+                const { status, until } = getRoomStatusFull(sidebarBkgs.filter(b => b.room_id === room.id))
+                const isBusy = status === 'busy'
+                const dot = isBusy ? '#DC2626' : FREE_BAR
+                const active = room.id === selectedRoomId
+                return (
+                  <div key={room.id} onClick={() => setSelectedRoomId(room.id)}
+                    style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '8px 10px', borderRadius: 0, cursor: 'pointer', marginBottom: 1, background: active ? T.activeRoom : 'transparent', border: active ? `1px solid ${T.activeBorder}` : '1px solid transparent', transition: 'background 0.12s ease-out, border-color 0.12s ease-out' }}>
+                    <div style={{ width: 8, height: 8, borderRadius: '50%', background: dot, flexShrink: 0 }} />
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <div style={{ fontSize: 13, color: T.text, fontWeight: active ? 600 : 400, letterSpacing: active ? '-0.01em' : 0 }}>{room.name}</div>
+                      {room.room_type && <div style={{ fontSize: 10, color: T.textMuted, marginBottom: 1 }}>{room.room_type}</div>}
+                      <div style={{ fontSize: 10, color: T.textFaint }}>{room.capacity} people</div>
+                      <div style={{ fontSize: 10, color: isBusy ? '#DC2626' : T.textMuted, letterSpacing: '0.03em' }}>{isBusy ? `In use · free at ${until}` : `Free until ${until}`}</div>
+                    </div>
+                  </div>
+                )
+              })}
+          </div>
         </div>
 
         {/* [1,1] Calendar */}
         <div ref={calRef} style={{ padding: '16px 20px', overflow: 'auto' }}>
-          {calView === 'day'   && <DayView   bookings={dayBookings} viewDate={viewDate} onSlotClick={openScheduleLater} onBookingClick={openEdit} pendingSlot={pendingSlot} now={now} dark={dark} myEmail={mEmail} hourH={dynHourH} />}
-          {calView === 'week'  && <WeekView  bookings={rangeBkgs}   weekDays={weekDays} onSlotClick={openScheduleLater} onBookingClick={openEdit} pendingSlot={pendingSlot} now={now} dark={dark} myEmail={mEmail} hourH={dynHourH} />}
+          {calView === 'day'   && <DayView   bookings={dayBookings} viewDate={viewDate} onSlotClick={openScheduleLater} onBookingClick={openEdit} pendingSlot={pendingSlot} now={now} dark={dark} myEmail={mEmail} hourH={dynHourH} gridStart={gridStart} gridEnd={gridEnd} visShowTitle={visShowTitle} visShowOrganizer={visShowOrganizer} />}
+          {calView === 'week'  && <WeekView  bookings={rangeBkgs}   weekDays={weekDays} onSlotClick={openScheduleLater} onBookingClick={openEdit} pendingSlot={pendingSlot} now={now} dark={dark} myEmail={mEmail} hourH={dynHourH} gridStart={gridStart} gridEnd={gridEnd} visShowTitle={visShowTitle} visShowOrganizer={visShowOrganizer} />}
           {calView === 'month' && <MonthView bookings={rangeBkgs}   viewDate={viewDate} onDayClick={d => { setViewDate(d); setCalView('day') }} dark={dark} />}
         </div>
 
@@ -831,24 +976,37 @@ export default function BookingPage() {
         {/* [2,1] Bottom bar */}
         <div style={{ background: T.cardBg, padding: '20px 24px', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8 }}>
           <div style={{ display: 'flex', gap: 10, flexShrink: 0 }}>
-            {isFree && (
-              <button onClick={() => {
-                const t = toHHMMExact(new Date())
-                const [h, m] = t.split(':').map(Number)
-                const et = Math.min(h * 60 + m + 60, 23 * 60)
-                setMDate(todayStr); setMTime(t)
-                setMEndTime(`${String(Math.floor(et / 60)).padStart(2, '0')}:${String(et % 60).padStart(2, '0')}`)
-                setMError(''); setShowModal('now'); setMDone(false)
-              }}
-                style={{ background: roseGrad, color: '#fff', border: 'none', borderRadius: 0, padding: '12px 28px', fontSize: 14, fontWeight: 600, cursor: 'pointer', whiteSpace: 'nowrap', letterSpacing: '0.02em' }}>
+            <div style={{ position: 'relative' }}>
+              <button
+                onClick={() => {
+                  if (!isFree) { setBusyFlash(true); setTimeout(() => setBusyFlash(false), 2200); return }
+                  const t = toHHMMExact(new Date())
+                  const [h, m] = t.split(':').map(Number)
+                  const et = Math.min(h * 60 + m + 60, 23 * 60)
+                  setMDate(todayStr); setMTime(t)
+                  setMEndTime(`${String(Math.floor(et / 60)).padStart(2, '0')}:${String(et % 60).padStart(2, '0')}`)
+                  setMError(''); setShowModal('now'); setMDone(false)
+                }}
+                style={{ background: isFree ? roseGrad : 'transparent', color: isFree ? '#fff' : T.textMuted, border: isFree ? 'none' : `1px solid ${T.inputBorder}`, borderRadius: 0, padding: '12px 28px', fontSize: 14, fontWeight: 600, cursor: 'pointer', whiteSpace: 'nowrap', letterSpacing: '0.02em', textDecoration: isFree ? 'none' : 'line-through' }}>
                 {txt.bookNow}
               </button>
-            )}
-            <button onClick={() => { setMDate(todayStr); setMTime(''); setMEndTime(''); setRecurFreq('none'); setMError(''); setShowModal('later'); setMDone(false) }}
+              {busyFlash && (
+                <div style={{ position: 'absolute', bottom: 'calc(100% + 8px)', left: '50%', transform: 'translateX(-50%)', background: '#111', color: '#fff', fontSize: 12, padding: '7px 14px', whiteSpace: 'nowrap', pointerEvents: 'none' }}>
+                  {getRoomStatusFull(sidebarBkgs.filter(b => b.room_id === selectedRoomId)).until !== 'end of day'
+                    ? `In use — free at ${getRoomStatusFull(sidebarBkgs.filter(b => b.room_id === selectedRoomId)).until}`
+                    : 'Room is currently in use'}
+                </div>
+              )}
+            </div>
+            <button onClick={() => { setMDate(todayStr); setMTime(''); setMEndTime(''); setMTitle('Occupied'); setRecurFreq('none'); setMError(''); setShowModal('later'); setMDone(false) }}
               style={{ background: 'transparent', border: `1px solid ${T.inputBorder}`, borderRadius: 0, padding: '12px 22px', fontSize: 14, cursor: 'pointer', color: T.text, whiteSpace: 'nowrap', letterSpacing: '0.01em' }}>
               {txt.schedule}
             </button>
           </div>
+          <button onClick={openMyBookings}
+            style={{ background: 'transparent', border: 'none', padding: '12px 10px', fontSize: 13, cursor: 'pointer', color: T.textMuted, letterSpacing: '0.01em', textDecoration: 'underline', textUnderlineOffset: 3 }}>
+            My bookings
+          </button>
         </div>
 
       </div>
@@ -896,6 +1054,7 @@ export default function BookingPage() {
                 </div>
                 <div style={{ marginBottom: 12 }}>
                   <label style={lbl}>Email</label>
+                  <div style={{ fontSize: 11, color: '#6B7280', marginBottom: 6 }}>Not visible to others</div>
                   <input style={inp} type="email" placeholder="you@example.com" value={mEmail} onChange={e => setMEmail(e.target.value)} />
                 </div>
                 <div style={{ marginBottom: 12 }}>
@@ -956,6 +1115,138 @@ export default function BookingPage() {
         </div>
       )}
 
+      {/* My bookings modal */}
+      {showMyBookings && (() => {
+        const now2 = new Date()
+        const upcoming = (myBkgs ?? []).filter(b => new Date(b.start_time) >= now2)
+        const past     = (myBkgs ?? []).filter(b => new Date(b.start_time) <  now2)
+        const fmtRow = (iso: string) => new Date(iso).toLocaleDateString('en-AU', { weekday: 'short', day: 'numeric', month: 'short' })
+        const fmtT   = (iso: string) => new Date(iso).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+        const allUpcomingSelected = upcoming.length > 0 && upcoming.every(b => myBkSelected.has(b.id))
+        return (
+          <div onClick={() => setShowMyBookings(false)} style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 100 }}>
+            <div onClick={e => e.stopPropagation()} style={{ background: T.modalBg, borderRadius: 0, width: 540, maxHeight: '80vh', display: 'flex', flexDirection: 'column', border: `1px solid ${T.modalBorder}`, boxShadow: dark ? '0 24px 64px rgba(0,0,0,0.6)' : '0 12px 48px rgba(0,0,0,0.18)' }}>
+              {/* Header */}
+              <div style={{ padding: '20px 24px 16px', borderBottom: `1px solid ${T.borderFaint}`, display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexShrink: 0 }}>
+                <div style={{ fontSize: 16, fontWeight: 700, color: dark ? T.text : NAVY, letterSpacing: '-0.02em' }}>My bookings</div>
+                <button onClick={() => setShowMyBookings(false)} style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: 18, color: T.textMuted, lineHeight: 1, padding: '0 4px' }}>×</button>
+              </div>
+
+              {/* Lookup form (shown when no email yet) */}
+              {!myBkgs && !myBkLoading && (
+                <div style={{ padding: '20px 24px' }}>
+                  <div style={{ fontSize: 13, color: T.textMuted, marginBottom: 12 }}>Enter your email to find your bookings.</div>
+                  <div style={{ display: 'flex', gap: 8 }}>
+                    <input
+                      autoFocus
+                      type="email"
+                      placeholder="your@email.com"
+                      value={myBkEmail}
+                      onChange={e => setMyBkEmail(e.target.value)}
+                      onKeyDown={e => { if (e.key === 'Enter' && myBkEmail.trim()) fetchMyBkgs(myBkEmail.trim()) }}
+                      style={{ ...inp, flex: 1 }}
+                    />
+                    <button onClick={() => myBkEmail.trim() && fetchMyBkgs(myBkEmail.trim())}
+                      style={{ background: ROSE, color: '#fff', border: 'none', borderRadius: 0, padding: '8px 18px', fontSize: 13, fontWeight: 500, cursor: 'pointer' }}>
+                      Find
+                    </button>
+                  </div>
+                </div>
+              )}
+
+              {myBkLoading && (
+                <div style={{ padding: '32px 24px', textAlign: 'center', fontSize: 13, color: T.textMuted }}>Loading…</div>
+              )}
+
+              {myBkgs && !myBkLoading && (
+                <>
+                  {/* Sub-header: email + batch cancel */}
+                  <div style={{ padding: '10px 24px', borderBottom: `1px solid ${T.borderFaint}`, display: 'flex', alignItems: 'center', gap: 10, flexShrink: 0 }}>
+                    <span style={{ fontSize: 12, color: T.textMuted, flex: 1 }}>{myBkEmail}</span>
+                    <button onClick={() => { setMyBkgs(null); setMyBkEmail('') }}
+                      style={{ fontSize: 12, background: 'none', border: 'none', cursor: 'pointer', color: T.textMuted, textDecoration: 'underline', textUnderlineOffset: 2, padding: 0 }}>
+                      Change
+                    </button>
+                    {myBkSelected.size > 0 && (
+                      <button onClick={cancelMyBkSelected} disabled={myBkCancelling}
+                        style={{ fontSize: 12, padding: '4px 12px', border: '1px solid rgba(185,64,64,0.4)', background: 'rgba(185,64,64,0.08)', color: '#B94040', cursor: 'pointer', borderRadius: 0 }}>
+                        {myBkCancelling ? 'Cancelling…' : `Cancel ${myBkSelected.size} selected`}
+                      </button>
+                    )}
+                  </div>
+
+                  {/* Scrollable list */}
+                  <div style={{ overflowY: 'auto', flex: 1 }}>
+                    {myBkgs.length === 0 ? (
+                      <div style={{ padding: '32px 24px', textAlign: 'center', fontSize: 13, color: T.textMuted }}>No bookings found for this email.</div>
+                    ) : (
+                      <>
+                        {/* Upcoming */}
+                        {upcoming.length > 0 && (
+                          <div>
+                            <div style={{ padding: '10px 24px 4px', display: 'flex', alignItems: 'center', gap: 8 }}>
+                              <input type="checkbox" checked={allUpcomingSelected}
+                                ref={el => { if (el) el.indeterminate = myBkSelected.size > 0 && !allUpcomingSelected }}
+                                onChange={e => setMyBkSelected(e.target.checked ? new Set(upcoming.map(b => b.id)) : new Set())}
+                              />
+                              <span style={{ fontSize: 11, fontWeight: 500, color: T.textMuted, textTransform: 'uppercase', letterSpacing: '0.08em' }}>Upcoming · {upcoming.length}</span>
+                            </div>
+                            {upcoming.map(b => {
+                              const room = rooms.find(r => r.id === b.room_id)
+                              const sel = myBkSelected.has(b.id)
+                              return (
+                                <div key={b.id} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '9px 24px', borderTop: `1px solid ${T.borderFaint}`, background: sel ? (dark ? 'rgba(219,149,171,0.07)' : 'rgba(219,149,171,0.06)') : 'transparent' }}>
+                                  <input type="checkbox" checked={sel} onChange={e => setMyBkSelected(prev => { const s = new Set(prev); e.target.checked ? s.add(b.id) : s.delete(b.id); return s })} />
+                                  <div style={{ flex: 1, minWidth: 0 }}>
+                                    <div style={{ fontSize: 13, fontWeight: 500, color: T.text }}>{room?.name ?? '—'}</div>
+                                    <div style={{ fontSize: 12, color: T.textMuted }}>{fmtRow(b.start_time)} · {fmtT(b.start_time)}–{fmtT(b.end_time)}</div>
+                                    {b.title && <div style={{ fontSize: 11, color: T.textFaint }}>{b.title}</div>}
+                                    {b.recurring_series_id && <div style={{ fontSize: 10, color: ROSE, marginTop: 1 }}>recurring</div>}
+                                  </div>
+                                  <button onClick={() => { setShowMyBookings(false); openEdit(b as any) }}
+                                    style={{ fontSize: 12, padding: '4px 9px', border: `1px solid ${T.border}`, background: 'none', cursor: 'pointer', color: T.textMuted, borderRadius: 0, whiteSpace: 'nowrap' }}>
+                                    Edit
+                                  </button>
+                                  <button onClick={() => cancelOneMyBk(b)}
+                                    style={{ fontSize: 12, padding: '4px 9px', border: '1px solid rgba(185,64,64,0.4)', background: 'none', cursor: 'pointer', color: '#B94040', borderRadius: 0, whiteSpace: 'nowrap' }}>
+                                    Cancel
+                                  </button>
+                                </div>
+                              )
+                            })}
+                          </div>
+                        )}
+
+                        {/* Past */}
+                        {past.length > 0 && (
+                          <div>
+                            <div style={{ padding: '12px 24px 4px' }}>
+                              <span style={{ fontSize: 11, fontWeight: 500, color: T.textFaint, textTransform: 'uppercase', letterSpacing: '0.08em' }}>Past · {past.length}</span>
+                            </div>
+                            {past.slice().reverse().map(b => {
+                              const room = rooms.find(r => r.id === b.room_id)
+                              return (
+                                <div key={b.id} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '8px 24px 8px 58px', borderTop: `1px solid ${T.borderFaint}`, opacity: 0.5 }}>
+                                  <div style={{ flex: 1, minWidth: 0 }}>
+                                    <div style={{ fontSize: 13, color: T.text }}>{room?.name ?? '—'}</div>
+                                    <div style={{ fontSize: 12, color: T.textMuted }}>{fmtRow(b.start_time)} · {fmtT(b.start_time)}–{fmtT(b.end_time)}</div>
+                                    {b.title && <div style={{ fontSize: 11, color: T.textFaint }}>{b.title}</div>}
+                                  </div>
+                                </div>
+                              )
+                            })}
+                          </div>
+                        )}
+                      </>
+                    )}
+                  </div>
+                </>
+              )}
+            </div>
+          </div>
+        )
+      })()}
+
       {/* Edit booking modal */}
       {editBooking && (() => {
         const isOthers = mEmail && editBooking.booker_email !== mEmail
@@ -970,25 +1261,31 @@ export default function BookingPage() {
                 <div style={{ background: '#C0392B', borderRadius: 0, padding: '12px 14px', marginBottom: 16 }}>
                   <div style={{ fontSize: 15, fontWeight: 700, color: '#fff', marginBottom: 4 }}>⚠️ Not your booking</div>
                   <div style={{ fontSize: 12, color: '#fddede', lineHeight: 1.5 }}>
-                    This belongs to <strong style={{ color: '#fff' }}>{editBooking.booker_name}</strong>. They will receive an email if you save changes.
+                    {visShowOrganizer
+                      ? <>This belongs to <strong style={{ color: '#fff' }}>{editBooking.booker_name}</strong>. They will receive an email if you save changes.</>
+                      : 'This booking belongs to someone else. They will receive an email if you save changes.'}
                   </div>
                 </div>
               )}
               {!isOthers && (
                 <div style={{ marginBottom: 12 }}>
                   <label style={lbl}>Title</label>
-                  <div style={{ fontSize: 11, color: '#C0392B', fontWeight: 600, marginBottom: 6 }}>⚠ Everyone can see this</div>
+                  <div style={{ fontSize: 11, color: '#C0392B', fontWeight: 600, marginBottom: 6 }}>⚠ {visShowTitle ? 'Everyone can see this' : 'Only you can see this'}</div>
                   <input style={inp} placeholder="e.g. Team standup" value={editTitle} onChange={e => setEditTitle(e.target.value)} />
                 </div>
               )}
-              <div style={{ marginBottom: 12 }}>
-                <label style={lbl}>{isOthers ? 'Booked by' : 'Your name'}</label>
-                <NameAutocomplete value={editName} onChange={setEditName} onSelect={u => { setEditName(u.name); setEditEmail(u.email) }} style={inp} />
-              </div>
-              <div style={{ marginBottom: 12 }}>
-                <label style={lbl}>Email</label>
-                <input style={inp} type="email" value={editEmail} onChange={e => setEditEmail(e.target.value)} />
-              </div>
+              {(!isOthers || visShowOrganizer) && (
+                <div style={{ marginBottom: 12 }}>
+                  <label style={lbl}>{isOthers ? 'Booked by' : 'Your name'}</label>
+                  <NameAutocomplete value={editName} onChange={setEditName} onSelect={u => { setEditName(u.name); setEditEmail(u.email) }} style={inp} />
+                </div>
+              )}
+              {(!isOthers || visShowOrganizer) && (
+                <div style={{ marginBottom: 12 }}>
+                  <label style={lbl}>Email</label>
+                  <input style={inp} type="email" value={editEmail} onChange={e => setEditEmail(e.target.value)} />
+                </div>
+              )}
               <div style={{ marginBottom: 12 }}>
                 <label style={lbl}>Date</label>
                 <input style={inp} type="date" value={editDate} onChange={e => setEditDate(e.target.value)} />
@@ -1016,6 +1313,23 @@ export default function BookingPage() {
           </div>
         )
       })()}
+
+      {confirmCancel && (
+        <div onClick={() => setConfirmCancel(null)} style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.45)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 200 }}>
+          <div onClick={e => e.stopPropagation()} style={{ background: T.cardBg, border: `1px solid ${T.border}`, padding: '28px 24px', width: 320 }}>
+            <div style={{ fontSize: 16, fontWeight: 600, color: T.text, marginBottom: 8 }}>Cancel this booking?</div>
+            <div style={{ fontSize: 13, color: T.textMuted, marginBottom: 24 }}>{confirmCancel.message}</div>
+            <div style={{ display: 'flex', gap: 10 }}>
+              <button onClick={() => setConfirmCancel(null)} style={{ flex: 1, padding: '10px 0', fontSize: 13, fontWeight: 500, background: 'none', border: `1px solid ${T.border}`, color: T.text, cursor: 'pointer', fontFamily: 'inherit' }}>
+                No, go back
+              </button>
+              <button onClick={confirmCancel.onConfirm} style={{ flex: 1, padding: '10px 0', fontSize: 13, fontWeight: 600, background: '#B94040', border: 'none', color: '#fff', cursor: 'pointer', fontFamily: 'inherit' }}>
+                Yes, cancel it
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }

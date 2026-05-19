@@ -10,6 +10,49 @@ export function middleware(request: NextRequest) {
   const requestHeaders = new Headers(request.headers)
   requestHeaders.set('x-sb-session', sessionId)
 
+  const { pathname, searchParams } = request.nextUrl
+
+  // Protect /admin in prod mode — require admin_access cookie
+  if (process.env.MOCK_MODE !== 'true' &&
+      (pathname.startsWith('/admin') || pathname.startsWith('/api/admin/')) &&
+      !pathname.startsWith('/admin-enter') &&
+      !pathname.startsWith('/api/admin-enter') &&
+      pathname !== '/api/admin/admins') {
+    const adminAccess = request.cookies.get('admin_access')?.value
+    if (!adminAccess) {
+      return NextResponse.redirect(new URL('/', request.url))
+    }
+  }
+
+  // Always allow: the entry route, cancel links, demo routes
+  if (pathname === '/enter' || pathname.startsWith('/enter/') ||
+      pathname.startsWith('/admin-enter/') ||
+      pathname.startsWith('/api/admin-enter') ||
+      pathname.startsWith('/cancel/') || pathname.startsWith('/api/cancel/') ||
+      pathname.startsWith('/api/bookings/by-token/') ||
+      pathname.startsWith('/api/members') ||
+      pathname.startsWith('/api/enter-check') ||
+      pathname.startsWith('/api/enter-set-cookie') ||
+      pathname === '/landing' ||
+      pathname.startsWith('/api/notify') ||
+      pathname.startsWith('/demo-admin') ||
+      pathname === '/demo' ||
+      pathname.startsWith('/api/demo-access') ||
+      pathname.startsWith('/api/settings')) {
+    const response = NextResponse.next({ request: { headers: requestHeaders } })
+    if (!existingSession) {
+      response.cookies.set('sb_session', sessionId, { maxAge: 60 * 60 * 2, path: '/', httpOnly: true, sameSite: 'lax' })
+    }
+    return response
+  }
+
+  // Root without ?demo=1 and no workspace token → redirect to demo page
+  if (pathname === '/' && searchParams.get('demo') !== '1') {
+    if (!token || request.cookies.get('ws_access')?.value !== token) {
+      return NextResponse.redirect(new URL('/demo', request.url))
+    }
+  }
+
   // No token configured, or running locally → open access
   if (!token || process.env.NODE_ENV === 'development') {
     const response = NextResponse.next({ request: { headers: requestHeaders } })
@@ -19,19 +62,8 @@ export function middleware(request: NextRequest) {
     return response
   }
 
-  const { pathname } = request.nextUrl
-
-  // Always allow: the entry route and cancel links (shared via email)
-  if (pathname === '/enter' || pathname.startsWith('/enter/') ||
-      pathname.startsWith('/cancel/') || pathname.startsWith('/api/cancel/') ||
-      pathname.startsWith('/api/bookings/by-token/') ||
-      pathname.startsWith('/api/members') ||
-      pathname.startsWith('/api/enter-check') ||
-      pathname.startsWith('/api/enter-set-cookie') ||
-      pathname === '/landing' ||
-      pathname.startsWith('/api/notify') ||
-      pathname.startsWith('/demo-admin') ||
-      pathname.startsWith('/api/demo-access')) {
+  // Valid cookie → let through
+  if (request.cookies.get('ws_access')?.value === token) {
     const response = NextResponse.next({ request: { headers: requestHeaders } })
     if (!existingSession) {
       response.cookies.set('sb_session', sessionId, { maxAge: 60 * 60 * 2, path: '/', httpOnly: true, sameSite: 'lax' })
@@ -39,8 +71,8 @@ export function middleware(request: NextRequest) {
     return response
   }
 
-  // Valid cookie → let through
-  if (request.cookies.get('ws_access')?.value === token) {
+  // Admin entry pages don't require workspace access
+  if (pathname.startsWith('/admin-enter/') || pathname.startsWith('/api/admin-enter')) {
     const response = NextResponse.next({ request: { headers: requestHeaders } })
     if (!existingSession) {
       response.cookies.set('sb_session', sessionId, { maxAge: 60 * 60 * 2, path: '/', httpOnly: true, sameSite: 'lax' })

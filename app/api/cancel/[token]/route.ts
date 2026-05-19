@@ -5,9 +5,11 @@ export async function POST(req: NextRequest, { params }: { params: { token: stri
   const { scope = 'this' }: { scope: CancelScope } = await req.json().catch(() => ({ scope: 'this' }))
 
   if (process.env.MOCK_MODE === 'true') {
-    const [{ cancelBooking }, { getSessionStore }] = await Promise.all([import('@/lib/mock/api'), import('@/lib/mock/store')])
-    const result = cancelBooking(await getSessionStore(), params.token, scope)
+    const [{ cancelBooking }, { getSessionStore, saveSessionStore }] = await Promise.all([import('@/lib/mock/api'), import('@/lib/mock/store')])
+    const store = await getSessionStore()
+    const result = cancelBooking(store, params.token, scope)
     if (result.error) return Response.json({ error: result.error }, { status: 404 })
+    await saveSessionStore(store)
     return Response.json(result)
   }
 
@@ -22,7 +24,7 @@ export async function POST(req: NextRequest, { params }: { params: { token: stri
   if (booking.google_event_id && booking.room?.google_calendar_id) {
     try {
       const { deleteCalendarEvent } = await import('@/lib/google-calendar/client')
-      await deleteCalendarEvent(booking.google_event_id, booking.room.google_calendar_id)
+      await deleteCalendarEvent(booking.google_event_id, booking.room.google_calendar_id, booking.room.id)
     } catch { /* non-fatal */ }
   }
 

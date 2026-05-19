@@ -10,7 +10,16 @@ export async function getRooms(): Promise<Room[]> {
   const { createClient } = await import('./supabase/server')
   const supabase = await createClient()
   const { data } = await supabase.from('rooms').select('*').eq('is_active', true).order('display_order')
-  return data ?? []
+  const rooms = data ?? []
+  const { hasTokens } = await import('./google-calendar/tokenStore')
+  const connected = await Promise.all(rooms.map(r => hasTokens(r.id)))
+  return rooms.map((r, i) => ({ ...r, gcal_connected: connected[i] }))
+}
+
+function shiftDate(date: string, days: number): string {
+  const d = new Date(date + 'T12:00:00Z')
+  d.setUTCDate(d.getUTCDate() + days)
+  return d.toISOString().slice(0, 10)
 }
 
 export async function getBookingsForDate(date: string, roomId?: string): Promise<Booking[]> {
@@ -20,7 +29,7 @@ export async function getBookingsForDate(date: string, roomId?: string): Promise
   }
   const { createClient } = await import('./supabase/server')
   const supabase = await createClient()
-  let q = supabase.from('bookings').select('*').gte('start_time', `${date}T00:00:00Z`).lte('start_time', `${date}T23:59:59Z`).is('cancelled_at', null)
+  let q = supabase.from('bookings').select('*').gte('start_time', `${shiftDate(date, -1)}T00:00:00Z`).lte('start_time', `${shiftDate(date, +1)}T23:59:59Z`).is('cancelled_at', null)
   if (roomId) q = q.eq('room_id', roomId)
   const { data } = await q
   return data ?? []
@@ -55,7 +64,7 @@ export async function getBookingsForRange(from: string, to: string, roomId?: str
   }
   const { createClient } = await import('./supabase/server')
   const supabase = await createClient()
-  let q = supabase.from('bookings').select('*').gte('start_time', `${from}T00:00:00Z`).lte('start_time', `${to}T23:59:59Z`).is('cancelled_at', null)
+  let q = supabase.from('bookings').select('*').gte('start_time', `${shiftDate(from, -1)}T00:00:00Z`).lte('start_time', `${shiftDate(to, +1)}T23:59:59Z`).is('cancelled_at', null)
   if (roomId) q = q.eq('room_id', roomId)
   const { data } = await q
   return data ?? []

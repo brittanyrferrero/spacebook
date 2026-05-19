@@ -7,13 +7,14 @@ import { NameAutocomplete } from '@/components/NameAutocomplete'
 // ─── Colours ──────────────────────────────────────────────────────────────────
 const SAGE = '#5C7A6B'
 const NAVY = '#111111'
-const ROSE = '#db95ab'          // user accent — Book Now + selected day
-const FREE_BG = '#eef7f1'; const FREE_TEXT = '#1E5C30'; const FREE_BAR = '#3B7A4A'
+const ROSE = '#db95ab'          // user accent — selected day, now-line
+const BOOK_GREEN = '#1db954'
+const FREE_BG = '#e0f0e8'; const FREE_TEXT = '#2d7a42'; const FREE_BAR = '#4d8f5c'
 const BUSY_BG = '#f0f0f0'; const BUSY_TEXT = '#333333'; const BUSY_BAR = '#555555'
 
 // ─── Calendar constants ───────────────────────────────────────────────────────
 const GRID_START = 8            // 8 am
-const GRID_END   = 19           // 7 pm
+const GRID_END   = 20           // 8 pm
 const GRID_HOURS = GRID_END - GRID_START
 const HOUR_H     = 38           // px per hour in week view
 const GRID_H     = GRID_HOURS * HOUR_H
@@ -24,7 +25,7 @@ const DAYS_LONG    = ['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday
 const DAYS_SHORT   = ['Mon','Tue','Wed','Thu','Fri','Sat','Sun']  // ISO Mon-first
 
 // ─── Date helpers ─────────────────────────────────────────────────────────────
-const dateStr = (d: Date) => d.toISOString().slice(0, 10)
+const dateStr = (d: Date) => `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`
 
 function isoMonday(d: Date): Date {
   const copy = new Date(d)
@@ -84,8 +85,8 @@ function getRoomStatus(bookings: Booking[]) {
 
 
 // Fractional hour position within the time grid
-function toGridPct(h: number, m: number) {
-  return ((h - GRID_START) + m / 60) / GRID_HOURS
+function toGridPct(h: number, m: number, gs = GRID_START, gh = GRID_HOURS) {
+  return ((h - gs) + m / 60) / gh
 }
 
 const HOURS = Array.from({ length: 17 }, (_, i) => i + 7)   // 7–23
@@ -117,10 +118,10 @@ function TimePicker({ value, onChange, style }: { value: string; onChange: (v: s
   )
 }
 
-function NowLine({ now }: { now: Date }) {
-  const pct = toGridPct(now.getHours(), now.getMinutes())
+function NowLine({ now, gridH, gridStart = GRID_START, gridHours = GRID_HOURS }: { now: Date; gridH: number; gridStart?: number; gridHours?: number }) {
+  const pct = toGridPct(now.getHours(), now.getMinutes(), gridStart, gridHours)
   if (pct < 0 || pct > 1) return null
-  const top = pct * GRID_H
+  const top = pct * gridH
   return (
     <div style={{ position: 'absolute', top, left: 0, right: 0, zIndex: 3, pointerEvents: 'none' }}>
       <div style={{ position: 'absolute', left: -5, top: -5, width: 10, height: 10, borderRadius: '50%', background: ROSE }} />
@@ -131,27 +132,37 @@ function NowLine({ now }: { now: Date }) {
 
 // ─── Sub-views ────────────────────────────────────────────────────────────────
 
-function DayView({ bookings, viewDate, onSlotClick, onBookingClick, pendingSlot, now }: {
+function DayView({ bookings, viewDate, onSlotClick, onBookingClick, pendingSlot, now, gridStart = GRID_START, gridEnd = GRID_END, visShowTitle = false }: {
   bookings: Booking[];
   viewDate: Date;
   onSlotClick?: (date: Date, time: string) => void;
   onBookingClick?: (b: Booking) => void;
   pendingSlot?: { ds: string; startHHMM: string; endHHMM: string } | null;
-  now?: Date;
+  now?: Date; gridStart?: number; gridEnd?: number; visShowTitle?: boolean;
 }) {
+  const gridHours = gridEnd - gridStart
+  const gridH = gridHours * HOUR_H
+  const gp = (h: number, m: number) => toGridPct(h, m, gridStart, gridHours)
+  const [chronoFlash, setChronoFlash] = useState(false)
   const ds = dateStr(viewDate)
   const todayDs = now ? dateStr(now) : dateStr(new Date())
   const isPast = ds < todayDs
   const activeBookings = bookings.filter(b => !b.cancelled_at)
-  const hourLabels = Array.from({ length: GRID_HOURS + 1 }, (_, i) => {
-    const h = GRID_START + i
+
+  function flashChrono() {
+    setChronoFlash(false)
+    requestAnimationFrame(() => requestAnimationFrame(() => setChronoFlash(true)))
+    setTimeout(() => setChronoFlash(false), 1800)
+  }
+  const hourLabels = Array.from({ length: gridHours + 1 }, (_, i) => {
+    const h = gridStart + i
     return h < 12 ? `${h}am` : h === 12 ? '12pm' : `${h - 12}pm`
   })
 
   return (
     <div style={{ display: 'flex', overflow: 'visible' }}>
       {/* Hour axis */}
-      <div style={{ flexShrink: 0, width: 38, position: 'relative', height: GRID_H }}>
+      <div style={{ flexShrink: 0, width: 38, position: 'relative', height: gridH }}>
         {hourLabels.map((label, i) => (
           <div key={label} style={{ position: 'absolute', top: Math.max(0, i * HOUR_H - 7), right: 4, fontSize: 9, color: '#6B7280', textAlign: 'right', whiteSpace: 'nowrap' }}>{label}</div>
         ))}
@@ -160,18 +171,23 @@ function DayView({ bookings, viewDate, onSlotClick, onBookingClick, pendingSlot,
       {/* Time grid */}
       <div style={{ flex: 1, borderLeft: '1px solid #dddddd' }}>
         <div
-          style={{ position: 'relative', height: GRID_H, cursor: onSlotClick ? 'pointer' : 'default' }}
+          style={{ position: 'relative', height: gridH, overflow: 'hidden', cursor: onSlotClick ? 'pointer' : 'default' }}
           onClick={onSlotClick ? (e) => {
             const rect = e.currentTarget.getBoundingClientRect()
             const y = e.clientY - rect.top
-            const fracHours = (Math.max(0, Math.min(y, GRID_H)) / GRID_H) * GRID_HOURS
-            const totalMins = Math.round((GRID_START * 60 + fracHours * 60) / 15) * 15
-            const h = Math.min(Math.floor(totalMins / 60), GRID_END - 1)
+            const fracHours = (Math.max(0, Math.min(y, gridH)) / gridH) * gridHours
+            const totalMins = Math.round((gridStart * 60 + fracHours * 60) / 15) * 15
+            const h = Math.min(Math.floor(totalMins / 60), gridEnd - 1)
             const m = totalMins % 60
+            if (isPast) { flashChrono(); return }
+            if (now && dateStr(viewDate) === dateStr(now)) {
+              const slotTime = new Date(viewDate); slotTime.setHours(h, m, 0, 0)
+              if (slotTime < now) { flashChrono(); return }
+            }
             onSlotClick(viewDate, `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`)
           } : undefined}>
           {/* Hour bands + grid lines */}
-          {Array.from({ length: GRID_HOURS }, (_, i) => (
+          {Array.from({ length: gridHours }, (_, i) => (
             <div key={i} style={{ position: 'absolute', top: i * HOUR_H, left: 0, right: 0, height: HOUR_H, background: i % 2 === 0 ? 'rgba(0,0,0,0.018)' : 'transparent', borderTop: `1px solid ${isPast ? '#eeeeee' : '#cccccc'}` }} />
           ))}
 
@@ -179,28 +195,43 @@ function DayView({ bookings, viewDate, onSlotClick, onBookingClick, pendingSlot,
           {pendingSlot?.ds === ds && (() => {
             const [sh, sm] = pendingSlot.startHHMM.split(':').map(Number)
             const [eh, em] = pendingSlot.endHHMM.split(':').map(Number)
-            const topPx    = Math.max(0, toGridPct(sh, sm) * GRID_H)
-            const heightPx = Math.max(8, (toGridPct(eh, em) - toGridPct(sh, sm)) * GRID_H)
+            const topPx    = Math.max(0, gp(sh, sm) * gridH)
+            const heightPx = Math.max(8, (gp(eh, em) - gp(sh, sm)) * gridH)
             return <div style={{ position: 'absolute', top: topPx, left: 2, right: 2, height: heightPx, background: 'rgba(148,163,184,0.25)', borderRadius: 4, border: '1.5px dashed #94A3B8', pointerEvents: 'none' }} />
           })()}
 
+          {/* Chronology protection flash */}
+          {chronoFlash && (
+            <div style={{ position: 'absolute', top: '38%', left: 0, right: 0, display: 'flex', justifyContent: 'center', pointerEvents: 'none', zIndex: 10 }}>
+              <span style={{ fontSize: 11, fontWeight: 600, color: '#6B7280', letterSpacing: '0.07em', animation: 'chronoFlash 1.8s ease-out forwards', whiteSpace: 'nowrap' }}>
+                Chronology protection enforced.
+              </span>
+            </div>
+          )}
+
+          {/* Past-time overlay */}
+          {now && (() => {
+            const pastH = isPast ? gridH : (dateStr(viewDate) === dateStr(now) ? Math.max(0, gp(now.getHours(), now.getMinutes()) * gridH) : 0)
+            return pastH > 0 ? <div style={{ position: 'absolute', top: 0, left: 0, right: 0, height: pastH, background: 'rgba(0,0,0,0.30)', pointerEvents: 'none', zIndex: 2 }} /> : null
+          })()}
+
           {/* Current time line */}
-          {now && dateStr(viewDate) === dateStr(now) && <NowLine now={now} />}
+          {now && dateStr(viewDate) === dateStr(now) && <NowLine now={now} gridH={gridH} gridStart={gridStart} gridHours={gridHours} />}
 
           {/* Booking blocks */}
           {activeBookings.map(b => {
             const bs = new Date(b.start_time), be = new Date(b.end_time)
-            const topPx    = Math.max(0, toGridPct(bs.getHours(), bs.getMinutes()) * GRID_H)
-            const heightPx = Math.max(16, (toGridPct(be.getHours(), be.getMinutes()) - toGridPct(bs.getHours(), bs.getMinutes())) * GRID_H)
+            const topPx    = Math.max(0, gp(bs.getHours(), bs.getMinutes()) * gridH)
+            const heightPx = Math.max(16, (gp(be.getHours(), be.getMinutes()) - gp(bs.getHours(), bs.getMinutes())) * gridH)
             const isPast   = now ? be < now : false
-            const blockBg     = isPast ? '#e4e6ea' : '#c8d2e0'
-            const blockBorder = isPast ? '#adb5bd' : BUSY_BAR
+            const blockBg     = isPast ? '#c0c5cc' : '#c8d2e0'
+            const blockBorder = isPast ? '#9099a8' : BUSY_BAR
             const blockText   = isPast ? '#9ca3af' : BUSY_BAR
             return (
               <div key={b.id}
                 onClick={e => { e.stopPropagation(); onBookingClick?.(b) }}
                 style={{ position: 'absolute', top: topPx, left: 4, right: 4, height: heightPx, background: blockBg, borderRadius: 4, cursor: onBookingClick ? 'pointer' : 'default', borderLeft: `3px solid ${blockBorder}`, overflow: 'hidden' }}>
-                {heightPx > 18 && <div style={{ padding: '2px 5px', fontSize: 10, color: blockText, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', fontWeight: 500 }}>{b.recurring_series_id ? `↻ ${b.booker_name}` : b.booker_name}</div>}
+                {heightPx > 18 && <div style={{ padding: '2px 5px', fontSize: 10, color: blockText, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', fontWeight: 500 }}>{visShowTitle ? (b.recurring_series_id ? `↻ ${b.title || 'Occupied'}` : (b.title || 'Occupied')) : 'Occupied'}</div>}
               </div>
             )
           })}
@@ -210,17 +241,28 @@ function DayView({ bookings, viewDate, onSlotClick, onBookingClick, pendingSlot,
   )
 }
 
-function WeekView({ bookings, weekDays, onSlotClick, onBookingClick, pendingSlot, now }: { bookings: Booking[]; weekDays: Date[]; onSlotClick?: (date: Date, time: string) => void; onBookingClick?: (b: Booking) => void; pendingSlot?: { ds: string; startHHMM: string; endHHMM: string } | null; now?: Date }) {
+function WeekView({ bookings, weekDays, onSlotClick, onBookingClick, pendingSlot, now, gridStart = GRID_START, gridEnd = GRID_END, visShowTitle = false }: { bookings: Booking[]; weekDays: Date[]; onSlotClick?: (date: Date, time: string) => void; onBookingClick?: (b: Booking) => void; pendingSlot?: { ds: string; startHHMM: string; endHHMM: string } | null; now?: Date; gridStart?: number; gridEnd?: number; visShowTitle?: boolean }) {
+  const gridHours = gridEnd - gridStart
+  const gridH = gridHours * HOUR_H
+  const gp = (h: number, m: number) => toGridPct(h, m, gridStart, gridHours)
   const todayStr = dateStr(new Date())
+  const [chronoFlash, setChronoFlash] = useState(false)
+
+  function flashChrono() {
+    setChronoFlash(false)
+    requestAnimationFrame(() => requestAnimationFrame(() => setChronoFlash(true)))
+    setTimeout(() => setChronoFlash(false), 1800)
+  }
+
   const byDay: Record<string, Booking[]> = {}
   for (const b of bookings) {
-    const d = b.start_time.slice(0, 10)
+    const d = dateStr(new Date(b.start_time))
     if (!byDay[d]) byDay[d] = []
     byDay[d].push(b)
   }
 
-  const hourLabels = Array.from({ length: GRID_HOURS + 1 }, (_, i) => {
-    const h = GRID_START + i
+  const hourLabels = Array.from({ length: gridHours + 1 }, (_, i) => {
+    const h = gridStart + i
     return h < 12 ? `${h}am` : h === 12 ? '12pm' : `${h - 12}pm`
   })
 
@@ -243,9 +285,9 @@ function WeekView({ bookings, weekDays, onSlotClick, onBookingClick, pendingSlot
       </div>
 
       {/* Scrollable time grid */}
-      <div style={{ display: 'flex', overflow: 'auto', maxHeight: GRID_H + 16 }}>
+      <div style={{ display: 'flex', overflow: 'auto', maxHeight: gridH + 16 }}>
         {/* Hour axis */}
-        <div style={{ flexShrink: 0, width: 38, position: 'relative', height: GRID_H }}>
+        <div style={{ flexShrink: 0, width: 38, position: 'relative', height: gridH }}>
           {hourLabels.map((label, i) => (
             <div key={label} style={{ position: 'absolute', top: Math.max(0, i * HOUR_H - 7), right: 4, fontSize: 9, color: '#6B7280', textAlign: 'right', whiteSpace: 'nowrap' }}>{label}</div>
           ))}
@@ -256,22 +298,24 @@ function WeekView({ bookings, weekDays, onSlotClick, onBookingClick, pendingSlot
           {weekDays.map((day, colIdx) => {
             const ds = dateStr(day)
             const isToday = ds === todayStr
+            const isPastDay = ds < todayStr
             const dayBookings = (byDay[ds] ?? []).filter(b => !b.cancelled_at)
             return (
               <div key={ds} style={{ borderRight: colIdx < 6 ? '1px solid #eeeeee' : 'none' }}>
                 <div
-                  style={{ position: 'relative', height: GRID_H, background: isToday ? 'rgba(212,155,169,0.04)' : 'transparent', cursor: onSlotClick ? 'pointer' : 'default' }}
-                  onClick={onSlotClick ? (e) => {
+                  style={{ position: 'relative', height: gridH, overflow: 'hidden', background: isPastDay ? 'rgba(0,0,0,0.03)' : isToday ? 'rgba(212,155,169,0.04)' : 'transparent', cursor: (onSlotClick && !isPastDay) ? 'pointer' : 'default' }}
+                  onClick={onSlotClick && !isPastDay ? (e) => {
                     const rect = e.currentTarget.getBoundingClientRect()
                     const y = e.clientY - rect.top
-                    const fracHours = (Math.max(0, Math.min(y, GRID_H)) / GRID_H) * GRID_HOURS
-                    const totalMins = Math.round((GRID_START * 60 + fracHours * 60) / 15) * 15
-                    const h = Math.min(Math.floor(totalMins / 60), GRID_END - 1)
+                    const fracHours = (Math.max(0, Math.min(y, gridH)) / gridH) * gridHours
+                    const totalMins = Math.round((gridStart * 60 + fracHours * 60) / 15) * 15
+                    const h = Math.min(Math.floor(totalMins / 60), gridEnd - 1)
                     const m = totalMins % 60
+                    if (isToday && now) { const s = new Date(day); s.setHours(h, m, 0, 0); if (s < now) { flashChrono(); return } }
                     onSlotClick(day, `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`)
                   } : undefined}>
                   {/* Hour bands + grid lines */}
-                  {Array.from({ length: GRID_HOURS }, (_, i) => (
+                  {Array.from({ length: gridHours }, (_, i) => (
                     <div key={i} style={{ position: 'absolute', top: i * HOUR_H, left: 0, right: 0, height: HOUR_H, background: i % 2 === 0 ? 'rgba(0,0,0,0.018)' : 'transparent', borderTop: '1px solid #eeeeee' }} />
                   ))}
 
@@ -279,28 +323,39 @@ function WeekView({ bookings, weekDays, onSlotClick, onBookingClick, pendingSlot
                   {pendingSlot?.ds === ds && (() => {
                     const [sh, sm] = pendingSlot.startHHMM.split(':').map(Number)
                     const [eh, em] = pendingSlot.endHHMM.split(':').map(Number)
-                    const topPx    = Math.max(0, toGridPct(sh, sm) * GRID_H)
-                    const heightPx = Math.max(8, (toGridPct(eh, em) - toGridPct(sh, sm)) * GRID_H)
+                    const topPx    = Math.max(0, gp(sh, sm) * gridH)
+                    const heightPx = Math.max(8, (gp(eh, em) - gp(sh, sm)) * gridH)
                     return <div style={{ position: 'absolute', top: topPx, left: 2, right: 2, height: heightPx, background: 'rgba(148,163,184,0.25)', borderRadius: 4, border: '1.5px dashed #94A3B8', pointerEvents: 'none' }} />
                   })()}
 
+                  {/* Past-time overlay */}
+                  {now && (isPastDay || isToday) && (() => {
+                    const pastH = isPastDay ? gridH : Math.max(0, gp(now.getHours(), now.getMinutes()) * gridH)
+                    return pastH > 0 ? <div style={{ position: 'absolute', top: 0, left: 0, right: 0, height: pastH, background: 'rgba(0,0,0,0.30)', pointerEvents: 'none', zIndex: 2 }} /> : null
+                  })()}
+                  {chronoFlash && isToday && (
+                    <div style={{ position: 'absolute', top: '35%', left: '50%', transform: 'translateX(-50%)', pointerEvents: 'none', zIndex: 10, whiteSpace: 'nowrap' }}>
+                      <span style={{ fontSize: 9, fontWeight: 600, color: '#6B7280', letterSpacing: '0.04em', animation: 'chronoFlash 1.8s ease-out forwards' }}>Chronology protection enforced.</span>
+                    </div>
+                  )}
+
                   {/* Current time line */}
-                  {now && isToday && <NowLine now={now} />}
+                  {now && isToday && <NowLine now={now} gridH={gridH} gridStart={gridStart} gridHours={gridHours} />}
 
                   {/* Booking blocks */}
                   {dayBookings.map(b => {
                     const bs = new Date(b.start_time), be = new Date(b.end_time)
-                    const topPx    = Math.max(0, toGridPct(bs.getHours(), bs.getMinutes()) * GRID_H)
-                    const heightPx = Math.max(16, (toGridPct(be.getHours(), be.getMinutes()) - toGridPct(bs.getHours(), bs.getMinutes())) * GRID_H)
+                    const topPx    = Math.max(0, gp(bs.getHours(), bs.getMinutes()) * gridH)
+                    const heightPx = Math.max(16, (gp(be.getHours(), be.getMinutes()) - gp(bs.getHours(), bs.getMinutes())) * gridH)
                     const isPast   = now ? be < now : false
-                    const blockBg     = isPast ? '#e4e6ea' : '#c8d2e0'
-                    const blockBorder = isPast ? '#adb5bd' : BUSY_BAR
+                    const blockBg     = isPast ? '#c0c5cc' : '#c8d2e0'
+                    const blockBorder = isPast ? '#9099a8' : BUSY_BAR
                     const blockText   = isPast ? '#9ca3af' : BUSY_BAR
                     return (
                       <div key={b.id}
                         onClick={e => { e.stopPropagation(); onBookingClick?.(b) }}
                         style={{ position: 'absolute', top: topPx, left: 2, right: 2, height: heightPx, background: blockBg, borderRadius: 4, cursor: onBookingClick ? 'pointer' : 'default', borderLeft: `3px solid ${blockBorder}`, overflow: 'hidden' }}>
-                        {heightPx > 18 && <div style={{ padding: '2px 4px', fontSize: 9, color: blockText, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', fontWeight: 500 }}>{b.recurring_series_id ? `↻ ${b.booker_name}` : b.booker_name}</div>}
+                        {heightPx > 18 && <div style={{ padding: '2px 4px', fontSize: 9, color: blockText, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', fontWeight: 500 }}>{visShowTitle ? (b.recurring_series_id ? `↻ ${b.title || 'Occupied'}` : (b.title || 'Occupied')) : 'Occupied'}</div>}
                       </div>
                     )
                   })}
@@ -322,7 +377,7 @@ function MonthView({ bookings, viewDate, onDayClick }: { bookings: Booking[]; vi
   const byDay: Record<string, number> = {}
   for (const b of bookings) {
     if (b.cancelled_at) continue
-    const d = b.start_time.slice(0, 10)
+    const d = dateStr(new Date(b.start_time))
     byDay[d] = (byDay[d] ?? 0) + 1
   }
 
@@ -342,13 +397,14 @@ function MonthView({ bookings, viewDate, onDayClick }: { bookings: Booking[]; vi
             const ds = dateStr(day)
             const inMonth  = day.getMonth() === viewMonth
             const isToday  = ds === todayStr
+            const isPast   = ds < todayStr
             const count    = byDay[ds] ?? 0
 
             return (
-              <div key={ds} onClick={() => onDayClick(day)}
-                style={{ padding: '6px 4px 8px', minHeight: 52, cursor: 'pointer', borderRight: di < 6 ? '1px solid #eeeeee' : 'none', background: isToday ? 'rgba(212,155,169,0.07)' : 'transparent', transition: 'background .1s' }}>
+              <div key={ds} onClick={() => { if (!isPast) onDayClick(day) }}
+                style={{ padding: '6px 4px 8px', minHeight: 52, cursor: isPast ? 'default' : 'pointer', borderRight: di < 6 ? '1px solid #eeeeee' : 'none', background: isPast ? 'rgba(0,0,0,0.03)' : isToday ? 'rgba(212,155,169,0.07)' : 'transparent', transition: 'background .1s' }}>
                 <div style={{ display: 'flex', justifyContent: 'center' }}>
-                  <div style={{ width: 22, height: 22, borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', background: isToday ? ROSE : 'transparent', color: isToday ? '#fff' : inMonth ? '#374151' : '#C8CDD4', fontSize: 11, fontWeight: isToday ? 600 : 400 }}>
+                  <div style={{ width: 22, height: 22, borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', background: isToday ? ROSE : 'transparent', color: isToday ? '#fff' : isPast ? '#C8CDD4' : inMonth ? '#374151' : '#C8CDD4', fontSize: 11, fontWeight: isToday ? 600 : 400 }}>
                     {day.getDate()}
                   </div>
                 </div>
@@ -375,24 +431,33 @@ type CalView = 'day' | 'week' | 'month'
 
 export default function RoomDisplayPage({ params }: { params: { roomId: string } }) {
   const [room,         setRoom]         = useState<Room | null>(null)
-  const [todayBkgs,   setTodayBkgs]    = useState<Booking[]>([])   // always today — for status band
+  const [allRooms,     setAllRooms]     = useState<Room[]>([])
+  const [todayBkgs,   setTodayBkgs]    = useState<Booking[]>([])   // this room, today
+  const [allTodayBkgs, setAllTodayBkgs] = useState<Booking[]>([])  // all rooms, today
   const [rangeBkgs,   setRangeBkgs]    = useState<Booking[]>([])   // current view range
   const [now,          setNow]          = useState(new Date())
   const [calView,      setCalView]      = useState<CalView>('day')
   const [viewDate,     setViewDate]     = useState(new Date())
+  const [gridStart,    setGridStart]    = useState(8)
+  const [gridEnd,      setGridEnd]      = useState(20)
+  const [visShowTitle, setVisShowTitle] = useState(false)
+  const [busyFlash,    setBusyFlash]    = useState(false)
+  const calContainerRef = useRef<HTMLDivElement>(null)
 
   // Modal state
   const [showModal,  setShowModal]  = useState<'now' | 'later' | null>(null)
   const [mName,      setMName]      = useState('')
   const [mEmail,     setMEmail]     = useState('')
   const [mTitle,     setMTitle]     = useState('')
-  const [mDate,      setMDate]      = useState(() => new Date().toISOString().slice(0, 10))
+  const [mDate,      setMDate]      = useState(() => dateStr(new Date()))
   const [mTime,      setMTime]      = useState('')
   const [mEndTime,   setMEndTime]   = useState('')
   const [mSubmitting,setMSubmitting]= useState(false)
   const [mDone,      setMDone]      = useState(false)
+  const [walkInError,setWalkInError]= useState<string | null>(null)
+  const [confirmCancel, setConfirmCancel] = useState<{ onConfirm: () => void } | null>(null)
   const [recurFreq,  setRecurFreq]  = useState<'none' | 'weekly' | 'monthly'>('none')
-  const [recurUntil, setRecurUntil] = useState(() => { const d = new Date(); d.setMonth(d.getMonth() + 3); return d.toISOString().slice(0, 10) })
+  const [recurUntil, setRecurUntil] = useState(() => { const d = new Date(); d.setMonth(d.getMonth() + 3); return dateStr(d) })
 
   // Edit existing booking
   const [editBooking,    setEditBooking]    = useState<Booking | null>(null)
@@ -404,7 +469,7 @@ export default function RoomDisplayPage({ params }: { params: { roomId: string }
   const [editEnd,        setEditEnd]        = useState('')
   const [editSubmitting, setEditSubmitting] = useState(false)
 
-  const todayStr    = now.toISOString().slice(0, 10)
+  const todayStr    = dateStr(now)
   const viewDateStr = dateStr(viewDate)
   const weekDays    = getWeekDays(viewDate)
 
@@ -419,6 +484,7 @@ export default function RoomDisplayPage({ params }: { params: { roomId: string }
 
   const fetchRoom = useCallback(() => {
     fetch('/api/rooms').then(r => r.json()).then((rooms: Room[]) => {
+      setAllRooms(rooms)
       setRoom(rooms.find(r => r.id === params.roomId) ?? rooms[0] ?? null)
     })
   }, [params.roomId])
@@ -426,6 +492,8 @@ export default function RoomDisplayPage({ params }: { params: { roomId: string }
   const fetchToday = useCallback(() => {
     fetch(`/api/bookings?room_id=${params.roomId}&date=${todayStr}`)
       .then(r => r.json()).then(setTodayBkgs)
+    fetch(`/api/bookings?date=${todayStr}`)
+      .then(r => r.json()).then(setAllTodayBkgs)
   }, [params.roomId, todayStr])
 
   const fetchRange = useCallback(() => {
@@ -437,6 +505,13 @@ export default function RoomDisplayPage({ params }: { params: { roomId: string }
 
   useEffect(() => { fetchRoom(); fetchToday() }, [fetchRoom, fetchToday])
   useEffect(() => { fetchRange() }, [fetchRange])
+  useEffect(() => {
+    fetch('/api/settings').then(r => r.json()).then(d => {
+      setGridStart(d.displayHours?.start ?? 8)
+      setGridEnd(d.displayHours?.end ?? 20)
+      setVisShowTitle(d.bookingVisibility?.showTitle ?? false)
+    }).catch(() => {})
+  }, [])
 
   // When the modal date changes, navigate the calendar to follow it
   useEffect(() => {
@@ -497,6 +572,21 @@ export default function RoomDisplayPage({ params }: { params: { roomId: string }
   const iconBg    = isFree ? '#C6E8CC' : 'rgba(255,255,255,0.2)'
   const iconStroke = isFree ? FREE_BAR : '#ffffff'
 
+  const availableRooms = allRooms.filter(r => {
+    if (r.id === params.roomId) return false
+    const { status } = getRoomStatus(allTodayBkgs.filter(b => b.room_id === r.id))
+    return status === 'free'
+  })
+
+  function durationConflicts(mins: number): boolean {
+    const start = now
+    const end = new Date(start.getTime() + mins * 60 * 1000)
+    return todayBkgs.some(b => {
+      if (b.cancelled_at) return false
+      return new Date(b.start_time) < end && new Date(b.end_time) > start
+    })
+  }
+
   // Navigation labels + shift logic
   function shiftView(dir: -1 | 1) {
     const d = new Date(viewDate)
@@ -527,6 +617,7 @@ export default function RoomDisplayPage({ params }: { params: { roomId: string }
     setMDate(ds)
     setMTime(time)
     setMEndTime(endHHMM)
+    setMTitle('Occupied')
     setRecurFreq('none')
     setMDone(false)
     setShowModal('later')
@@ -538,7 +629,7 @@ export default function RoomDisplayPage({ params }: { params: { roomId: string }
     setEditTitle(b.title ?? '')
     setEditName(b.booker_name)
     setEditEmail(b.booker_email)
-    setEditDate(b.start_time.slice(0, 10))
+    setEditDate(dateStr(new Date(b.start_time)))
     setEditStart(`${String(bs.getHours()).padStart(2, '0')}:${String(bs.getMinutes()).padStart(2, '0')}`)
     setEditEnd(`${String(be.getHours()).padStart(2, '0')}:${String(be.getMinutes()).padStart(2, '0')}`)
   }
@@ -566,11 +657,21 @@ export default function RoomDisplayPage({ params }: { params: { roomId: string }
   }
 
   async function handleEditCancel() {
-    if (!editBooking || !confirm('Cancel this booking?')) return
-    await fetch(`/api/cancel/${editBooking.cancel_token}`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ scope: 'this' }) })
-    setEditBooking(null)
-    fetchRange()
-    fetchToday()
+    if (!editBooking) return
+    setConfirmCancel({ onConfirm: async () => {
+      setConfirmCancel(null)
+      const cancelledAt = new Date().toISOString()
+      const id = editBooking.id
+      const markCancelled = (prev: Booking[]) =>
+        prev.map(b => b.id === id ? { ...b, cancelled_at: cancelledAt } : b)
+      setRangeBkgs(markCancelled)
+      setTodayBkgs(markCancelled)
+      setAllTodayBkgs(markCancelled)
+      setEditBooking(null)
+      await fetch(`/api/cancel/${editBooking.cancel_token}`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ scope: 'this' }) })
+      fetchRange()
+      fetchToday()
+    }})
   }
 
   const pendingSlot = showModal === 'later' && mDate && mTime && mEndTime
@@ -578,7 +679,7 @@ export default function RoomDisplayPage({ params }: { params: { roomId: string }
     : null
 
   // Day filter for the day view (filter rangeBkgs to viewDate)
-  const dayBookings = rangeBkgs.filter(b => b.start_time.slice(0, 10) === viewDateStr)
+  const dayBookings = rangeBkgs.filter(b => dateStr(new Date(b.start_time)) === viewDateStr)
 
   function handleStartTime(time: string) {
     setMTime(time)
@@ -609,7 +710,46 @@ export default function RoomDisplayPage({ params }: { params: { roomId: string }
     })
     if (res.ok) {
       try { localStorage.setItem('spacebook_user', JSON.stringify({ name: mName, email: mEmail })) } catch {}
+      const data = await res.json()
+      const newBkg: Booking | undefined = data.booking ?? (data.id ? data : undefined)
+      if (newBkg?.id) {
+        setRangeBkgs(prev => [...prev, newBkg])
+        setTodayBkgs(prev => [...prev, newBkg])
+        setAllTodayBkgs(prev => [...prev, newBkg])
+      }
       setMTitle(''); setRecurFreq('none'); setMDone(true); fetchToday(); fetchRange()
+    }
+    setMSubmitting(false)
+  }
+
+  async function handleWalkIn(minutes: number) {
+    if (!room) return
+    setMSubmitting(true)
+    const start = new Date()
+    const end = new Date(start.getTime() + minutes * 60 * 1000)
+    const res = await fetch('/api/bookings', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ room_id: room.id, booker_name: 'Walk-in', booker_email: 'walkin@local', start_time: start.toISOString(), end_time: end.toISOString(), title: 'Occupied' }),
+    })
+    if (res.ok) {
+      setWalkInError(null)
+      const data = await res.json()
+      const newBkg: Booking | undefined = data.booking ?? data
+      if (newBkg?.id) {
+        setRangeBkgs(prev => [...prev, newBkg])
+        setTodayBkgs(prev => [...prev, newBkg])
+        setAllTodayBkgs(prev => [...prev, newBkg])
+      }
+      setMDone(true); setShowModal('now'); fetchToday(); fetchRange()
+      const h = start.getHours(), m = start.getMinutes()
+      const scrollTo = Math.max(0, toGridPct(h, m, gridStart, gridEnd - gridStart) * ((gridEnd - gridStart) * HOUR_H) - 80)
+      setTimeout(() => calContainerRef.current?.scrollTo({ top: scrollTo, behavior: 'smooth' }), 50)
+    } else {
+      const body = await res.json().catch(() => ({}))
+      const msg = body.error ?? 'Something went wrong. Please try again.'
+      setWalkInError(msg)
+      setShowModal('now')
     }
     setMSubmitting(false)
   }
@@ -618,144 +758,199 @@ export default function RoomDisplayPage({ params }: { params: { roomId: string }
   const lbl: React.CSSProperties = { fontSize: 12, color: '#6B7280', fontWeight: 500, display: 'block', marginBottom: 4 }
 
   return (
-    <div style={{ background: '#ffffff', minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 16 }}>
-      <style dangerouslySetInnerHTML={{ __html: `@import url('https://fonts.googleapis.com/css2?family=Spectral:ital,wght@0,400;0,500;0,600;1,400&display=swap');` }} />
-      <div style={{ borderRadius: 0, overflow: 'hidden', border: '1px solid #cccccc', maxWidth: 960, width: '100%', background: '#fff', boxShadow: '0 2px 16px rgba(0,0,0,0.08)' }}>
+    <div style={{ height: '100dvh', display: 'flex', flexDirection: 'column', overflow: 'hidden', background: '#fff' }}>
+      <style dangerouslySetInnerHTML={{ __html: `@import url('https://fonts.googleapis.com/css2?family=Spectral:ital,wght@0,400;0,500;0,600;1,400&display=swap');@keyframes bookPulse{0%,100%{opacity:1}50%{opacity:0.86}}@keyframes chronoFlash{0%{opacity:0;transform:translateY(3px)}12%{opacity:1;transform:translateY(0)}70%{opacity:1}100%{opacity:0}}` }} />
 
-        {/* Clock bar + view tabs */}
-        <div style={{ background: '#111111', padding: '8px 24px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-          <span style={{ fontSize: 16, fontWeight: 500, color: '#fff' }}>
-            {now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-          </span>
-          <span style={{ fontSize: 13, color: 'rgba(255,255,255,0.65)' }}>
-            {DAYS_LONG[now.getDay()]}, {now.getDate()} {MONTHS_LONG[now.getMonth()]} {now.getFullYear()}
-          </span>
-          {/* View tabs */}
-          <div style={{ display: 'flex', gap: 4 }}>
-            {(['day', 'week', 'month'] as CalView[]).map(v => (
-              <button key={v} onClick={() => { setCalView(v); setViewDate(new Date()) }}
-                style={{ fontSize: 12, padding: '4px 12px', borderRadius: 0, border: 'none', cursor: 'pointer', fontFamily: 'inherit', fontWeight: calView === v ? 600 : 400, background: calView === v ? ROSE : 'rgba(255,255,255,0.15)', color: '#fff', transition: 'background .15s' }}>
-                {v.charAt(0).toUpperCase() + v.slice(1)}
-              </button>
-            ))}
-          </div>
+      {/* Clock bar */}
+      <div style={{ background: '#111111', padding: '10px 24px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexShrink: 0 }}>
+        <span style={{ fontSize: 18, fontWeight: 500, color: '#fff' }}>
+          {now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+        </span>
+        <span style={{ fontSize: 13, color: 'rgba(255,255,255,0.65)' }}>
+          {DAYS_LONG[now.getDay()]}, {now.getDate()} {MONTHS_LONG[now.getMonth()]} {now.getFullYear()}
+        </span>
+        <div style={{ display: 'flex', gap: 4 }}>
+          {(['day', 'week', 'month'] as CalView[]).map(v => (
+            <button key={v} onClick={() => { setCalView(v); setViewDate(new Date()) }}
+              style={{ fontSize: 12, padding: '4px 12px', borderRadius: 0, border: 'none', cursor: 'pointer', fontFamily: 'inherit', fontWeight: calView === v ? 600 : 400, background: calView === v ? '#ffffff' : 'rgba(255,255,255,0.15)', color: calView === v ? '#111111' : '#fff', transition: 'background .15s' }}>
+              {v.charAt(0).toUpperCase() + v.slice(1)}
+            </button>
+          ))}
         </div>
+      </div>
 
-        {calView === 'day' ? (
-          /* ── Day view: 2-column layout ── */
-          <div style={{ display: 'flex', alignItems: 'stretch' }}>
+      {calView === 'day' ? (
+        /* ── Portrait day view ── */
+        <div style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden', minHeight: 0 }}>
 
-            {/* Left: status + buttons */}
-            <div style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', borderRight: '1px solid #cccccc' }}>
-              {/* Status */}
-              <div style={{ background: bandBg, padding: '24px 20px', display: 'flex', flexDirection: 'column', gap: 16, transition: 'background .4s' }}>
-                {isFree ? (
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                    <div style={{ width: 40, height: 40, borderRadius: '50%', background: iconBg, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
-                      <svg viewBox="0 0 28 28" fill="none" width="22" height="22"><circle cx="14" cy="14" r="11" stroke={iconStroke} strokeWidth="2"/><path d="M9 14.5l3.5 3.5 6.5-7" stroke={iconStroke} strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"/></svg>
-                    </div>
-                    <div>
-                      <div style={{ fontSize: 18, fontWeight: 500, color: bigColor, lineHeight: 1 }}>Available</div>
-                      <div style={{ fontSize: 11, marginTop: 4, color: FREE_BAR }}>Free until {until}</div>
-                    </div>
-                  </div>
-                ) : (
-                  <div style={{ padding: '4px 0' }}>
-                    <div style={{ fontSize: 38, fontWeight: 700, color: '#fff', lineHeight: 1, letterSpacing: '-0.02em' }}>In use</div>
-                    <div style={{ fontSize: 15, color: 'rgba(255,255,255,0.82)', marginTop: 8, fontWeight: 400 }}>Free from {until}</div>
-                  </div>
-                )}
-                <div style={{ borderTop: `1px solid ${isFree ? '#b8d8bf' : 'rgba(255,255,255,0.25)'}`, paddingTop: 14 }}>
-                  <div style={{ fontSize: 14, fontWeight: 500, color: isFree ? NAVY : '#fff' }}>{room?.name ?? '—'}</div>
-                  {room?.room_type && <div style={{ fontSize: 11, color: isFree ? '#9CA3AF' : 'rgba(255,255,255,0.6)', marginTop: 1 }}>{room.room_type}</div>}
-                  <div style={{ fontSize: 11, color: isFree ? '#6B7280' : 'rgba(255,255,255,0.85)', marginTop: 3 }}>{room?.capacity} people</div>
-                  <div style={{ fontSize: 11, color: isFree ? '#9CA3AF' : 'rgba(255,255,255,0.75)', marginTop: 2 }}>{room?.amenities.join(', ')}</div>
-                </div>
-              </div>
-              {/* Buttons — offset halfway down the remaining space */}
-              <div style={{ flex: 1, background: '#ffffff', borderTop: '1px solid #cccccc', display: 'flex', alignItems: 'flex-start', padding: '18% 16px 16px' }}>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 10, width: '100%' }}>
-                  {isFree && (
-                    <button
-                      onClick={() => { const t = toHHMMExact(new Date()); const [h,m] = t.split(':').map(Number); const et = Math.min(h*60+m+60,23*60); setMDate(todayStr); setMTime(t); setMEndTime(`${String(Math.floor(et/60)).padStart(2,'0')}:${String(et%60).padStart(2,'0')}`); setShowModal('now'); setMDone(false) }}
-                      style={{ background: ROSE, color: '#fff', border: 'none', borderRadius: 0, padding: '13px 12px', fontSize: 14, fontWeight: 600, cursor: 'pointer', width: '100%' }}>
-                      Book now
-                    </button>
-                  )}
-                  <button
-                    onClick={() => { setMDate(todayStr); setMTime(''); setMEndTime(''); setRecurFreq('none'); setShowModal('later'); setMDone(false) }}
-                    style={{ background: '#fff', border: '1px solid #cccccc', borderRadius: 0, padding: '13px 12px', fontSize: 13, cursor: 'pointer', color: '#111111', width: '100%' }}>
-                    Schedule for later
-                  </button>
-                </div>
-              </div>
+          {/* Status band */}
+          <div style={{ background: bandBg, padding: '28px 28px 22px', flexShrink: 0, transition: 'background .4s' }}>
+            <div style={{ fontSize: 80, fontWeight: 700, color: bigColor, lineHeight: 0.9, letterSpacing: '-0.03em', marginBottom: 10 }}>
+              {isFree ? 'Available' : 'In use'}
             </div>
-
-            {/* Right: nav + calendar */}
-            <div style={{ flex: 1, minWidth: 0, padding: '16px 20px' }}>
-              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, marginBottom: 14 }}>
-                <button onClick={() => shiftView(-1)} style={{ background: 'none', border: '1px solid #cccccc', borderRadius: 0, padding: '3px 9px', cursor: 'pointer', fontSize: 14, color: '#6B7280', lineHeight: 1 }}>‹</button>
-                {(() => {
-                  const isCurrent = viewDateStr === todayStr
-                  return <span style={{ fontSize: 13, fontWeight: 500, minWidth: 160, textAlign: 'center', color: isCurrent ? ROSE : NAVY, background: isCurrent ? 'rgba(212,155,169,0.12)' : 'transparent', borderRadius: 0, padding: '2px 10px' }}>{navLabel()}</span>
-                })()}
-                <button onClick={() => shiftView(1)} style={{ background: 'none', border: '1px solid #cccccc', borderRadius: 0, padding: '3px 9px', cursor: 'pointer', fontSize: 14, color: '#6B7280', lineHeight: 1 }}>›</button>
-              </div>
-              <DayView bookings={dayBookings} viewDate={viewDate} onSlotClick={openScheduleLater} onBookingClick={openEdit} pendingSlot={pendingSlot} now={now} />
+            <div style={{ fontSize: 14, color: isFree ? FREE_BAR : 'rgba(255,255,255,0.8)', marginBottom: 10 }}>
+              {isFree ? `Free until ${until}` : `Free from ${until}`}
+            </div>
+            <div style={{ fontSize: 11, color: isFree ? '#9CA3AF' : 'rgba(255,255,255,0.5)' }}>
+              {[room?.name, room?.room_type, room?.capacity ? `${room.capacity} people` : null, room?.amenities?.join(', ')].filter(Boolean).join(' · ')}
             </div>
           </div>
-        ) : (
-          /* ── Week / Month: original full-width layout ── */
-          <>
-            <div style={{ background: '#fff', padding: '16px 24px' }}>
-              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, marginBottom: 14 }}>
-                <button onClick={() => shiftView(-1)} style={{ background: 'none', border: '1px solid #cccccc', borderRadius: 0, padding: '3px 9px', cursor: 'pointer', fontSize: 14, color: '#6B7280', lineHeight: 1 }}>‹</button>
-                {(() => {
-                  const isCurrent =
-                    (calView === 'week'  && todayStr >= dateStr(weekDays[0]) && todayStr <= dateStr(weekDays[6])) ||
-                    (calView === 'month' && viewDate.getFullYear() === now.getFullYear() && viewDate.getMonth() === now.getMonth())
-                  return <span style={{ fontSize: 13, fontWeight: 500, minWidth: 160, textAlign: 'center', color: isCurrent ? ROSE : NAVY, background: isCurrent ? 'rgba(212,155,169,0.12)' : 'transparent', borderRadius: 0, padding: '2px 10px' }}>{navLabel()}</span>
-                })()}
-                <button onClick={() => shiftView(1)} style={{ background: 'none', border: '1px solid #cccccc', borderRadius: 0, padding: '3px 9px', cursor: 'pointer', fontSize: 14, color: '#6B7280', lineHeight: 1 }}>›</button>
-              </div>
-              {calView === 'week'  && <WeekView  bookings={rangeBkgs} weekDays={weekDays} onSlotClick={openScheduleLater} onBookingClick={openEdit} pendingSlot={pendingSlot} now={now} />}
-              {calView === 'month' && <MonthView bookings={rangeBkgs} viewDate={viewDate} onDayClick={d => { setViewDate(d); setCalView('day') }} />}
-            </div>
 
-            <div style={{ background: '#ffffff', borderTop: '1px solid #cccccc', padding: '16px 28px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-              <span style={{ fontSize: 13, color: '#9CA3AF' }}>{isFree ? 'Room is free — book it now or schedule ahead' : 'This room is currently occupied'}</span>
-              <div style={{ display: 'flex', gap: 10 }}>
-                {isFree && (
-                  <button onClick={() => { const t = toHHMMExact(new Date()); const [h,m] = t.split(':').map(Number); const et = Math.min(h*60+m+60,23*60); setMDate(todayStr); setMTime(t); setMEndTime(`${String(Math.floor(et/60)).padStart(2,'0')}:${String(et%60).padStart(2,'0')}`); setShowModal('now'); setMDone(false) }}
-                    style={{ background: ROSE, color: '#fff', border: 'none', borderRadius: 0, padding: '10px 22px', fontSize: 14, fontWeight: 600, cursor: 'pointer' }}>
+          {/* Action section */}
+          <div style={{ flexShrink: 0, borderTop: '1px solid #cccccc', borderBottom: '1px solid #cccccc', padding: '16px 20px', display: 'flex', gap: 16, alignItems: 'stretch' }}>
+
+            {/* Left: Book now + time picks (when free) or available rooms (when busy) */}
+            <div style={{ flex: 1 }}>
+              {isFree ? (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+                  <button
+                    onClick={() => { setShowModal('now'); setMDone(false) }}
+                    style={{ width: '100%', background: ROSE, color: '#fff', border: 'none', borderRadius: 0, padding: '10px 0', fontSize: 18, fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit', animation: 'bookPulse 3s ease-in-out infinite', letterSpacing: '0.02em' }}>
                     Book now
                   </button>
-                )}
-                <button onClick={() => { setMDate(todayStr); setMTime(''); setMEndTime(''); setShowModal('later'); setMDone(false) }}
-                  style={{ background: '#fff', border: '1px solid #cccccc', borderRadius: 0, padding: '10px 18px', fontSize: 13, cursor: 'pointer', color: '#111111' }}>
-                  Schedule for later
-                </button>
-              </div>
+                  <div style={{ display: 'flex', gap: 6 }}>
+                    {[15, 30, 60, 120, 180].map(mins => {
+                      const blocked = durationConflicts(mins)
+                      return (
+                        <button key={mins}
+                          onClick={() => { if (!blocked) { setMDone(false); handleWalkIn(mins) } }}
+                          disabled={mSubmitting || blocked}
+                          style={{ flex: 1, background: blocked ? 'transparent' : ROSE, color: blocked ? '#C8CDD4' : '#fff', border: blocked ? '1px solid #e5e7eb' : 'none', borderRadius: 0, padding: '10px 0', fontSize: 13, fontWeight: 500, cursor: (mSubmitting || blocked) ? 'default' : 'pointer', fontFamily: 'inherit', opacity: mSubmitting ? 0.6 : 1, textDecoration: blocked ? 'line-through' : 'none' }}>
+                          {mins < 60 ? `${mins}m` : `${mins / 60}h`}
+                        </button>
+                      )
+                    })}
+                  </div>
+                </div>
+              ) : (
+                <div>
+                  <div style={{ fontSize: 11, fontWeight: 600, color: '#9CA3AF', letterSpacing: '0.07em', textTransform: 'uppercase' as const, marginBottom: 8 }}>
+                    Available rooms
+                  </div>
+                  {availableRooms.length === 0 ? (
+                    <div style={{ fontSize: 13, color: '#9CA3AF' }}>No other rooms free right now</div>
+                  ) : (
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                      {availableRooms.slice(0, 4).map(r => {
+                        const { until: roomUntil } = getRoomStatus(allTodayBkgs.filter(b => b.room_id === r.id))
+                        return (
+                          <a key={r.id} href={`/room/${r.id}`}
+                            style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '8px 12px', background: FREE_BG, textDecoration: 'none', borderLeft: `3px solid ${FREE_BAR}` }}>
+                            <div style={{ flex: 1, minWidth: 0 }}>
+                              <div style={{ fontSize: 13, fontWeight: 600, color: FREE_TEXT }}>{r.name}</div>
+                              {r.room_type && <div style={{ fontSize: 10, color: '#6B7280' }}>{r.room_type}</div>}
+                            </div>
+                            <div style={{ fontSize: 11, color: FREE_BAR, whiteSpace: 'nowrap' }}>free until {roomUntil}</div>
+                          </a>
+                        )
+                      })}
+                    </div>
+                  )}
+                </div>
+              )}
             </div>
-          </>
-        )}
-      </div>
+
+            {/* Divider */}
+            <div style={{ width: 1, background: '#cccccc', flexShrink: 0 }} />
+
+            {/* Right: Schedule for later */}
+            <div style={{ display: 'flex', alignItems: 'center' }}>
+              <button
+                onClick={() => { setMDate(todayStr); setMTime(''); setMEndTime(''); setMTitle('Occupied'); setRecurFreq('none'); setShowModal('later'); setMDone(false) }}
+                style={{ background: '#fff', border: '1px solid #cccccc', borderRadius: 0, padding: '12px 16px', fontSize: 14, cursor: 'pointer', color: '#111111', fontFamily: 'inherit', whiteSpace: 'nowrap' }}>
+                Schedule for later
+              </button>
+            </div>
+          </div>
+
+          {/* Nav + Calendar */}
+          <div ref={calContainerRef} style={{ flex: 1, minHeight: 0, overflowY: 'auto', padding: '14px 20px' }}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, marginBottom: 12 }}>
+              <button onClick={() => shiftView(-1)} style={{ background: 'none', border: '1px solid #cccccc', borderRadius: 0, padding: '3px 9px', cursor: 'pointer', fontSize: 14, color: '#6B7280', lineHeight: 1 }}>‹</button>
+              {(() => {
+                const isCurrent = viewDateStr === todayStr
+                return <span style={{ fontSize: 13, fontWeight: 500, minWidth: 160, textAlign: 'center', color: isCurrent ? ROSE : NAVY, background: isCurrent ? 'rgba(212,155,169,0.12)' : 'transparent', borderRadius: 0, padding: '2px 10px' }}>{navLabel()}</span>
+              })()}
+              <button onClick={() => shiftView(1)} style={{ background: 'none', border: '1px solid #cccccc', borderRadius: 0, padding: '3px 9px', cursor: 'pointer', fontSize: 14, color: '#6B7280', lineHeight: 1 }}>›</button>
+            </div>
+            <DayView bookings={dayBookings} viewDate={viewDate} onSlotClick={openScheduleLater} onBookingClick={openEdit} pendingSlot={pendingSlot} now={now} gridStart={gridStart} gridEnd={gridEnd} visShowTitle={visShowTitle} />
+          </div>
+        </div>
+      ) : (
+        /* ── Week / Month ── */
+        <div style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden', minHeight: 0 }}>
+          <div style={{ overflowY: 'auto', background: '#fff', padding: '40px 24px 16px', borderBottom: '1px solid #cccccc' }}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, marginBottom: 14 }}>
+              <button onClick={() => shiftView(-1)} style={{ background: 'none', border: '1px solid #cccccc', borderRadius: 0, padding: '3px 9px', cursor: 'pointer', fontSize: 14, color: '#6B7280', lineHeight: 1 }}>‹</button>
+              {(() => {
+                const isCurrent =
+                  (calView === 'week'  && todayStr >= dateStr(weekDays[0]) && todayStr <= dateStr(weekDays[6])) ||
+                  (calView === 'month' && viewDate.getFullYear() === now.getFullYear() && viewDate.getMonth() === now.getMonth())
+                return <span style={{ fontSize: 13, fontWeight: 500, minWidth: 160, textAlign: 'center', color: isCurrent ? ROSE : NAVY, background: isCurrent ? 'rgba(212,155,169,0.12)' : 'transparent', borderRadius: 0, padding: '2px 10px' }}>{navLabel()}</span>
+              })()}
+              <button onClick={() => shiftView(1)} style={{ background: 'none', border: '1px solid #cccccc', borderRadius: 0, padding: '3px 9px', cursor: 'pointer', fontSize: 14, color: '#6B7280', lineHeight: 1 }}>›</button>
+            </div>
+            {calView === 'week'  && <WeekView  bookings={rangeBkgs} weekDays={weekDays} onSlotClick={openScheduleLater} onBookingClick={openEdit} pendingSlot={pendingSlot} now={now} gridStart={gridStart} gridEnd={gridEnd} visShowTitle={visShowTitle} />}
+            {calView === 'month' && <MonthView bookings={rangeBkgs} viewDate={viewDate} onDayClick={d => { setViewDate(d); setCalView('day') }} />}
+          </div>
+          <div style={{ flex: 1, display: 'flex', alignItems: 'center', padding: '0 20px' }}>
+          <div style={{ display: 'flex', gap: 12, width: '100%' }}>
+            <div style={{ position: 'relative', flex: 1 }}>
+              <button
+                onClick={() => {
+                  if (!isFree) { setBusyFlash(true); setTimeout(() => setBusyFlash(false), 2200); return }
+                  const t = toHHMMExact(new Date()); const [h,m] = t.split(':').map(Number); const et = Math.min(h*60+m+60,23*60); setMDate(todayStr); setMTime(t); setMEndTime(`${String(Math.floor(et/60)).padStart(2,'0')}:${String(et%60).padStart(2,'0')}`); setShowModal('now'); setMDone(false)
+                }}
+                style={{ background: isFree ? ROSE : 'transparent', color: isFree ? '#fff' : '#9CA3AF', border: isFree ? 'none' : '1px solid #e5e7eb', borderRadius: 0, padding: '15px', fontSize: 15, fontWeight: 600, cursor: 'pointer', width: '100%', textDecoration: isFree ? 'none' : 'line-through' }}>
+                Book now
+              </button>
+              {busyFlash && (
+                <div style={{ position: 'absolute', bottom: 'calc(100% + 6px)', left: 0, right: 0, background: '#111', color: '#fff', fontSize: 12, padding: '7px 12px', textAlign: 'center', pointerEvents: 'none', whiteSpace: 'nowrap' }}>
+                  In use — free from {until}
+                </div>
+              )}
+            </div>
+            <button onClick={() => { setMDate(todayStr); setMTime(''); setMEndTime(''); setMTitle('Occupied'); setShowModal('later'); setMDone(false) }}
+              style={{ flex: 1, background: '#fff', border: '1px solid #cccccc', borderRadius: 0, padding: '15px', fontSize: 14, cursor: 'pointer', color: '#111111' }}>
+              Schedule for later
+            </button>
+          </div>
+          </div>
+        </div>
+      )}
 
       {/* Quick-book modal */}
       {showModal && (
-        <div onClick={() => setShowModal(null)} style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.32)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 100 }}>
+        <div onClick={() => { setShowModal(null); setWalkInError(null) }} style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.32)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 100 }}>
           <div onClick={e => e.stopPropagation()} style={{ background: '#fff', borderRadius: 0, padding: 28, width: 340, border: '1px solid #cccccc' }}>
             {mDone ? (
               <div style={{ textAlign: 'center' }}>
                 <div style={{ fontSize: 16, fontWeight: 500, color: NAVY, marginBottom: 8 }}>Booking confirmed!</div>
                 <div style={{ fontSize: 13, color: '#6B7280', marginBottom: 16 }}>Your room is reserved.</div>
-                <button onClick={() => { setShowModal(null); setMName(''); setMEmail(''); setMTime(''); setMEndTime('') }}
+                <button onClick={() => { setShowModal(null); setMDone(false); setMSubmitting(false) }}
                   style={{ background: ROSE, color: '#fff', border: 'none', borderRadius: 0, padding: '10px 24px', fontSize: 14, fontWeight: 500, cursor: 'pointer' }}>Done</button>
               </div>
+            ) : showModal === 'now' ? (
+              <>
+                <div style={{ fontSize: 16, fontWeight: 600, marginBottom: 6, color: NAVY }}>How long do you need?</div>
+                <div style={{ fontSize: 13, color: '#6B7280', marginBottom: 20 }}>{room?.name}</div>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                  {[15, 30, 45, 60, 90, 120, 180].map(mins => (
+                    <button key={mins} onClick={() => handleWalkIn(mins)} disabled={mSubmitting}
+                      style={{ width: '100%', padding: '14px', fontSize: 15, fontWeight: 500, background: '#fff', border: '1px solid #cccccc', borderRadius: 0, cursor: mSubmitting ? 'default' : 'pointer', color: NAVY, fontFamily: 'inherit', opacity: mSubmitting ? 0.6 : 1 }}>
+                      {mins < 60 ? `${mins} min` : mins === 60 ? '1 hour' : mins % 60 === 0 ? `${mins / 60} hours` : `${Math.floor(mins / 60)}h ${mins % 60}m`}
+                    </button>
+                  ))}
+                </div>
+                {walkInError && (
+                  <div style={{ marginTop: 12, fontSize: 13, color: '#b91c1c', textAlign: 'center' }}>{walkInError}</div>
+                )}
+                <button onClick={() => { setShowModal(null); setWalkInError(null) }} style={{ width: '100%', marginTop: 14, background: 'none', border: 'none', fontSize: 13, color: '#9CA3AF', cursor: 'pointer', padding: '6px 0' }}>Cancel</button>
+              </>
             ) : (
               <>
                 <div style={{ fontSize: 16, fontWeight: 500, marginBottom: 16, color: NAVY }}>
-                  {showModal === 'now' ? 'Book now' : 'Schedule for later'} — {room?.name}
+                  Schedule for later — {room?.name}
                 </div>
                 {showModal === 'later' && (
                   <div style={{ marginBottom: 12 }}>
@@ -774,6 +969,7 @@ export default function RoomDisplayPage({ params }: { params: { roomId: string }
                 </div>
                 <div style={{ marginBottom: 12 }}>
                   <label style={lbl}>Email</label>
+                  <div style={{ fontSize: 11, color: '#6B7280', marginBottom: 6 }}>Not visible to others</div>
                   <input style={inp} type="email" placeholder="you@example.com" value={mEmail} onChange={e => setMEmail(e.target.value)} />
                 </div>
                 <div style={{ marginBottom: 12 }}>
@@ -896,6 +1092,23 @@ export default function RoomDisplayPage({ params }: { params: { roomId: string }
           </div>
         )
       })()}
+
+      {confirmCancel && (
+        <div onClick={() => setConfirmCancel(null)} style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.45)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 200 }}>
+          <div onClick={e => e.stopPropagation()} style={{ background: '#fff', border: '1px solid #cccccc', padding: '28px 24px', width: 320 }}>
+            <div style={{ fontSize: 16, fontWeight: 600, color: NAVY, marginBottom: 8 }}>Cancel this booking?</div>
+            <div style={{ fontSize: 13, color: '#6B7280', marginBottom: 24 }}>This cannot be undone.</div>
+            <div style={{ display: 'flex', gap: 10 }}>
+              <button onClick={() => setConfirmCancel(null)} style={{ flex: 1, padding: '10px 0', fontSize: 13, fontWeight: 500, background: 'none', border: '1px solid #cccccc', color: NAVY, cursor: 'pointer', fontFamily: 'inherit' }}>
+                No, go back
+              </button>
+              <button onClick={confirmCancel.onConfirm} style={{ flex: 1, padding: '10px 0', fontSize: 13, fontWeight: 600, background: '#B94040', border: 'none', color: '#fff', cursor: 'pointer', fontFamily: 'inherit' }}>
+                Yes, cancel it
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }

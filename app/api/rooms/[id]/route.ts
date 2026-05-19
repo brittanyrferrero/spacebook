@@ -4,9 +4,11 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
   const patch = await req.json()
 
   if (process.env.MOCK_MODE === 'true') {
-    const [{ updateRoom }, { getSessionStore }] = await Promise.all([import('@/lib/mock/api'), import('@/lib/mock/store')])
-    const room = updateRoom(await getSessionStore(), params.id, patch)
+    const [{ updateRoom }, { getSessionStore, saveSessionStore }] = await Promise.all([import('@/lib/mock/api'), import('@/lib/mock/store')])
+    const store = await getSessionStore()
+    const room = updateRoom(store, params.id, patch)
     if (!room) return Response.json({ error: 'Room not found' }, { status: 404 })
+    await saveSessionStore(store)
     return Response.json(room)
   }
 
@@ -19,9 +21,11 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
 
 export async function DELETE(_req: NextRequest, { params }: { params: { id: string } }) {
   if (process.env.MOCK_MODE === 'true') {
-    const [{ deleteRoom }, { getSessionStore }] = await Promise.all([import('@/lib/mock/api'), import('@/lib/mock/store')])
-    const result = deleteRoom(await getSessionStore(), params.id)
+    const [{ deleteRoom }, { getSessionStore, saveSessionStore }] = await Promise.all([import('@/lib/mock/api'), import('@/lib/mock/store')])
+    const store = await getSessionStore()
+    const result = deleteRoom(store, params.id)
     if (!result.ok) return Response.json({ error: 'Room not found' }, { status: 404 })
+    await saveSessionStore(store)
     return Response.json(result)
   }
 

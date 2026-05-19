@@ -87,7 +87,7 @@ const PLANS = [
   },
 ]
 
-export default function LandingPage() {
+export default function LandingPage({ showPricing = true, showIntro = true }: { showPricing?: boolean; showIntro?: boolean }) {
   const [tab, setTab]         = useState<Tab>('desktop')
   const [ready, setReady]     = useState(false)
   const [annual, setAnnual]   = useState(false)
@@ -97,6 +97,7 @@ export default function LandingPage() {
   const [notifyDone, setNotifyDone] = useState(false)
   const [notifySubmitting, setNotifySubmitting] = useState(false)
   const [shootingStar, setShootingStar] = useState<{ x: number; y: number; angle: number; flip: boolean; key: number } | null>(null)
+  const [winW, setWinW] = useState(0)
 
   useEffect(() => {
     let timeout: ReturnType<typeof setTimeout>
@@ -115,7 +116,14 @@ export default function LandingPage() {
   }, [])
 
   useEffect(() => {
-    const ids = ['features', 'demo', 'pricing']
+    setWinW(window.innerWidth)
+    const handler = () => setWinW(window.innerWidth)
+    window.addEventListener('resize', handler)
+    return () => window.removeEventListener('resize', handler)
+  }, [])
+
+  useEffect(() => {
+    const ids = !showIntro ? [] : showPricing ? ['features', 'demo', 'pricing'] : ['features', 'demo']
     const observers = ids.map(id => {
       const el = document.getElementById(id)
       if (!el) return null
@@ -129,8 +137,11 @@ export default function LandingPage() {
   }, [])
 
   const cur = TABS.find(t => t.key === tab)!
-  const cw = tab === 'tablet' ? Math.round(cur.fw * cur.scale) : 920
-  const ch = Math.round(cur.fh * cur.scale)
+  const isMobile = winW > 0 && winW < 800
+  const mobileScale = winW > 0 ? Math.min(cur.scale, (winW - 48) / cur.fw) : cur.scale
+  const effectiveScale = isMobile ? mobileScale : cur.scale
+  const cw = isMobile ? Math.round(cur.fw * effectiveScale) : (tab === 'tablet' ? Math.round(cur.fw * cur.scale) : 920)
+  const ch = Math.round(cur.fh * effectiveScale)
 
   return (
     <div style={{ fontFamily: 'system-ui, -apple-system, sans-serif', color: '#1a1a1a', overflowX: 'hidden' }}>
@@ -144,7 +155,7 @@ export default function LandingPage() {
       `}</style>
 
       {/* ── Hero ─────────────────────────────────────────────────────── */}
-      <div style={{ background: DARK, position: 'relative', overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
+      {showIntro && <div style={{ background: DARK, position: 'relative', overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
         {STARS.map((s, i) => (
           <div key={i} style={{ position: 'absolute', left: s.x, top: s.y, width: s.r * 2, height: s.r * 2, borderRadius: '50%', background: s.c, opacity: 0.2 + (i % 3) * 0.1, boxShadow: `0 0 ${s.r * 3}px ${s.r}px ${s.c}33`, pointerEvents: 'none' }} />
         ))}
@@ -159,13 +170,13 @@ export default function LandingPage() {
         {/* Soft glow */}
         <div style={{ position: 'absolute', left: '50%', top: '60%', transform: 'translate(-50%,-50%)', width: 600, height: 400, background: `radial-gradient(ellipse, ${ROSE}18 0%, transparent 70%)`, pointerEvents: 'none' }} />
 
-        <nav style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '22px 44px', position: 'relative', zIndex: 1 }}>
+        <nav style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: isMobile ? '16px 20px' : '22px 44px', position: 'relative', zIndex: 1 }}>
           <div style={{ fontSize: 17, fontWeight: 700, color: '#fff', letterSpacing: '-0.02em' }}>
             space<span style={{ color: ROSE, fontWeight: 300 }}>book</span>
           </div>
-          <a href="#pricing" style={{ fontSize: 13, padding: '8px 20px', borderRadius: 20, background: ROSE, color: '#fff', textDecoration: 'none', fontWeight: 500, letterSpacing: '0.01em' }}>
+          {showPricing && <a href="#pricing" style={{ fontSize: 13, padding: '8px 20px', borderRadius: 20, background: ROSE, color: '#fff', textDecoration: 'none', fontWeight: 500, letterSpacing: '0.01em' }}>
             Get started
-          </a>
+          </a>}
         </nav>
 
         <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', textAlign: 'center', padding: '80px 24px 100px', position: 'relative', zIndex: 1 }}>
@@ -177,17 +188,16 @@ export default function LandingPage() {
             For coworking spaces, offices, studios, maker spaces, and anywhere else people share rooms and need a simple way to book them.
           </p>
 
-          <div style={{ display: 'flex', gap: 10 }}>
-            {([['#features','1. Features'],['#demo','2. Demo'],['#pricing','3. Pricing']] as const).map(([href, label]) => (
+          <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', justifyContent: 'center' }}>
+            {([['#features','1. Features'],['#demo','2. Demo'],...(showPricing ? [['#pricing','3. Pricing']] : [])]).map(([href, label]) => (
               <a key={href} href={href} style={{ fontSize: 13, padding: '9px 22px', borderRadius: 20, border: `1px solid ${ROSE}`, color: ROSE, textDecoration: 'none', background: 'rgba(219,149,171,0.1)', fontWeight: 500 }}>{label}</a>
             ))}
           </div>
 
         </div>
-      </div>
+      </div>}
 
-      {/* ── Features ─────────────────────────────────────────────────── */}
-      <div id="features" style={{ background: '#E8F4EC', padding: '80px 24px' }}>
+      {showIntro && <div id="features" style={{ background: '#E8F4EC', padding: '80px 24px' }}>
         <div style={{ maxWidth: 900, margin: '0 auto', display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: 40 }}>
           {[
             { title: 'Frictionless access', body: 'No app to download, and no confusing onboarding.' },
@@ -204,21 +214,24 @@ export default function LandingPage() {
             </div>
           ))}
         </div>
-      </div>
+      </div>}
 
       {/* ── Demo ─────────────────────────────────────────────────────── */}
       <div id="demo" style={{ background: DARK2, padding: '90px 24px' }}>
         <div style={{ maxWidth: 1020, margin: '0 auto' }}>
           <div style={{ textAlign: 'center', marginBottom: 16 }}>
-            <div style={{ fontSize: 11, color: ROSE, fontWeight: 600, letterSpacing: '0.12em', textTransform: 'uppercase', marginBottom: 14 }}>Live demo</div>
-            <h2 style={{ fontSize: 'clamp(26px, 4vw, 40px)', fontWeight: 700, color: '#fff', letterSpacing: '-0.02em', margin: '0 0 12px' }}>
+            {showIntro && <div style={{ fontSize: 11, color: ROSE, fontWeight: 600, letterSpacing: '0.12em', textTransform: 'uppercase', marginBottom: 14 }}>Live demo</div>}
+            {showIntro && <h2 style={{ fontSize: 'clamp(26px, 4vw, 40px)', fontWeight: 700, color: '#fff', letterSpacing: '-0.02em', margin: '0 0 12px' }}>
               Try it yourself
-            </h2>
-            <p style={{ fontSize: 14, color: 'rgba(255,255,255,0.62)', margin: '0 0 28px' }}>
+            </h2>}
+            <p style={{ fontSize: 14, color: 'rgba(255,255,255,0.62)', margin: '0 0 12px' }}>
               This is the real app, running with sample data.
             </p>
-            <p style={{ fontSize: 13, color: 'rgba(255,255,255,0.48)', margin: 0 }}>
+            <p style={{ fontSize: 13, color: 'rgba(255,255,255,0.48)', margin: '0 0 8px' }}>
               Toggle between the desktop view, tablet version, and admin panel below.
+            </p>
+            <p style={{ fontSize: 13, color: 'rgba(255,255,255,0.48)', margin: '0 0 28px' }}>
+              Make bookings, edit room settings, and configure the admin panel. Each visitor gets their own isolated session, so your changes are only visible to you.
             </p>
           </div>
 
@@ -261,7 +274,7 @@ export default function LandingPage() {
       </div>
 
       {/* ── Pricing ──────────────────────────────────────────────────── */}
-      <div id="pricing" style={{ background: OFF, padding: '90px 24px' }}>
+      {showPricing && <div id="pricing" style={{ background: OFF, padding: '90px 24px' }}>
         <div style={{ maxWidth: 900, margin: '0 auto' }}>
           <div style={{ textAlign: 'center', marginBottom: 52 }}>
             <h2 style={{ fontSize: 'clamp(26px, 4vw, 38px)', fontWeight: 700, color: NAVY, letterSpacing: '-0.02em', margin: '0 0 12px' }}>
@@ -349,7 +362,7 @@ export default function LandingPage() {
             Annual plans are billed once per year, and we'll send you a reminder.
           </p>
         </div>
-      </div>
+      </div>}
 
       {/* ── Notify modal ─────────────────────────────────────────────── */}
       {notifyPlan !== null && (
@@ -397,8 +410,8 @@ export default function LandingPage() {
       )}
 
       {/* ── Back to top ──────────────────────────────────────────────── */}
-      <div style={{ position: 'fixed', bottom: 24, right: 24, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 8, zIndex: 50 }}>
-        {([['#features','features','1'],['#demo','demo','2'],['#pricing','pricing','3']] as const).map(([href, id, n]) => {
+      {showIntro && <div style={{ position: 'fixed', bottom: 24, right: 24, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 8, zIndex: 50 }}>
+        {([['#features','features','1'],['#demo','demo','2'],...(showPricing ? [['#pricing','pricing','3']] : [])]).map(([href, id, n]) => {
           const active = activeSection === id
           return (
             <a key={href} href={href} style={{ width: 28, height: 28, borderRadius: '50%', background: active ? ROSE : 'rgba(219,149,171,0.15)', border: `1px solid ${ROSE}`, display: 'flex', alignItems: 'center', justifyContent: 'center', textDecoration: 'none', color: active ? '#fff' : ROSE, fontSize: 11, fontWeight: 600, transition: 'background .3s, color .3s' }}>{n}</a>
@@ -408,7 +421,7 @@ export default function LandingPage() {
           style={{ width: 36, height: 36, borderRadius: '50%', background: 'transparent', border: `1px solid ${ROSE}`, display: 'flex', alignItems: 'center', justifyContent: 'center', textDecoration: 'none' }}>
           <span style={{ color: ROSE, fontSize: 16, lineHeight: 1, marginTop: -2 }}>↑</span>
         </a>
-      </div>
+      </div>}
 
       {/* ── Footer ───────────────────────────────────────────────────── */}
       <div style={{ background: DARK, padding: '36px 44px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 12 }}>

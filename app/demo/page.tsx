@@ -1,1 +1,5 @@
-export { default } from '../landing-classic/page'
+import LandingPage from '../landing-classic/page'
+
+export default function DemoPage() {
+  return <LandingPage showPricing={false} showIntro={false} />
+}

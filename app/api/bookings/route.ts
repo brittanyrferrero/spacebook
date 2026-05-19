@@ -8,6 +8,15 @@ export async function GET(req: NextRequest) {
   const from = searchParams.get('from')
   const to = searchParams.get('to')
 
+  const email = searchParams.get('email')
+  if (email) {
+    if (process.env.MOCK_MODE === 'true') {
+      const [{ getBookingsByEmail }, { getSessionStore }] = await Promise.all([import('@/lib/mock/api'), import('@/lib/mock/store')])
+      return Response.json(getBookingsByEmail(await getSessionStore(), email))
+    }
+    return Response.json([])
+  }
+
   if (from && to) {
     const { getBookingsForRange } = await import('@/lib/data')
     const bookings = await getBookingsForRange(from, to, roomId)
@@ -27,9 +36,11 @@ export async function POST(req: NextRequest) {
   }
 
   if (process.env.MOCK_MODE === 'true') {
-    const [{ createBooking }, { getSessionStore }] = await Promise.all([import('@/lib/mock/api'), import('@/lib/mock/store')])
-    const result = createBooking(await getSessionStore(), payload)
+    const [{ createBooking }, { getSessionStore, saveSessionStore }] = await Promise.all([import('@/lib/mock/api'), import('@/lib/mock/store')])
+    const store = await getSessionStore()
+    const result = createBooking(store, payload)
     if (result.error) return Response.json({ error: result.error }, { status: 409 })
+    await saveSessionStore(store)
     return Response.json(result, { status: 201 })
   }
 

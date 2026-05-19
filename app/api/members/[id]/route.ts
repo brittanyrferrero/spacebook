@@ -7,9 +7,11 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
     return NextResponse.json({ error: 'Name and email are required.' }, { status: 400 })
 
   if (process.env.MOCK_MODE === 'true') {
-    const [{ updateMember }, { getSessionStore }] = await Promise.all([import('@/lib/mock/api'), import('@/lib/mock/store')])
-    const result = updateMember(await getSessionStore(), params.id, name.trim(), email.trim().toLowerCase())
+    const [{ updateMember }, { getSessionStore, saveSessionStore }] = await Promise.all([import('@/lib/mock/api'), import('@/lib/mock/store')])
+    const store = await getSessionStore()
+    const result = updateMember(store, params.id, name.trim(), email.trim().toLowerCase())
     if (result.error) return NextResponse.json({ error: result.error }, { status: result.error.includes('not found') ? 404 : 409 })
+    await saveSessionStore(store)
     return NextResponse.json(result.member)
   }
 
@@ -22,9 +24,11 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
 
 export async function DELETE(_req: Request, { params }: { params: { id: string } }) {
   if (process.env.MOCK_MODE === 'true') {
-    const [{ removeMember }, { getSessionStore }] = await Promise.all([import('@/lib/mock/api'), import('@/lib/mock/store')])
-    const ok = removeMember(await getSessionStore(), params.id)
+    const [{ removeMember }, { getSessionStore, saveSessionStore }] = await Promise.all([import('@/lib/mock/api'), import('@/lib/mock/store')])
+    const store = await getSessionStore()
+    const ok = removeMember(store, params.id)
     if (!ok) return NextResponse.json({ error: 'Member not found.' }, { status: 404 })
+    await saveSessionStore(store)
     return NextResponse.json({ ok: true })
   }
 

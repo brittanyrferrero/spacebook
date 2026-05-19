@@ -68,11 +68,16 @@ function generateOccurrenceDates(
 // ─── Rooms ────────────────────────────────────────────────────────────────────
 
 export function getRooms(store: MockStore): Room[] {
-  return store.rooms.filter(r => r.is_active).sort((a, b) => a.display_order - b.display_order)
+  return store.rooms
+    .filter(r => r.is_active)
+    .sort((a, b) => a.display_order - b.display_order)
+    .map(r => ({ ...r, gcal_connected: !!store.gcalTokens[r.id] }))
 }
 
 export function getAllRooms(store: MockStore): Room[] {
-  return [...store.rooms].sort((a, b) => a.display_order - b.display_order)
+  return [...store.rooms]
+    .sort((a, b) => a.display_order - b.display_order)
+    .map(r => ({ ...r, gcal_connected: !!store.gcalTokens[r.id] }))
 }
 
 export function toggleRoom(store: MockStore, id: string): Room | null {
@@ -82,7 +87,7 @@ export function toggleRoom(store: MockStore, id: string): Room | null {
   return room
 }
 
-export function updateRoom(store: MockStore, id: string, patch: Partial<Pick<Room, 'name' | 'capacity' | 'amenities' | 'is_active'>>): Room | null {
+export function updateRoom(store: MockStore, id: string, patch: Partial<Pick<Room, 'name' | 'room_type' | 'capacity' | 'amenities' | 'is_active'>>): Room | null {
   const room = store.rooms.find(r => r.id === id)
   if (!room) return null
   Object.assign(room, patch)
@@ -115,9 +120,20 @@ export function deleteRoom(store: MockStore, id: string): { ok: boolean; hasBook
 
 // ─── Bookings ─────────────────────────────────────────────────────────────────
 
+export function getBookingsByEmail(store: MockStore, email: string): Booking[] {
+  const e = email.toLowerCase().trim()
+  return store.bookings
+    .filter(b => !b.cancelled_at && b.booker_email.toLowerCase() === e)
+    .sort((a, b) => new Date(a.start_time).getTime() - new Date(b.start_time).getTime())
+}
+
 export function getBookingsForRange(store: MockStore, from: string, to: string, roomId?: string): Booking[] {
+  // Widen by 1 day each side: server runs in UTC but dates are local, so a booking
+  // at 11pm local can be midnight UTC "tomorrow". Client filters by local date.
   const fromDate = new Date(from + 'T00:00:00')
+  fromDate.setDate(fromDate.getDate() - 1)
   const toDate = new Date(to + 'T23:59:59')
+  toDate.setDate(toDate.getDate() + 1)
   return store.bookings.filter(b => {
     if (b.cancelled_at) return false
     if (roomId && b.room_id !== roomId) return false
@@ -128,7 +144,9 @@ export function getBookingsForRange(store: MockStore, from: string, to: string, 
 
 export function getBookingsForDate(store: MockStore, date: string, roomId?: string): Booking[] {
   const dayStart = new Date(date + 'T00:00:00')
+  dayStart.setDate(dayStart.getDate() - 1)
   const dayEnd = new Date(date + 'T23:59:59')
+  dayEnd.setDate(dayEnd.getDate() + 1)
   return store.bookings.filter(b => {
     if (b.cancelled_at) return false
     if (roomId && b.room_id !== roomId) return false
@@ -281,23 +299,75 @@ export function removeMember(store: MockStore, id: string): boolean {
   return true
 }
 
+// ─── Room types ───────────────────────────────────────────────────────────────
+
+export function getRoomTypes(store: MockStore): string[] {
+  return [...store.roomTypes].sort()
+}
+
+export function addRoomType(store: MockStore, type: string): { types: string[] } | { error: string } {
+  if (store.roomTypes.includes(type)) return { error: 'Type already exists.' }
+  store.roomTypes.push(type)
+  return { types: [...store.roomTypes].sort() }
+}
+
+export function deleteRoomType(store: MockStore, type: string): boolean {
+  const idx = store.roomTypes.indexOf(type)
+  if (idx === -1) return false
+  store.roomTypes.splice(idx, 1)
+  return true
+}
+
+// ─── Amenities ────────────────────────────────────────────────────────────────
+
+export function getAmenityOptions(store: MockStore): string[] {
+  return [...(store.amenityOptions ?? [])].sort()
+}
+
+export function addAmenityOption(store: MockStore, amenity: string): { amenities: string[] } | { error: string } {
+  if (!store.amenityOptions) store.amenityOptions = []
+  if (store.amenityOptions.includes(amenity)) return { error: 'Amenity already exists.' }
+  store.amenityOptions.push(amenity)
+  return { amenities: [...store.amenityOptions].sort() }
+}
+
+export function deleteAmenityOption(store: MockStore, amenity: string): boolean {
+  if (!store.amenityOptions) return false
+  const idx = store.amenityOptions.indexOf(amenity)
+  if (idx === -1) return false
+  store.amenityOptions.splice(idx, 1)
+  for (const room of store.rooms) {
+    room.amenities = room.amenities.filter(a => a !== amenity)
+  }
+  return true
+}
+
 // ─── Admin stats ──────────────────────────────────────────────────────────────
 
-export function getAdminStats(store: MockStore, from: string, to: string, roomId?: string) {
+export function getAdminStats(store: MockStore, from: string, to: string, roomId?: string, roomType?: string) {
   const fromDate = new Date(from + 'T00:00:00')
   const toDate = new Date(to + 'T23:59:59')
 
+  const allRooms = getAllRooms(store)
+  const rooms = roomId
+    ? allRooms.filter(r => r.id === roomId)
+    : roomType
+    ? allRooms.filter(r => r.room_type === roomType)
+    : allRooms
+
+  const roomIdSet = new Set(rooms.map(r => r.id))
+
   const active = store.bookings.filter(b => {
     if (b.cancelled_at) return false
-    if (roomId && b.room_id !== roomId) return false
+    if (!roomIdSet.has(b.room_id)) return false
     const bs = new Date(b.start_time)
     return bs >= fromDate && bs <= toDate
   })
 
-  const rooms = getAllRooms(store)
   const rangeDays = Math.round((toDate.getTime() - fromDate.getTime()) / 86_400_000) + 1
-  const businessHoursPerDay = 9
-  const totalAvailableHoursPerRoom = rangeDays * businessHoursPerDay
+  const dispStart = store.displayHours?.start ?? 8
+  const dispEnd   = store.displayHours?.end   ?? 20
+  const totalAvailableHoursPerRoom = rangeDays * (dispEnd - dispStart)
 
   const roomStats = rooms.map(room => {
     const rb = active.filter(b => b.room_id === room.id)
@@ -312,7 +382,9 @@ export function getAdminStats(store: MockStore, from: string, to: string, roomId
 
   const hourCounts: number[] = Array(24).fill(0)
   active.forEach(b => { hourCounts[new Date(b.start_time).getHours()]++ })
-  const hourStats = hourCounts.map((total_bookings, hour) => ({ hour, total_bookings })).filter(h => h.hour >= 7 && h.hour <= 18)
+  const bkHrsStart = store.bookingHours?.start ?? 6
+  const bkHrsEnd   = store.bookingHours?.end   ?? 22
+  const hourStats = hourCounts.map((total_bookings, hour) => ({ hour, total_bookings })).filter(h => h.hour >= bkHrsStart && h.hour < bkHrsEnd)
 
   const dailyMap: Record<string, number> = {}
   active.forEach(b => {
@@ -326,10 +398,71 @@ export function getAdminStats(store: MockStore, from: string, to: string, roomId
   const DOW_LABELS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun']
   const dowStats = dowCounts.map((total_bookings: number, i: number) => ({ dow: i, label: DOW_LABELS[i], total_bookings }))
 
+  const bkStart = dispStart
+  const bkEnd   = dispEnd
+
+  const outsideDisplayHours = active.filter(b => {
+    const h = new Date(b.start_time).getHours()
+    return h < bkStart || h >= bkEnd
+  }).length
+
+  // Day-of-week × hour heatmap
+  const dowHourMap: number[][] = Array.from({ length: 7 }, () => Array(24).fill(0))
+  active.forEach(b => {
+    const d = new Date(b.start_time)
+    const dow = (d.getDay() + 6) % 7
+    dowHourMap[dow][d.getHours()]++
+  })
+  const dowHourStats: { dow: number; hour: number; count: number }[] = []
+  for (let dow = 0; dow < 7; dow++) {
+    for (let h = bkStart; h < bkEnd; h++) {
+      dowHourStats.push({ dow, hour: h, count: dowHourMap[dow][h] })
+    }
+  }
+
+  const busiestDate = dailyStats.length > 0
+    ? dailyStats.reduce((best, d) => d.total_bookings > best.total_bookings ? d : best)
+    : null
+
   const totalHours = active.reduce((sum, b) => sum + (new Date(b.end_time).getTime() - new Date(b.start_time).getTime()) / 3_600_000, 0)
   const avgDuration = active.length > 0 ? totalHours / active.length : 0
   const totalAvailableHours = totalAvailableHoursPerRoom * rooms.length
-  const utilisation = Math.min(100, Math.round(totalHours / totalAvailableHours * 100))
+  const utilisation = rooms.length > 0 ? Math.min(100, Math.round(totalHours / totalAvailableHours * 100)) : 0
+
+  // Concurrent occupancy: sample every 30 min during booking hours to build a distribution
+  const totalRooms = rooms.length
+  const concurrentDist: number[] = Array(totalRooms + 1).fill(0)
+  let totalSlots = 0
+  const dayIter = new Date(fromDate)
+  while (dayIter <= toDate) {
+    const y = dayIter.getFullYear(), mo = dayIter.getMonth(), dy = dayIter.getDate()
+    for (let h = bkStart; h < bkEnd; h++) {
+      for (const m of [0, 30]) {
+        const slotStart = new Date(y, mo, dy, h, m, 0, 0)
+        const slotEnd = new Date(slotStart.getTime() + 30 * 60 * 1000)
+        const occupied = new Set<string>()
+        for (const b of active) {
+          if (new Date(b.start_time) < slotEnd && new Date(b.end_time) > slotStart) occupied.add(b.room_id)
+        }
+        concurrentDist[occupied.size]++
+        totalSlots++
+      }
+    }
+    dayIter.setDate(dayIter.getDate() + 1)
+  }
+  let peakConcurrent = 0
+  for (let i = concurrentDist.length - 1; i >= 0; i--) { if (concurrentDist[i] > 0) { peakConcurrent = i; break } }
+  const highThreshold = Math.max(1, Math.ceil(totalRooms * 0.8))
+  const fullSlots = totalRooms > 0 ? (concurrentDist[totalRooms] ?? 0) : 0
+  const highSlots = concurrentDist.slice(highThreshold).reduce((s, v) => s + v, 0)
+  const concurrentStats = {
+    total_rooms: totalRooms,
+    total_slots: totalSlots,
+    peak_concurrent: peakConcurrent,
+    full_pct: totalSlots > 0 ? Math.round(fullSlots / totalSlots * 100) : 0,
+    high_demand_pct: totalSlots > 0 ? Math.round(highSlots / totalSlots * 100) : 0,
+    distribution: concurrentDist.map((slots, rooms_in_use) => ({ rooms_in_use, slots })),
+  }
 
   return {
     totals: {
@@ -337,10 +470,14 @@ export function getAdminStats(store: MockStore, from: string, to: string, roomId
       total_hours: Math.round(totalHours * 10) / 10,
       avg_duration: Math.round(avgDuration * 10) / 10,
       utilisation_pct: utilisation,
+      outside_display_hours: outsideDisplayHours,
     },
     roomStats,
     hourStats,
     dailyStats,
     dowStats,
+    concurrentStats,
+    dowHourStats,
+    busiestDate,
   }
 }

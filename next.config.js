@@ -7,7 +7,7 @@ const nextConfig = {
   },
   async redirects() {
     return [
-      { source: '/', missing: [{ type: 'query', key: 'demo', value: '1' }], destination: '/landing', permanent: false },
+      { source: '/', missing: [{ type: 'query', key: 'demo', value: '1' }], destination: '/demo', permanent: false },
     ]
   },
 }
