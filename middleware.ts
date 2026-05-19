@@ -64,10 +64,11 @@ export async function middleware(request: NextRequest) {
   // Workspace token check — resolve lazily (may hit KV if no env var set)
   const token = await resolveWorkspaceToken()
 
-  // Root without ?demo=1 → redirect to demo page if no valid access
-  if (pathname === '/' && searchParams.get('demo') !== '1') {
+  // Root without valid access → redirect to appropriate landing
+  if (pathname === '/') {
     if (!token || request.cookies.get('ws_access')?.value !== token) {
-      return NextResponse.redirect(new URL('/demo', request.url))
+      const dest = process.env.MOCK_MODE === 'true' ? '/demo' : '/enter'
+      return NextResponse.redirect(new URL(dest, request.url))
     }
   }
 
