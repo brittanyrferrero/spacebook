@@ -23,13 +23,16 @@ export async function POST(req: NextRequest) {
 
   const lower = email.trim().toLowerCase()
 
-  // Unclaimed instance — first person claims super admin
+  // Unclaimed instance — first person claims super admin and generates workspace entry token
   if (await isUnclaimed()) {
-    const { setAdmins } = await import('@/lib/prod-config')
+    const { setAdmins, setWorkspaceToken } = await import('@/lib/prod-config')
     await setAdmins([{ email: lower, role: 'super_admin' }])
+    const entryToken = crypto.randomUUID()
+    await setWorkspaceToken(entryToken)
     const cookieStore = await cookies()
     cookieStore.set('admin_access', 'super_admin', { httpOnly: true, sameSite: 'lax', path: '/', maxAge: 60 * 60 * 12 })
-    return Response.json({ role: 'super_admin', claimed: true })
+    cookieStore.set('ws_access', entryToken, { httpOnly: true, sameSite: 'lax', path: '/', maxAge: 60 * 60 * 24 * 365 })
+    return Response.json({ role: 'super_admin', claimed: true, entryToken })
   }
 
   // Normal flow — check if email is on the admin list

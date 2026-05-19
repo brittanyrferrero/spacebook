@@ -1,24 +1,38 @@
 import { NextResponse } from 'next/server'
 import type { NextRequest } from 'next/server'
 
-export function middleware(request: NextRequest) {
-  const token = process.env.WORKSPACE_TOKEN
+async function resolveWorkspaceToken(): Promise<string | null> {
+  if (process.env.WORKSPACE_TOKEN) return process.env.WORKSPACE_TOKEN
+  if (!process.env.KV_REST_API_URL || !process.env.KV_REST_API_TOKEN) return null
+  try {
+    const res = await fetch(`${process.env.KV_REST_API_URL}/get/cfg:workspace_token`, {
+      headers: { Authorization: `Bearer ${process.env.KV_REST_API_TOKEN}` },
+    })
+    const j = await res.json() as { result?: string }
+    return j.result ?? null
+  } catch { return null }
+}
 
+export async function middleware(request: NextRequest) {
   // Assign or forward session ID via request header so route handlers can read it
   const existingSession = request.cookies.get('sb_session')?.value
   const sessionId = existingSession ?? crypto.randomUUID()
   const requestHeaders = new Headers(request.headers)
   requestHeaders.set('x-sb-session', sessionId)
 
-  const { pathname, searchParams } = request.nextUrl
-
-  // Admin entry always bypasses all auth — check first before anything else
-  if (pathname.startsWith('/admin-enter') || pathname.startsWith('/api/admin-enter')) {
+  function pass() {
     const response = NextResponse.next({ request: { headers: requestHeaders } })
     if (!existingSession) {
       response.cookies.set('sb_session', sessionId, { maxAge: 60 * 60 * 2, path: '/', httpOnly: true, sameSite: 'lax' })
     }
     return response
+  }
+
+  const { pathname, searchParams } = request.nextUrl
+
+  // Admin entry always bypasses all auth — check first before anything else
+  if (pathname.startsWith('/admin-enter') || pathname.startsWith('/api/admin-enter')) {
+    return pass()
   }
 
   // Admin routes: require admin_access cookie in prod; if present, bypass workspace auth too
@@ -27,13 +41,7 @@ export function middleware(request: NextRequest) {
     if (process.env.MOCK_MODE !== 'true' && pathname !== '/api/admin/admins' && !adminAccess) {
       return NextResponse.redirect(new URL('/', request.url))
     }
-    if (adminAccess) {
-      const response = NextResponse.next({ request: { headers: requestHeaders } })
-      if (!existingSession) {
-        response.cookies.set('sb_session', sessionId, { maxAge: 60 * 60 * 2, path: '/', httpOnly: true, sameSite: 'lax' })
-      }
-      return response
-    }
+    if (adminAccess) return pass()
   }
 
   // Always allow: the entry route, cancel links, demo routes
@@ -49,14 +57,13 @@ export function middleware(request: NextRequest) {
       pathname === '/demo' ||
       pathname.startsWith('/api/demo-access') ||
       pathname.startsWith('/api/settings')) {
-    const response = NextResponse.next({ request: { headers: requestHeaders } })
-    if (!existingSession) {
-      response.cookies.set('sb_session', sessionId, { maxAge: 60 * 60 * 2, path: '/', httpOnly: true, sameSite: 'lax' })
-    }
-    return response
+    return pass()
   }
 
-  // Root without ?demo=1 and no workspace token → redirect to demo page
+  // Workspace token check — resolve lazily (may hit KV if no env var set)
+  const token = await resolveWorkspaceToken()
+
+  // Root without ?demo=1 → redirect to demo page if no valid access
   if (pathname === '/' && searchParams.get('demo') !== '1') {
     if (!token || request.cookies.get('ws_access')?.value !== token) {
       return NextResponse.redirect(new URL('/demo', request.url))
@@ -64,22 +71,10 @@ export function middleware(request: NextRequest) {
   }
 
   // No token configured, or running locally → open access
-  if (!token || process.env.NODE_ENV === 'development') {
-    const response = NextResponse.next({ request: { headers: requestHeaders } })
-    if (!existingSession) {
-      response.cookies.set('sb_session', sessionId, { maxAge: 60 * 60 * 2, path: '/', httpOnly: true, sameSite: 'lax' })
-    }
-    return response
-  }
+  if (!token || process.env.NODE_ENV === 'development') return pass()
 
   // Valid cookie → let through
-  if (request.cookies.get('ws_access')?.value === token) {
-    const response = NextResponse.next({ request: { headers: requestHeaders } })
-    if (!existingSession) {
-      response.cookies.set('sb_session', sessionId, { maxAge: 60 * 60 * 2, path: '/', httpOnly: true, sameSite: 'lax' })
-    }
-    return response
-  }
+  if (request.cookies.get('ws_access')?.value === token) return pass()
 
   // No valid cookie → redirect to the "you need the link" page
   return NextResponse.redirect(new URL('/enter', request.url))

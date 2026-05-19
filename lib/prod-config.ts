@@ -48,6 +48,17 @@ export async function setBookingVisibility(v: { showTitle: boolean; showOrganize
   await kv.set('cfg:bookingVisibility', v)
 }
 
+// ─── Workspace token ─────────────────────────────────────────────────────────
+
+export async function getWorkspaceToken(): Promise<string | null> {
+  if (process.env.WORKSPACE_TOKEN) return process.env.WORKSPACE_TOKEN
+  return kv.get<string>('cfg:workspace_token')
+}
+
+export async function setWorkspaceToken(token: string): Promise<void> {
+  await kv.set('cfg:workspace_token', token)
+}
+
 // ─── Admin roles ──────────────────────────────────────────────────────────────
 
 export type AdminRole = 'admin' | 'super_admin'

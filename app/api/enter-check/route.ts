@@ -3,6 +3,10 @@ import type { NextRequest } from 'next/server'
 
 export async function GET(req: NextRequest) {
   const token = req.nextUrl.searchParams.get('token')
-  const valid = !!token && token === process.env.WORKSPACE_TOKEN
-  return valid ? NextResponse.json({ ok: true }) : NextResponse.json({ ok: false }, { status: 401 })
+  if (!token) return NextResponse.json({ ok: false }, { status: 401 })
+  const { getWorkspaceToken } = await import('@/lib/prod-config')
+  const expected = await getWorkspaceToken()
+  return (expected && token === expected)
+    ? NextResponse.json({ ok: true })
+    : NextResponse.json({ ok: false }, { status: 401 })
 }
