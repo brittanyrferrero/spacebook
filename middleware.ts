@@ -12,11 +12,18 @@ export function middleware(request: NextRequest) {
 
   const { pathname, searchParams } = request.nextUrl
 
+  // Admin entry always bypasses all auth — check first before anything else
+  if (pathname.startsWith('/admin-enter') || pathname.startsWith('/api/admin-enter')) {
+    const response = NextResponse.next({ request: { headers: requestHeaders } })
+    if (!existingSession) {
+      response.cookies.set('sb_session', sessionId, { maxAge: 60 * 60 * 2, path: '/', httpOnly: true, sameSite: 'lax' })
+    }
+    return response
+  }
+
   // Protect /admin in prod mode — require admin_access cookie
   if (process.env.MOCK_MODE !== 'true' &&
       (pathname.startsWith('/admin') || pathname.startsWith('/api/admin/')) &&
-      !pathname.startsWith('/admin-enter') &&
-      !pathname.startsWith('/api/admin-enter') &&
       pathname !== '/api/admin/admins') {
     const adminAccess = request.cookies.get('admin_access')?.value
     if (!adminAccess) {
@@ -26,8 +33,6 @@ export function middleware(request: NextRequest) {
 
   // Always allow: the entry route, cancel links, demo routes
   if (pathname === '/enter' || pathname.startsWith('/enter/') ||
-      pathname.startsWith('/admin-enter/') ||
-      pathname.startsWith('/api/admin-enter') ||
       pathname.startsWith('/cancel/') || pathname.startsWith('/api/cancel/') ||
       pathname.startsWith('/api/bookings/by-token/') ||
       pathname.startsWith('/api/members') ||
@@ -64,15 +69,6 @@ export function middleware(request: NextRequest) {
 
   // Valid cookie → let through
   if (request.cookies.get('ws_access')?.value === token) {
-    const response = NextResponse.next({ request: { headers: requestHeaders } })
-    if (!existingSession) {
-      response.cookies.set('sb_session', sessionId, { maxAge: 60 * 60 * 2, path: '/', httpOnly: true, sameSite: 'lax' })
-    }
-    return response
-  }
-
-  // Admin entry pages don't require workspace access
-  if (pathname.startsWith('/admin-enter/') || pathname.startsWith('/api/admin-enter')) {
     const response = NextResponse.next({ request: { headers: requestHeaders } })
     if (!existingSession) {
       response.cookies.set('sb_session', sessionId, { maxAge: 60 * 60 * 2, path: '/', httpOnly: true, sameSite: 'lax' })
