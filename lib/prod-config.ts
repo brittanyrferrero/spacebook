@@ -1,9 +1,15 @@
 import { Redis } from '@upstash/redis'
 
-const kv = new Redis({
-  url: process.env.KV_REST_API_URL!,
-  token: process.env.KV_REST_API_TOKEN!,
-})
+let _kv: Redis | null = null
+function kv(): Redis {
+  if (!_kv) {
+    _kv = new Redis({
+      url: process.env.KV_REST_API_URL!,
+      token: process.env.KV_REST_API_TOKEN!,
+    })
+  }
+  return _kv
+}
 
 const DEFAULTS = {
   roomTypes:         ['Meeting Room', 'Conference Room', 'Boardroom', 'Focus Room', 'Phone Booth'] as string[],
@@ -14,49 +20,49 @@ const DEFAULTS = {
 }
 
 export async function getRoomTypes(): Promise<string[]> {
-  return (await kv.get<string[]>('cfg:roomTypes')) ?? DEFAULTS.roomTypes
+  return (await kv().get<string[]>('cfg:roomTypes')) ?? DEFAULTS.roomTypes
 }
 export async function setRoomTypes(v: string[]): Promise<void> {
-  await kv.set('cfg:roomTypes', v)
+  await kv().set('cfg:roomTypes', v)
 }
 
 export async function getAmenityOptions(): Promise<string[]> {
-  return (await kv.get<string[]>('cfg:amenityOptions')) ?? DEFAULTS.amenityOptions
+  return (await kv().get<string[]>('cfg:amenityOptions')) ?? DEFAULTS.amenityOptions
 }
 export async function setAmenityOptions(v: string[]): Promise<void> {
-  await kv.set('cfg:amenityOptions', v)
+  await kv().set('cfg:amenityOptions', v)
 }
 
 export async function getBookingHours(): Promise<{ start: number; end: number }> {
-  return (await kv.get<{ start: number; end: number }>('cfg:bookingHours')) ?? DEFAULTS.bookingHours
+  return (await kv().get<{ start: number; end: number }>('cfg:bookingHours')) ?? DEFAULTS.bookingHours
 }
 export async function setBookingHours(v: { start: number; end: number }): Promise<void> {
-  await kv.set('cfg:bookingHours', v)
+  await kv().set('cfg:bookingHours', v)
 }
 
 export async function getDisplayHours(): Promise<{ start: number; end: number }> {
-  return (await kv.get<{ start: number; end: number }>('cfg:displayHours')) ?? DEFAULTS.displayHours
+  return (await kv().get<{ start: number; end: number }>('cfg:displayHours')) ?? DEFAULTS.displayHours
 }
 export async function setDisplayHours(v: { start: number; end: number }): Promise<void> {
-  await kv.set('cfg:displayHours', v)
+  await kv().set('cfg:displayHours', v)
 }
 
 export async function getBookingVisibility(): Promise<{ showTitle: boolean; showOrganizer: boolean }> {
-  return (await kv.get<{ showTitle: boolean; showOrganizer: boolean }>('cfg:bookingVisibility')) ?? DEFAULTS.bookingVisibility
+  return (await kv().get<{ showTitle: boolean; showOrganizer: boolean }>('cfg:bookingVisibility')) ?? DEFAULTS.bookingVisibility
 }
 export async function setBookingVisibility(v: { showTitle: boolean; showOrganizer: boolean }): Promise<void> {
-  await kv.set('cfg:bookingVisibility', v)
+  await kv().set('cfg:bookingVisibility', v)
 }
 
 // ─── Workspace token ─────────────────────────────────────────────────────────
 
 export async function getWorkspaceToken(): Promise<string | null> {
   if (process.env.WORKSPACE_TOKEN) return process.env.WORKSPACE_TOKEN
-  return kv.get<string>('cfg:workspace_token')
+  return kv().get<string>('cfg:workspace_token')
 }
 
 export async function setWorkspaceToken(token: string): Promise<void> {
-  await kv.set('cfg:workspace_token', token)
+  await kv().set('cfg:workspace_token', token)
 }
 
 // ─── Admin roles ──────────────────────────────────────────────────────────────
@@ -69,7 +75,7 @@ function superAdminEmails(): string[] {
 }
 
 export async function getAdmins(): Promise<AdminEntry[]> {
-  const stored = (await kv.get<AdminEntry[]>('cfg:admins')) ?? []
+  const stored = (await kv().get<AdminEntry[]>('cfg:admins')) ?? []
   const superEmails = superAdminEmails()
   // Merge: env var super admins always included
   const map = new Map<string, AdminRole>()
@@ -79,12 +85,12 @@ export async function getAdmins(): Promise<AdminEntry[]> {
 }
 
 export async function setAdmins(admins: AdminEntry[]): Promise<void> {
-  await kv.set('cfg:admins', admins)
+  await kv().set('cfg:admins', admins)
 }
 
 export async function getAdminRole(email: string): Promise<AdminRole | null> {
   const lower = email.toLowerCase()
   if (superAdminEmails().includes(lower)) return 'super_admin'
-  const admins = (await kv.get<AdminEntry[]>('cfg:admins')) ?? []
+  const admins = (await kv().get<AdminEntry[]>('cfg:admins')) ?? []
   return admins.find(a => a.email.toLowerCase() === lower)?.role ?? null
 }
