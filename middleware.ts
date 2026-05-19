@@ -21,13 +21,18 @@ export function middleware(request: NextRequest) {
     return response
   }
 
-  // Protect /admin in prod mode — require admin_access cookie
-  if (process.env.MOCK_MODE !== 'true' &&
-      (pathname.startsWith('/admin') || pathname.startsWith('/api/admin/')) &&
-      pathname !== '/api/admin/admins') {
+  // Admin routes: require admin_access cookie in prod; if present, bypass workspace auth too
+  if (pathname.startsWith('/admin') || pathname.startsWith('/api/admin/')) {
     const adminAccess = request.cookies.get('admin_access')?.value
-    if (!adminAccess) {
+    if (process.env.MOCK_MODE !== 'true' && pathname !== '/api/admin/admins' && !adminAccess) {
       return NextResponse.redirect(new URL('/', request.url))
+    }
+    if (adminAccess) {
+      const response = NextResponse.next({ request: { headers: requestHeaders } })
+      if (!existingSession) {
+        response.cookies.set('sb_session', sessionId, { maxAge: 60 * 60 * 2, path: '/', httpOnly: true, sameSite: 'lax' })
+      }
+      return response
     }
   }
 
