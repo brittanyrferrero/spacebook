@@ -13,6 +13,42 @@ const BOOK_GREEN = '#1db954'
 const FREE_BG = '#c8ebd8'; const FREE_TEXT = '#1b5e30'; const FREE_BAR = '#2d7044'
 const BUSY_BG = '#f0f0f0'; const BUSY_TEXT = '#1a1a1a'; const BUSY_BAR = '#333333'
 
+// ─── Delight utilities ────────────────────────────────────────────────────────
+function playTap() {
+  try {
+    const ctx = new (window.AudioContext || (window as any).webkitAudioContext)()
+    const osc = ctx.createOscillator(); const gain = ctx.createGain()
+    osc.connect(gain); gain.connect(ctx.destination)
+    osc.type = 'sine'
+    osc.frequency.setValueAtTime(900, ctx.currentTime)
+    osc.frequency.exponentialRampToValueAtTime(450, ctx.currentTime + 0.06)
+    gain.gain.setValueAtTime(0.1, ctx.currentTime)
+    gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.07)
+    osc.start(); osc.stop(ctx.currentTime + 0.09)
+    osc.onended = () => ctx.close()
+  } catch {}
+}
+
+function playConfirm() {
+  try {
+    const ctx = new (window.AudioContext || (window as any).webkitAudioContext)()
+    ;[[523.25, 0], [659.25, 0.1], [783.99, 0.2]].forEach(([freq, delay]) => {
+      const osc = ctx.createOscillator(); const gain = ctx.createGain()
+      osc.connect(gain); gain.connect(ctx.destination)
+      osc.type = 'sine'; osc.frequency.value = freq
+      const t = ctx.currentTime + delay
+      gain.gain.setValueAtTime(0.001, t)
+      gain.gain.linearRampToValueAtTime(0.13, t + 0.025)
+      gain.gain.exponentialRampToValueAtTime(0.001, t + 0.55)
+      osc.start(t); osc.stop(t + 0.6)
+    })
+    setTimeout(() => ctx.close(), 1400)
+  } catch {}
+}
+
+function hapticTap() { try { navigator.vibrate?.(8) } catch {} }
+function hapticConfirm() { try { navigator.vibrate?.([60, 40, 100]) } catch {} }
+
 // ─── Calendar constants ───────────────────────────────────────────────────────
 const GRID_START = 8            // 8 am
 const GRID_END   = 20           // 8 pm
@@ -459,6 +495,7 @@ function RoomDisplayPageInner() {
   const [mDone,      setMDone]      = useState(false)
   const [walkInError,setWalkInError]= useState<string | null>(null)
   const [confirmCancel, setConfirmCancel] = useState<{ onConfirm: () => void } | null>(null)
+  const [celebrating, setCelebrating] = useState<{ name: string; roomName: string } | null>(null)
   const [recurFreq,  setRecurFreq]  = useState<'none' | 'weekly' | 'monthly'>('none')
   const [recurUntil, setRecurUntil] = useState(() => { const d = new Date(); d.setMonth(d.getMonth() + 3); return dateStr(d) })
 
@@ -557,6 +594,15 @@ function RoomDisplayPageInner() {
     const id = setInterval(() => { fetchToday(); fetchRange() }, 60_000)
     return () => clearInterval(id)
   }, [fetchToday, fetchRange])
+
+  // Global tap sound + haptic for all buttons
+  useEffect(() => {
+    function onPress(e: PointerEvent) {
+      if ((e.target as HTMLElement).closest('button')) { playTap(); hapticTap() }
+    }
+    window.addEventListener('pointerdown', onPress, { passive: true })
+    return () => window.removeEventListener('pointerdown', onPress)
+  }, [])
 
   // Reset to today / day view after 2 min of inactivity
   useEffect(() => {
@@ -748,7 +794,12 @@ function RoomDisplayPageInner() {
         setTodayBkgs(prev => [...prev, newBkg])
         setAllTodayBkgs(prev => [...prev, newBkg])
       }
-      setMTitle(''); setRecurFreq('none'); setMDone(true); fetchToday(); fetchRange()
+      setMTitle(''); setRecurFreq('none')
+      setShowModal(null)
+      setCelebrating({ name: mName, roomName: room?.name ?? '' })
+      playConfirm(); hapticConfirm()
+      setTimeout(() => setCelebrating(null), 2800)
+      fetchToday(); fetchRange()
     }
     setMSubmitting(false)
   }
@@ -772,7 +823,11 @@ function RoomDisplayPageInner() {
         setTodayBkgs(prev => [...prev, newBkg])
         setAllTodayBkgs(prev => [...prev, newBkg])
       }
-      setMDone(true); setShowModal('now'); fetchToday(); fetchRange()
+      setShowModal(null)
+      setCelebrating({ name: '', roomName: room?.name ?? '' })
+      playConfirm(); hapticConfirm()
+      setTimeout(() => setCelebrating(null), 2800)
+      fetchToday(); fetchRange()
       const h = start.getHours(), m = start.getMinutes()
       const scrollTo = Math.max(0, toGridPct(h, m, gridStart, gridEnd - gridStart) * ((gridEnd - gridStart) * HOUR_H) - 80)
       setTimeout(() => calContainerRef.current?.scrollTo({ top: scrollTo, behavior: 'smooth' }), 50)
@@ -789,8 +844,8 @@ function RoomDisplayPageInner() {
   const lbl: React.CSSProperties = { fontSize: 12, color: '#6B7280', fontWeight: 500, display: 'block', marginBottom: 4 }
 
   return (
-    <div style={{ height: '100dvh', display: 'flex', flexDirection: 'column', overflow: 'hidden', background: '#fff' }}>
-      <style dangerouslySetInnerHTML={{ __html: `@import url('https://fonts.googleapis.com/css2?family=Spectral:ital,wght@0,400;0,500;0,600;1,400&display=swap');@keyframes bookPulse{0%,100%{opacity:1}50%{opacity:0.86}}@keyframes chronoFlash{0%{opacity:0;transform:translateY(3px)}12%{opacity:1;transform:translateY(0)}70%{opacity:1}100%{opacity:0}}` }} />
+    <div style={{ height: '100dvh', display: 'flex', flexDirection: 'column', overflow: 'hidden', background: '#fff', fontFamily: "'Nunito', system-ui, sans-serif" }}>
+      <style dangerouslySetInnerHTML={{ __html: `@import url('https://fonts.googleapis.com/css2?family=Spectral:ital,wght@0,400;0,500;0,600;1,400&family=Nunito:wght@400;500;600;700;800&display=swap');@keyframes shimmer{0%,55%{background-position:-250% center}80%,100%{background-position:250% center}}@keyframes chronoFlash{0%{opacity:0;transform:translateY(3px)}12%{opacity:1;transform:translateY(0)}70%{opacity:1}100%{opacity:0}}@keyframes checkDraw{from{stroke-dashoffset:50}to{stroke-dashoffset:0}}@keyframes celebIn{from{opacity:0;transform:scale(0.97)}to{opacity:1;transform:scale(1)}}button:not(:disabled):active{transform:scale(0.95)}` }} />
 
       {/* Clock bar */}
       <div style={{ background: '#111111', padding: '10px 24px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexShrink: 0 }}>
@@ -836,7 +891,7 @@ function RoomDisplayPageInner() {
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
                   <button
                     onClick={() => { setShowModal('now'); setMDone(false) }}
-                    style={{ width: '100%', background: ROSE, color: '#fff', border: 'none', borderRadius: 0, padding: '10px 0', fontSize: 18, fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit', animation: 'bookPulse 3s ease-in-out infinite', letterSpacing: '0.02em' }}>
+                    style={{ width: '100%', background: `linear-gradient(90deg,${ROSE} 0%,${ROSE} 30%,#d9789c 45%,#f0c0d4 50%,#d9789c 55%,${ROSE} 70%,${ROSE} 100%)`, backgroundSize: '300% 100%', color: '#fff', border: 'none', borderRadius: 0, padding: '10px 0', fontSize: 18, fontWeight: 800, cursor: 'pointer', fontFamily: 'inherit', animation: 'shimmer 4.5s ease-in-out infinite', letterSpacing: '0.04em' }}>
                     BOOK NOW
                   </button>
                   <div style={{ display: 'flex', gap: 6 }}>
@@ -932,7 +987,7 @@ function RoomDisplayPageInner() {
                   if (!isFree) { setBusyFlash(true); setTimeout(() => setBusyFlash(false), 2200); return }
                   const t = toHHMMExact(new Date()); const [h,m] = t.split(':').map(Number); const et = Math.min(h*60+m+60,23*60); setMDate(todayStr); setMTime(t); setMEndTime(`${String(Math.floor(et/60)).padStart(2,'0')}:${String(et%60).padStart(2,'0')}`); setShowModal('now'); setMDone(false)
                 }}
-                style={{ background: isFree ? ROSE : 'transparent', color: isFree ? '#fff' : '#9CA3AF', border: isFree ? 'none' : '1px solid #e5e7eb', borderRadius: 0, padding: '15px', fontSize: 15, fontWeight: 600, cursor: 'pointer', width: '100%', textDecoration: isFree ? 'none' : 'line-through' }}>
+                style={{ background: isFree ? `linear-gradient(90deg,${ROSE} 0%,${ROSE} 30%,#d9789c 45%,#f0c0d4 50%,#d9789c 55%,${ROSE} 70%,${ROSE} 100%)` : 'transparent', backgroundSize: isFree ? '300% 100%' : undefined, color: isFree ? '#fff' : '#9CA3AF', border: isFree ? 'none' : '1px solid #e5e7eb', borderRadius: 0, padding: '15px', fontSize: 15, fontWeight: 800, cursor: 'pointer', width: '100%', textDecoration: isFree ? 'none' : 'line-through', animation: isFree ? 'shimmer 4.5s ease-in-out infinite' : 'none', letterSpacing: '0.04em' }}>
                 BOOK NOW
               </button>
               {busyFlash && (
@@ -1125,6 +1180,33 @@ function RoomDisplayPageInner() {
           </div>
         )
       })()}
+
+      {celebrating && (
+        <div onClick={() => setCelebrating(null)} style={{ position: 'fixed', inset: 0, background: '#1b5e30', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', zIndex: 300, animation: 'celebIn 0.3s ease-out', fontFamily: "'Nunito', system-ui, sans-serif" }}>
+          <svg viewBox="0 0 52 52" width={96} height={96} style={{ marginBottom: 28 }}>
+            <circle cx="26" cy="26" r="24" fill="none" stroke="rgba(255,255,255,0.2)" strokeWidth="2" />
+            <path fill="none" stroke="#7dd39c" strokeWidth="3.5" strokeLinecap="round" strokeLinejoin="round"
+              d="M12 26 L22 36 L40 18"
+              strokeDasharray={50} strokeDashoffset={50}
+              style={{ animation: 'checkDraw 0.4s ease-out 0.25s forwards' }} />
+          </svg>
+          <div style={{ fontSize: 64, fontWeight: 800, color: '#ffffff', lineHeight: 1, marginBottom: 14, letterSpacing: '-0.02em' }}>
+            You're in!
+          </div>
+          <div style={{ fontSize: 22, fontWeight: 600, color: 'rgba(255,255,255,0.85)', marginBottom: 10 }}>
+            {celebrating.roomName}
+          </div>
+          <div style={{ fontSize: 16, color: 'rgba(255,255,255,0.6)', fontWeight: 500 }}>
+            {celebrating.name && celebrating.name !== 'Walk-in'
+              ? `See you in there, ${celebrating.name.split(' ')[0]}!`
+              : "Room's all yours."}
+          </div>
+          <button onClick={() => setCelebrating(null)}
+            style={{ marginTop: 48, background: 'none', border: '1.5px solid rgba(255,255,255,0.35)', color: 'rgba(255,255,255,0.7)', padding: '10px 32px', fontSize: 14, fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit', letterSpacing: '0.04em' }}>
+            Done
+          </button>
+        </div>
+      )}
 
       {confirmCancel && (
         <div onClick={() => setConfirmCancel(null)} style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.45)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 200 }}>
