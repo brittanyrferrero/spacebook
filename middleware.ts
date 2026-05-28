@@ -1,20 +1,37 @@
 import { NextResponse } from 'next/server'
 import type { NextRequest } from 'next/server'
 
-async function resolveWorkspaceToken(): Promise<string | null> {
-  if (process.env.WORKSPACE_TOKEN) return process.env.WORKSPACE_TOKEN
-  if (!process.env.KV_REST_API_URL || !process.env.KV_REST_API_TOKEN) return null
-  try {
-    const res = await fetch(`${process.env.KV_REST_API_URL}/get/cfg:workspace_token`, {
-      headers: { Authorization: `Bearer ${process.env.KV_REST_API_TOKEN}` },
-    })
-    const j = await res.json() as { result?: string }
-    return j.result ?? null
-  } catch { return null }
+// Non-workspace top-level path segments
+const PUBLIC_SEGMENTS = new Set(['enter', 'admin-enter', 'demo', 'demo-admin', 'landing', 'landing2', 'landing-classic', 'cancel', 'privacy', 'terms', 'generate'])
+// Non-workspace API sub-paths (second segment after /api/)
+const PUBLIC_API_SEGMENTS = new Set(['cancel', 'workspaces', 'notify', 'demo-access', 'admin'])
+// Public workspace-scoped API routes (third segment after /api/[workspace]/)
+const PUBLIC_WORKSPACE_ROUTES = new Set(['admin-enter', 'admin-recover', 'enter-check', 'enter-set-cookie', 'notify', 'tablet-enter', 't'])
+
+function getWorkspaceSlug(pathname: string): string | null {
+  const parts = pathname.split('/').filter(Boolean)
+  if (parts.length === 0) return null
+
+  if (parts[0] === 'api') {
+    // /api/[workspace]/...
+    const second = parts[1]
+    if (!second || PUBLIC_API_SEGMENTS.has(second)) return null
+    // Entry/auth routes within a workspace are always public
+    const route = parts[2]
+    if (route && PUBLIC_WORKSPACE_ROUTES.has(route)) return null
+    return second
+  }
+
+  // /[workspace]/...
+  const first = parts[0]
+  if (PUBLIC_SEGMENTS.has(first)) return null
+  // /[workspace]/admin is allowed through so the layout can show the recovery modal
+  if (parts[1] === 'admin' && parts.length === 2) return null
+  return first
 }
 
 export async function middleware(request: NextRequest) {
-  // Assign or forward session ID via request header so route handlers can read it
+  // Assign or forward session ID for MOCK_MODE
   const existingSession = request.cookies.get('sb_session')?.value
   const sessionId = existingSession ?? crypto.randomUUID()
   const requestHeaders = new Headers(request.headers)
@@ -28,58 +45,33 @@ export async function middleware(request: NextRequest) {
     return response
   }
 
-  const { pathname, searchParams } = request.nextUrl
+  const { pathname } = request.nextUrl
 
-  // Admin entry always bypasses all auth — check first before anything else
-  if (pathname.startsWith('/admin-enter') || pathname.startsWith('/api/admin-enter')) {
+  // MOCK_MODE: redirect root to the demo workspace, open access everywhere else
+  if (process.env.NEXT_PUBLIC_MOCK_MODE === 'true' || process.env.MOCK_MODE === 'true') {
+    if (pathname === '/') return NextResponse.redirect(new URL('/swift-cedar-lake', request.url))
     return pass()
   }
 
-  // Admin cookie grants full access to everything (admins are workspace members too)
-  if (request.cookies.get('admin_access')?.value) return pass()
+  // Root path: workspace creation landing (no auth needed)
+  if (pathname === '/') return pass()
 
-  // Non-admin /admin routes require the cookie in prod
-  if (process.env.MOCK_MODE !== 'true' &&
-      (pathname.startsWith('/admin') || pathname.startsWith('/api/admin/')) &&
-      pathname !== '/api/admin/admins') {
-    return NextResponse.redirect(new URL('/', request.url))
-  }
+  // Development: open access
+  if (process.env.NODE_ENV === 'development') return pass()
 
-  // Always allow: the entry route, cancel links, demo routes
-  if (pathname === '/enter' || pathname.startsWith('/enter/') ||
-      pathname.startsWith('/cancel/') || pathname.startsWith('/api/cancel/') ||
-      pathname.startsWith('/api/bookings/by-token/') ||
-      pathname.startsWith('/api/members') ||
-      pathname.startsWith('/api/enter-check') ||
-      pathname.startsWith('/api/enter-set-cookie') ||
-      pathname === '/landing' ||
-      pathname.startsWith('/api/notify') ||
-      pathname.startsWith('/demo-admin') ||
-      pathname === '/demo' ||
-      pathname.startsWith('/api/demo-access') ||
-      pathname.startsWith('/api/settings')) {
-    return pass()
-  }
+  // Always allow public routes (enter, admin-enter, cancel, workspaces API, etc.)
+  const slug = getWorkspaceSlug(pathname)
+  if (!slug) return pass()
 
-  // Workspace token check — resolve lazily (may hit KV if no env var set)
-  const token = await resolveWorkspaceToken()
+  // Workspace route — require ws_[slug] or admin_[slug] cookie
+  const wsToken = request.cookies.get(`ws_${slug}`)?.value
+  const adminToken = request.cookies.get(`admin_${slug}`)?.value
 
-  // Root without valid access → redirect to appropriate landing
-  if (pathname === '/') {
-    if (!token || request.cookies.get('ws_access')?.value !== token) {
-      const dest = process.env.MOCK_MODE === 'true' ? '/demo' : '/enter'
-      return NextResponse.redirect(new URL(dest, request.url))
-    }
-  }
+  if (wsToken || adminToken) return pass()
 
-  // No token configured, or running locally → open access
-  if (!token || process.env.NODE_ENV === 'development') return pass()
-
-  // Valid cookie → let through
-  if (request.cookies.get('ws_access')?.value === token) return pass()
-
-  // No valid cookie → redirect to the "you need the link" page
-  return NextResponse.redirect(new URL('/enter', request.url))
+  // No valid cookie — redirect to the entry page for this workspace
+  // (But let admin-enter and enter routes through regardless)
+  return NextResponse.redirect(new URL(`/enter/${slug}`, request.url))
 }
 
 export const config = {

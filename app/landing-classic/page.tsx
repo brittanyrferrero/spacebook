@@ -26,19 +26,20 @@ const STARS = [
   { x: '55%', y: '97%', r: 1,   c: '#ffffff' }, { x: '74%', y: '91%', r: 1,   c: '#e0d4ff' },
 ]
 
+const DEMO = 'https://demo.space-book.net'
 const TABS: { key: Tab; label: string; url: string; desc: string; fw: number; fh: number; scale: number }[] = [
   {
-    key: 'desktop', label: 'Desktop', url: '/?demo=1',
+    key: 'desktop', label: 'Desktop', url: `${DEMO}/swift-cedar-lake`,
     desc: 'The main booking interface — calendar view of all rooms, click any slot to book.',
     fw: 1280, fh: 780, scale: 0.72,
   },
   {
-    key: 'tablet', label: 'Tablet', url: '/room/r2',
+    key: 'tablet', label: 'Tablet', url: `${DEMO}/swift-cedar-lake/room/r2`,
     desc: 'Mount one outside each room. Shows live status — free or in use — from across the hallway.',
     fw: 500, fh: 880, scale: 0.78,
   },
   {
-    key: 'admin', label: 'Admin', url: '/demo-admin',
+    key: 'admin', label: 'Admin', url: `${DEMO}/swift-cedar-lake/admin`,
     desc: 'Manage rooms and bookings, view usage stats, handle cancellations.',
     fw: 1280, fh: 780, scale: 0.72,
   },
@@ -50,7 +51,7 @@ const PLANS = [
     rooms: '1 – 2 rooms',
     price: { monthly: 30, annual: 25 },
     blurb: 'A good fit for small offices and studios just getting started.',
-    features: ['Up to 2 rooms', 'Hosted & managed', 'Google Calendar sync', 'Email support', '14-day free trial'],
+    features: ['Up to 2 rooms', 'Hosted & managed', 'Google Calendar sync', 'Email support'],
     cta: 'Get started',
     href: '#',
     highlight: false,
@@ -59,8 +60,8 @@ const PLANS = [
     name: 'Hub',
     rooms: '3 – 5 rooms',
     price: { monthly: 52, annual: 44 },
-    blurb: 'For coworking spaces and places with a handful of bookable rooms.',
-    features: ['Up to 6 rooms', 'Hosted & managed', 'Google Calendar sync', 'Email support', '14-day free trial'],
+    blurb: 'For coworking communities and places with a handful of bookable rooms.',
+    features: ['Up to 6 rooms', 'Hosted & managed', 'Google Calendar sync', 'Email support'],
     cta: 'Get started',
     href: '#',
     highlight: false,
@@ -70,7 +71,7 @@ const PLANS = [
     rooms: '6 – 12 rooms',
     price: { monthly: 120, annual: 100 },
     blurb: 'For larger shared spaces that want custom branding and hands-on support.',
-    features: ['Up to 12 rooms', 'Custom domain & branding', 'Google Calendar sync', 'Priority support', '14-day free trial'],
+    features: ['Up to 12 rooms', 'Custom domain & branding', 'Google Calendar sync', 'Priority support'],
     cta: 'Get started',
     href: '#',
     highlight: false,
@@ -203,7 +204,7 @@ export default function LandingPage({ showPricing = true, showIntro = true }: { 
             { title: 'Frictionless access', body: 'No app to download, and no confusing onboarding.' },
             { title: 'Recurring bookings', body: 'Set it once and it repeats until you say otherwise.' },
             { title: 'Your data', body: 'Self-host it, or let us run it. Either way, nothing is sold or shared.' },
-            { title: 'Google Calendar', body: 'Add a room when you\'re scheduling your meeting and easily view potential conflicts.' },
+            { title: 'Google Calendar', body: 'Each room has a calendar. Book directly on GCal or in the app — both views stay in sync.' },
             { title: 'Built to fit', body: 'Customizable to your team and space\'s needs.' },
             { title: 'Any tablet', body: 'Mount any iPad or Android tablet outside the door. No proprietary hardware, no extra cost.' },
           ].map(f => (
@@ -358,7 +359,6 @@ export default function LandingPage({ showPricing = true, showIntro = true }: { 
           </div>
 
           <p style={{ textAlign: 'center', fontSize: 13, color: '#9CA3AF', marginTop: 36, lineHeight: 1.6 }}>
-            Hosted plans include a 14-day free trial — no credit card required.<br />
             Annual plans are billed once per year, and we'll send you a reminder.
           </p>
         </div>

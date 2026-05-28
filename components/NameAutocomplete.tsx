@@ -8,25 +8,26 @@ interface Props {
   value: string
   onChange: (name: string) => void
   onSelect: (user: User) => void
+  workspace?: string
   style?: React.CSSProperties
   placeholder?: string
 }
 
-let cachedUsers: User[] | null = null
+const cache: Record<string, User[]> = {}
 
-export function NameAutocomplete({ value, onChange, onSelect, style, placeholder = 'e.g. Jamie Lee' }: Props) {
-  const [users, setUsers] = useState<User[]>(cachedUsers ?? [])
+export function NameAutocomplete({ value, onChange, onSelect, workspace = '', style, placeholder = 'e.g. Jamie Lee' }: Props) {
+  const [users, setUsers] = useState<User[]>(workspace ? (cache[workspace] ?? []) : [])
   const [open, setOpen] = useState(false)
-  const [focused, setFocused] = useState(false)
   const ref = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
-    if (cachedUsers) return
-    fetch('/users.json').then(r => r.json()).then((data: User[]) => {
-      cachedUsers = data
+    if (!workspace) return
+    if (cache[workspace]) { setUsers(cache[workspace]); return }
+    fetch(`/api/${workspace}/members`).then(r => r.json()).then((data: User[]) => {
+      cache[workspace] = data
       setUsers(data)
     }).catch(() => {})
-  }, [])
+  }, [workspace])
 
   const query = value.trim().toLowerCase()
   const matches = query.length >= 1
@@ -49,8 +50,8 @@ export function NameAutocomplete({ value, onChange, onSelect, style, placeholder
         value={value}
         autoComplete="off"
         onChange={e => { onChange(e.target.value); setOpen(true) }}
-        onFocus={() => { setFocused(true); setOpen(true) }}
-        onBlur={() => setFocused(false)}
+        onFocus={() => setOpen(true)}
+        onBlur={() => {}}
       />
       {open && matches.length > 0 && (
         <div style={{

@@ -10,6 +10,7 @@ export interface Room {
   amenities: Amenity[]
   google_calendar_id: string | null
   gcal_connected?: boolean   // computed — true if OAuth tokens are stored for this room
+  tablet_token?: string
   display_order: number
   is_active: boolean
   created_at: string

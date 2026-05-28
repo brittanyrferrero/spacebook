@@ -1,5 +1,6 @@
 import type { MockStore } from './store'
-import type { Room, Booking, RecurringSeries, Member, CreateBookingPayload, CancelScope, RecurringFrequency } from '@/types'
+import type { Room, Booking, RecurringSeries, Member, CreateBookingPayload, CancelScope } from '@/types'
+import { generateOccurrenceDates } from '@/lib/recurring'
 
 const uid = () => Math.random().toString(36).slice(2) + Date.now().toString(36)
 const token = () => [uid(), uid()].join('-')
@@ -11,58 +12,6 @@ function hasConflict(store: MockStore, roomId: string, start: Date, end: Date, e
     const be = new Date(b.end_time)
     return start < be && end > bs
   })
-}
-
-function nthWeekdayOfMonth(year: number, month: number, jsDay: number, n: number): Date | null {
-  const firstDow = new Date(year, month, 1).getDay()
-  const firstOccurrence = 1 + ((jsDay - firstDow + 7) % 7)
-  const date = firstOccurrence + (n - 1) * 7
-  const daysInMonth = new Date(year, month + 1, 0).getDate()
-  if (date > daysInMonth) return null
-  return new Date(year, month, date)
-}
-
-function generateOccurrenceDates(
-  frequency: RecurringFrequency,
-  daysOfWeek: number[] | null,
-  seriesStart: string,
-  seriesEnd: string,
-): Date[] {
-  const start = new Date(seriesStart + 'T00:00:00')
-  const end = new Date(seriesEnd + 'T23:59:59')
-  const dates: Date[] = []
-
-  if (frequency === 'monthly') {
-    const jsDay = start.getDay()
-    const ordinal = Math.ceil(start.getDate() / 7)
-    let cur: Date | null = new Date(start)
-    while (cur && cur <= end) {
-      dates.push(new Date(cur))
-      let nextMonth = cur.getMonth() + 1
-      let nextYear = cur.getFullYear()
-      if (nextMonth > 11) { nextMonth = 0; nextYear++ }
-      cur = nthWeekdayOfMonth(nextYear, nextMonth, jsDay, ordinal)
-    }
-    return dates
-  }
-
-  const jsDays = (daysOfWeek ?? []).map(d => (d === 7 ? 0 : d))
-  const stepDays = frequency === 'biweekly' ? 14 : 7
-
-  const weekStart = new Date(start)
-  weekStart.setDate(weekStart.getDate() - weekStart.getDay())
-
-  const week = new Date(weekStart)
-  while (week <= end) {
-    for (const jsDow of jsDays) {
-      const occ = new Date(week)
-      occ.setDate(week.getDate() + jsDow)
-      if (occ >= start && occ <= end) dates.push(new Date(occ))
-    }
-    week.setDate(week.getDate() + stepDays)
-  }
-
-  return dates.sort((a, b) => a.getTime() - b.getTime())
 }
 
 // ─── Rooms ────────────────────────────────────────────────────────────────────
@@ -102,6 +51,7 @@ export function createRoom(store: MockStore, data: { name: string; room_type?: s
     capacity: data.capacity,
     amenities: data.amenities,
     google_calendar_id: null,
+    tablet_token: crypto.randomUUID().replace(/-/g, '').slice(0, 8),
     display_order: Math.max(...store.rooms.map(r => r.display_order), 0) + 1,
     is_active: true,
     created_at: new Date().toISOString(),
@@ -174,7 +124,7 @@ export function getSeriesById(store: MockStore, id: string): RecurringSeries | n
   return store.series.find(s => s.id === id) ?? null
 }
 
-export function createBooking(store: MockStore, payload: CreateBookingPayload): { booking?: Booking; series?: RecurringSeries; conflicts?: number; error?: string } {
+export function createBooking(store: MockStore, payload: CreateBookingPayload): { booking?: Booking; series?: RecurringSeries; conflictDates?: string[]; error?: string } {
   const start = new Date(payload.start_time)
   const end = new Date(payload.end_time)
 
@@ -207,7 +157,7 @@ export function createBooking(store: MockStore, payload: CreateBookingPayload): 
   const occurrences = generateOccurrenceDates(frequency, days_of_week ?? null, seriesStart, series_end)
   const durMs = end.getTime() - start.getTime()
 
-  let conflicts = 0
+  const conflictDates: string[] = []
   let firstBooking: Booking | undefined
 
   for (const occ of occurrences) {
@@ -215,7 +165,7 @@ export function createBooking(store: MockStore, payload: CreateBookingPayload): 
     occStart.setHours(start.getHours(), start.getMinutes(), 0, 0)
     const occEnd = new Date(occStart.getTime() + durMs)
 
-    if (hasConflict(store, payload.room_id, occStart, occEnd)) { conflicts++; continue }
+    if (hasConflict(store, payload.room_id, occStart, occEnd)) { conflictDates.push(occStart.toISOString().slice(0, 10)); continue }
 
     const b: Booking = {
       id: uid(), room_id: payload.room_id, recurring_series_id: s.id,
@@ -227,7 +177,7 @@ export function createBooking(store: MockStore, payload: CreateBookingPayload): 
     if (!firstBooking) firstBooking = b
   }
 
-  return { booking: firstBooking, series: s, conflicts }
+  return { booking: firstBooking, series: s, conflictDates }
 }
 
 export function cancelBooking(store: MockStore, cancelToken: string, scope: CancelScope): { cancelled: number; error?: string } {

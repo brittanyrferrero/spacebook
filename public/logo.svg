@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 28" width="120" height="28">
+  <defs>
+    <style>
+      @import url('https://fonts.googleapis.com/css2?family=Spectral:ital,wght@0,600;1,300&amp;display=swap');
+      .space { font-family: 'Spectral', Georgia, serif; font-size: 16px; font-weight: 600; fill: #2C3E6B; letter-spacing: 0.04em; }
+      .book  { font-family: 'Spectral', Georgia, serif; font-size: 16px; font-weight: 300; font-style: italic; fill: #db95ab; letter-spacing: 0.04em; }
+    </style>
+  </defs>
+  <text y="20">
+    <tspan class="space">space</tspan><tspan class="book">book</tspan>
+  </text>
+</svg>

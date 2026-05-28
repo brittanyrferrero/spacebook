@@ -1,0 +1,43 @@
+import { type NextRequest, NextResponse } from 'next/server'
+import { cookies } from 'next/headers'
+
+export async function GET(req: NextRequest, { params }: { params: { workspace: string; token: string } }) {
+  if (process.env.MOCK_MODE === 'true') {
+    const { getSessionStore } = await import('@/lib/mock/store')
+    const store = await getSessionStore()
+    const room = store.rooms.find(r => r.tablet_token === params.token)
+    if (!room) return NextResponse.redirect(new URL(`/enter/${params.workspace}`, req.url))
+    const cookieStore = await cookies()
+    cookieStore.set(`ws_${params.workspace}`, 'demo', {
+      httpOnly: true, secure: process.env.NODE_ENV === 'production', sameSite: 'lax', path: '/',
+    })
+    return NextResponse.redirect(new URL(`/${params.workspace}/room/${room.id}`, req.url))
+  }
+
+  const { getWorkspaceBySlug } = await import('@/lib/workspace')
+  const workspace = await getWorkspaceBySlug(params.workspace)
+  if (!workspace) return NextResponse.redirect(new URL(`/enter/${params.workspace}`, req.url))
+
+  const { createClient } = await import('@/lib/supabase/server')
+  const supabase = await createClient()
+  const { data: room } = await supabase
+    .from('rooms')
+    .select('id')
+    .eq('workspace_id', workspace.id)
+    .eq('tablet_token', params.token)
+    .single()
+
+  if (!room) return NextResponse.redirect(new URL(`/enter/${params.workspace}`, req.url))
+
+  const { getWorkspaceToken } = await import('@/lib/prod-config')
+  const wsToken = await getWorkspaceToken(workspace.id)
+
+  const cookieStore = await cookies()
+  const secure = process.env.NODE_ENV === 'production'
+  cookieStore.set(`ws_${params.workspace}`, wsToken ?? params.token, {
+    httpOnly: true, secure, sameSite: 'lax', path: '/',
+    // No maxAge — session cookie, cleared when browser closes
+  })
+
+  return NextResponse.redirect(new URL(`/${params.workspace}/room/${room.id}`, req.url))
+}

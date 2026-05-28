@@ -8,16 +8,17 @@ const CREAM  = '#f0ece4'
 const CREAM2 = '#e4dfd6'
 const INK    = '#1c1510'
 
+const DEMO = 'https://demo.space-book.net'
 const TABS: { key: Tab; label: string; url: string; fw: number; fh: number; scale: number }[] = [
-  { key: 'desktop', label: 'Desktop',  url: '/?demo=1',    fw: 1280, fh: 780, scale: 0.72 },
-  { key: 'tablet',  label: 'Tablet',   url: '/room/r2',    fw: 500,  fh: 880, scale: 0.78 },
-  { key: 'admin',   label: 'Admin',    url: '/demo-admin', fw: 1280, fh: 780, scale: 0.72 },
+  { key: 'desktop', label: 'Desktop',  url: `${DEMO}/swift-cedar-lake`,       fw: 1280, fh: 780, scale: 0.72 },
+  { key: 'tablet',  label: 'Tablet',   url: `${DEMO}/swift-cedar-lake/room/r2`,    fw: 500,  fh: 880, scale: 0.78 },
+  { key: 'admin',   label: 'Admin',    url: `${DEMO}/swift-cedar-lake/admin`, fw: 1280, fh: 780, scale: 0.72 },
 ]
 
 const PLANS = [
-  { name: 'Nook',       rooms: '1 – 2 rooms',          price: { monthly: 30,  annual: 25  }, blurb: 'A good fit for small offices and studios just getting started.',                                                       features: ['Up to 2 rooms', 'Hosted & managed', 'Google Calendar sync', 'Email support', '14-day free trial'],                 cta: 'Get started', href: '#' },
-  { name: 'Hub',        rooms: '3 – 5 rooms',           price: { monthly: 52,  annual: 44  }, blurb: 'For coworking spaces and places with a handful of bookable rooms.',                                                    features: ['Up to 5 rooms', 'Hosted & managed', 'Google Calendar sync', 'Email support', '14-day free trial'],                 cta: 'Get started', href: '#' },
-  { name: 'Commons',    rooms: '6 – 12 rooms',          price: { monthly: 120, annual: 100 }, blurb: 'For larger shared spaces that want custom branding and hands-on support.',                                             features: ['Up to 12 rooms', 'Custom domain & branding', 'Google Calendar sync', 'Priority support', '14-day free trial'],     cta: 'Get started', href: '#' },
+  { name: 'Nook',       rooms: '1 – 2 rooms',          price: { monthly: 30,  annual: 25  }, blurb: 'A good fit for small offices and studios just getting started.',                                                       features: ['Up to 2 rooms', 'Hosted & managed', 'Google Calendar sync', 'Email support'],                 cta: 'Get started', href: '#' },
+  { name: 'Hub',        rooms: '3 – 5 rooms',           price: { monthly: 52,  annual: 44  }, blurb: 'For coworking communities and places with a handful of bookable rooms.',                                                    features: ['Up to 5 rooms', 'Hosted & managed', 'Google Calendar sync', 'Email support'],                 cta: 'Get started', href: '#' },
+  { name: 'Commons',    rooms: '6 – 12 rooms',          price: { monthly: 120, annual: 100 }, blurb: 'For larger shared spaces that want custom branding and hands-on support.',                                             features: ['Up to 12 rooms', 'Custom domain & branding', 'Google Calendar sync', 'Priority support'],     cta: 'Get started', href: '#' },
   { name: 'Enterprise', rooms: 'Multiple locations',  price: null,                          blurb: "Running several sites, need a custom integration, or want us to guide you through the setup? Let's talk.",            features: ['Multiple locations', 'Custom integrations', 'Dedicated support', 'Custom contract & invoicing'],                  cta: 'Contact us', href: 'mailto:hello@spacebook.app' },
 ]
 
@@ -48,7 +49,7 @@ const FEATURES: { title: string; body: string; icon: JSX.Element }[] = [
       <rect fill={CREAM} x={11} y={18.5} width={2} height={3}/>
     </svg>
   )},
-  { title: 'Google Calendar', body: "Add a room when you're scheduling your meeting and easily view potential conflicts.", icon: (
+  { title: 'Google Calendar', body: "Each room has a calendar. Book directly on GCal or in the app — both views stay in sync.", icon: (
     <svg viewBox="0 0 24 24" width={36} height={36} style={{ marginBottom: 16, display: 'block' }}>
       {/* Calendar with plus */}
       <rect fill={INK} x={2} y={5} width={20} height={17}/>
@@ -394,7 +395,6 @@ export default function LandingPage() {
           </div>
 
           <p style={{ textAlign: 'center', fontSize: 14, color: `${INK}66`, marginTop: 36, lineHeight: 1.7 }}>
-            Hosted plans include a 14-day free trial — no credit card required.<br />
             Annual plans are billed once per year, and we'll send you a reminder.
           </p>
         </div>
@@ -405,7 +405,10 @@ export default function LandingPage() {
         <div style={{ fontFamily: "'Spectral', Georgia, serif", fontSize: 16, fontWeight: 600, color: CREAM, letterSpacing: '0.04em' }}>
           space<span style={{ fontStyle: 'italic', fontWeight: 400 }}>book</span>
         </div>
-        <div style={{ display: 'flex', gap: 24, alignItems: 'center' }}>
+        <div style={{ display: 'flex', gap: 24, alignItems: 'center', flexWrap: 'wrap' }}>
+          <a href="/privacy" style={{ fontSize: 12, color: `${CREAM}66`, textDecoration: 'none', letterSpacing: '0.06em' }}>Privacy</a>
+          <a href="/terms" style={{ fontSize: 12, color: `${CREAM}66`, textDecoration: 'none', letterSpacing: '0.06em' }}>Terms</a>
+          <Star4 size={5} color={`${CREAM}44`} />
           <a href="mailto:hello@spacebook.app" style={{ fontSize: 12, color: `${CREAM}66`, textDecoration: 'none', letterSpacing: '0.06em' }}>hello@spacebook.app</a>
           <Star4 size={5} color={`${CREAM}44`} />
           <span style={{ fontSize: 12, color: `${CREAM}44`, letterSpacing: '0.06em' }}>© {new Date().getFullYear()} spacebook</span>

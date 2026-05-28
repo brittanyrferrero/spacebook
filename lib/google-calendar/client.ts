@@ -47,6 +47,29 @@ export async function createCalendarEvent(booking: Booking, room: Room): Promise
   return event.data.id ?? null
 }
 
+export async function updateCalendarEvent(
+  googleEventId: string,
+  calendarId: string,
+  roomId: string,
+  booking: { start_time: string; end_time: string; title?: string | null; booker_name: string; booker_email: string },
+  roomName: string,
+): Promise<void> {
+  const auth = await getAuthClient(roomId)
+  if (!auth) return
+
+  const calendar = google.calendar({ version: 'v3', auth })
+  await calendar.events.patch({
+    calendarId,
+    eventId: googleEventId,
+    requestBody: {
+      summary: booking.title ?? `Booking — ${roomName}`,
+      description: `Booked by ${booking.booker_name} (${booking.booker_email})`,
+      start: { dateTime: booking.start_time },
+      end:   { dateTime: booking.end_time },
+    },
+  })
+}
+
 export async function deleteCalendarEvent(googleEventId: string, calendarId: string, roomId: string): Promise<void> {
   const auth = await getAuthClient(roomId)
   if (!auth) return

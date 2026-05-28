@@ -1,9 +1,8 @@
 import { Redis } from '@upstash/redis'
 
-const kv = new Redis({
-  url: process.env.KV_REST_API_URL!,
-  token: process.env.KV_REST_API_TOKEN!,
-})
+const kvUrl   = process.env.KV_REST_API_URL
+const kvToken = process.env.KV_REST_API_TOKEN
+const kv = kvUrl && kvToken ? new Redis({ url: kvUrl, token: kvToken }) : null
 import type { Room, Booking, RecurringSeries, Member } from '@/types'
 
 export interface GcalTokens {
@@ -37,12 +36,12 @@ function t(dayOffset: number, h: number, m = 0): string {
 }
 
 const ROOMS: Room[] = [
-  { id: 'r1', name: 'Lovelace', room_type: 'Meeting Room',    capacity: 4,  amenities: ['Whiteboard', 'TV'],                        google_calendar_id: null, display_order: 1, is_active: true,  created_at: new Date().toISOString() },
-  { id: 'r2', name: 'Turing',   room_type: 'Conference Room', capacity: 8,  amenities: ['TV', 'Video conferencing'],                 google_calendar_id: null, display_order: 2, is_active: true,  created_at: new Date().toISOString() },
-  { id: 'r3', name: 'Hopper',   room_type: 'Meeting Room',    capacity: 6,  amenities: ['Natural light', 'Whiteboard'],              google_calendar_id: null, display_order: 3, is_active: true,  created_at: new Date().toISOString() },
-  { id: 'r4', name: 'Dijkstra', room_type: 'Boardroom',       capacity: 12, amenities: ['TV', 'Whiteboard', 'Video conferencing'],  google_calendar_id: null, display_order: 4, is_active: true,  created_at: new Date().toISOString() },
-  { id: 'r5', name: 'Shannon',  room_type: 'Focus Room',      capacity: 3,  amenities: ['Whiteboard'],                               google_calendar_id: null, display_order: 5, is_active: true,  created_at: new Date().toISOString() },
-  { id: 'r6', name: 'Babbage',  room_type: 'Phone Booth',     capacity: 2,  amenities: ['TV'],                                       google_calendar_id: null, display_order: 6, is_active: false, created_at: new Date().toISOString() },
+  { id: 'r1', name: 'Lovelace', room_type: 'Meeting Room',    capacity: 4,  amenities: ['Whiteboard', 'TV'],                        google_calendar_id: null, tablet_token: 'a1b2c3d4', display_order: 1, is_active: true,  created_at: new Date().toISOString() },
+  { id: 'r2', name: 'Turing',   room_type: 'Conference Room', capacity: 8,  amenities: ['TV', 'Video conferencing'],                 google_calendar_id: null, tablet_token: 'e5f6a7b8', display_order: 2, is_active: true,  created_at: new Date().toISOString() },
+  { id: 'r3', name: 'Hopper',   room_type: 'Meeting Room',    capacity: 6,  amenities: ['Natural light', 'Whiteboard'],              google_calendar_id: null, tablet_token: 'c9d0e1f2', display_order: 3, is_active: true,  created_at: new Date().toISOString() },
+  { id: 'r4', name: 'Dijkstra', room_type: 'Boardroom',       capacity: 12, amenities: ['TV', 'Whiteboard', 'Video conferencing'],  google_calendar_id: null, tablet_token: '3a4b5c6d', display_order: 4, is_active: true,  created_at: new Date().toISOString() },
+  { id: 'r5', name: 'Shannon',  room_type: 'Focus Room',      capacity: 3,  amenities: ['Whiteboard'],                               google_calendar_id: null, tablet_token: '7e8f9a0b', display_order: 5, is_active: true,  created_at: new Date().toISOString() },
+  { id: 'r6', name: 'Babbage',  room_type: 'Phone Booth',     capacity: 2,  amenities: ['TV'],                                       google_calendar_id: null, tablet_token: 'b1c2d3e4', display_order: 6, is_active: false, created_at: new Date().toISOString() },
 ]
 
 function bk(id: string, roomId: string, name: string, email: string, title: string, dayOffset: number, startH: number, endH: number, startM = 0, endM = 0): Booking {
@@ -139,6 +138,7 @@ async function getSessionId(): Promise<string> {
 }
 
 export async function getSessionStore(): Promise<MockStore> {
+  if (!kv) return createStore()
   const sessionId = await getSessionId()
   const existing = await kv.get<MockStore>(`mock:${sessionId}`)
   if (existing) {
@@ -159,6 +159,7 @@ export async function getSessionStore(): Promise<MockStore> {
 }
 
 export async function saveSessionStore(store: MockStore): Promise<void> {
+  if (!kv) return
   const sessionId = await getSessionId()
   await kv.set(`mock:${sessionId}`, store, { ex: SESSION_TTL_S })
 }

@@ -1,7 +1,7 @@
 .vercel
-.env.local
-.env*.local
+.env*
 node_modules
 .next
 client_secret*.json
 JSON OAuth/
+*.pdf

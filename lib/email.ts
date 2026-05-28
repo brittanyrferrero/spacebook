@@ -2,6 +2,56 @@ import { Resend } from 'resend'
 
 const FROM = process.env.EMAIL_FROM ?? 'spacebook <noreply@spacebook.app>'
 
+export async function sendGcalConflictEmail({
+  to,
+  organizerName,
+  roomName,
+  startTime,
+  endTime,
+  eventTitle,
+}: {
+  to: string
+  organizerName: string
+  roomName: string
+  startTime: string
+  endTime: string
+  eventTitle: string | null
+}) {
+  const key = process.env.RESEND_API_KEY
+  if (!key) return
+  const resend = new Resend(key)
+
+  const date = fmt(startTime, { weekday: 'long', day: 'numeric', month: 'long' })
+  const time = `${fmt(startTime, { hour: '2-digit', minute: '2-digit' })} – ${fmt(endTime, { hour: '2-digit', minute: '2-digit' })}`
+  const firstName = organizerName.split(' ')[0]
+
+  await resend.emails.send({
+    from: FROM,
+    to,
+    subject: `Your ${roomName} event could not be added`,
+    html: `
+<div style="font-family:sans-serif;max-width:480px;margin:0 auto;padding:24px">
+  <div style="font-size:18px;font-weight:600;color:#2C3E6B;margin-bottom:4px">spacebook</div>
+  <div style="font-size:13px;color:#9CA3AF;margin-bottom:24px">Booking conflict</div>
+
+  <p style="font-size:14px;color:#374151">Hi ${firstName},</p>
+  <p style="font-size:14px;color:#374151">
+    Your event${eventTitle ? ` <strong>${eventTitle}</strong>` : ''} could not be added to <strong>${roomName}</strong> — that time is already booked in spacebook.
+  </p>
+
+  <div style="background:#FEF2F2;border-radius:8px;padding:14px 16px;margin:20px 0;font-size:13px;color:#374151">
+    <div style="margin-bottom:6px"><span style="color:#9CA3AF">Room</span> &nbsp; ${roomName}</div>
+    <div style="margin-bottom:6px"><span style="color:#9CA3AF">Date</span> &nbsp; ${date}</div>
+    <div><span style="color:#9CA3AF">Time</span> &nbsp; ${time}</div>
+  </div>
+
+  <p style="font-size:13px;color:#6B7280">
+    Please book through spacebook to reserve this room.
+  </p>
+</div>`,
+  })
+}
+
 function fmt(iso: string, opts: Intl.DateTimeFormatOptions) {
   return new Date(iso).toLocaleString('en-AU', opts)
 }
@@ -82,5 +132,42 @@ export async function sendBookingEditedEmail({
     to,
     subject: `Your ${roomName} booking has been updated`,
     html,
+  })
+}
+
+export async function sendAdminRecoveryEmail({
+  to,
+  workspace,
+  url,
+}: {
+  to: string
+  workspace: string
+  url: string
+}) {
+  const key = process.env.RESEND_API_KEY
+  if (!key) return
+  const resend = new Resend(key)
+
+  await resend.emails.send({
+    from: FROM,
+    to,
+    subject: `Your spacebook admin link for ${workspace}`,
+    html: `
+<div style="font-family:sans-serif;max-width:480px;margin:0 auto;padding:24px">
+  <div style="font-size:18px;font-weight:600;color:#2C3E6B;margin-bottom:4px">spacebook</div>
+  <div style="font-size:13px;color:#9CA3AF;margin-bottom:24px">Admin access</div>
+
+  <p style="font-size:14px;color:#374151">Here's your admin link for <strong>${workspace}</strong>:</p>
+
+  <div style="margin:24px 0">
+    <a href="${url}" style="display:inline-block;padding:10px 20px;background:#2C3E6B;color:#ffffff;text-decoration:none;border-radius:8px;font-size:14px;font-weight:500">
+      Open admin panel
+    </a>
+  </div>
+
+  <p style="font-size:12px;color:#9CA3AF">
+    If you didn't request this, you can ignore this email. This link does not expire.
+  </p>
+</div>`,
   })
 }

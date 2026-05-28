@@ -1,2 +1,5 @@
-// Admin dashboard without the password layout — used by the landing page demo iframe
-export { default } from '@/app/admin/page'
+import { redirect } from 'next/navigation'
+
+export default function DemoAdminPage() {
+  redirect('/swift-cedar-lake/admin')
+}
