@@ -135,6 +135,29 @@ export async function sendBookingEditedEmail({
   })
 }
 
+export async function sendPalantirMagicLink({ to, url }: { to: string; url: string }) {
+  const key = process.env.RESEND_API_KEY
+  if (!key) return
+  const resend = new Resend(key)
+  await resend.emails.send({
+    from: FROM,
+    to,
+    subject: 'Your palantir access link',
+    html: `
+<div style="font-family:sans-serif;max-width:480px;margin:0 auto;padding:24px">
+  <div style="font-size:18px;font-weight:600;color:#2C3E6B;margin-bottom:4px">spacebook</div>
+  <div style="font-size:13px;color:#9CA3AF;margin-bottom:24px">palantir access</div>
+  <p style="font-size:14px;color:#374151">Here's your link to the palantir dashboard:</p>
+  <div style="margin:24px 0">
+    <a href="${url}" style="display:inline-block;padding:10px 20px;background:#090d18;color:#ffffff;text-decoration:none;font-size:14px;font-weight:500">
+      Open palantir
+    </a>
+  </div>
+  <p style="font-size:12px;color:#9CA3AF">This link expires in 15 minutes. If you didn't request this, ignore it.</p>
+</div>`,
+  })
+}
+
 export async function sendAdminRecoveryEmail({
   to,
   workspace,
