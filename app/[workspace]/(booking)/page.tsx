@@ -1099,12 +1099,12 @@ export default function BookingPage() {
               )}
             </div>
             <button onClick={() => { setMDate(todayStr); setMTime(''); setMEndTime(''); setMTitle('Occupied'); setRecurFreq('none'); setMError(''); setShowModal('later'); setMDone(false) }}
-              style={{ background: 'transparent', border: `1px solid ${T.inputBorder}`, borderRadius: 0, padding: '12px 22px', fontSize: 14, cursor: 'pointer', color: T.text, whiteSpace: 'nowrap', letterSpacing: '0.01em' }}>
+              style={{ background: 'transparent', border: `1px solid ${dark ? 'rgba(255,255,255,0.45)' : T.inputBorder}`, borderRadius: 0, padding: '12px 22px', fontSize: 14, cursor: 'pointer', color: T.text, whiteSpace: 'nowrap', letterSpacing: '0.01em' }}>
               {txt.schedule}
             </button>
           </div>
           <button onClick={openMyBookings}
-            style={{ background: 'transparent', border: 'none', padding: '12px 10px', fontSize: 13, cursor: 'pointer', color: T.textMuted, letterSpacing: '0.01em', textDecoration: 'underline', textUnderlineOffset: 3 }}>
+            style={{ background: 'transparent', border: 'none', padding: '12px 10px', fontSize: 13, cursor: 'pointer', color: dark ? 'rgba(255,255,255,0.35)' : T.textMuted, letterSpacing: '0.01em', textDecoration: 'underline', textUnderlineOffset: 3 }}>
             {txt.myBookings}
           </button>
         </div>
