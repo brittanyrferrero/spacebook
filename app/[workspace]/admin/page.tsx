@@ -612,47 +612,51 @@ export default function AdminPage() {
       {/* Top bar */}
       <style dangerouslySetInnerHTML={{ __html: `@import url('https://fonts.googleapis.com/css2?family=Spectral:ital,wght@0,400;0,500;0,600;1,400&display=swap');` }} />
       <div style={{ background: '#fff', borderBottom: '1px solid #cccccc', padding: '11px 18px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12 }}>
-        <div style={{ fontSize: 15, fontWeight: 500, color: NAVY, fontFamily: "'Spectral', Georgia, serif", letterSpacing: '0.02em' }}>
-          space<span style={{ fontStyle: 'italic', fontWeight: 400 }}>book</span>{' '}
-          <span style={{ fontSize: 11, color: '#9CA3AF', fontWeight: 400, fontStyle: 'normal', fontFamily: 'inherit' }}>admin</span>
-        </div>
-        {showDateRange && (
-          <div style={{ display: 'flex', alignItems: 'center', gap: 6, position: 'relative' }}>
-            {PRESETS.map(p => (
-              <button key={p.key} onClick={() => { setPreset(p.key); setShowCustom(false); setCustomFrom(''); setCustomTo('') }}
-                style={{ fontSize: 12, padding: '5px 10px', borderRadius: 0, border: `1px solid ${preset === p.key && !customFrom ? NAVY : '#cccccc'}`, background: preset === p.key && !customFrom ? NAVY_LIGHT : '#fff', cursor: 'pointer', color: preset === p.key && !customFrom ? NAVY : '#6B7280' }}>
-                {p.label}
-              </button>
-            ))}
-            <button onClick={() => setShowCustom(c => !c)}
-              style={{ fontSize: 12, padding: '5px 10px', borderRadius: 0, border: `1px solid ${customFrom ? NAVY : '#cccccc'}`, background: customFrom ? NAVY : showCustom ? NAVY_LIGHT : '#fff', cursor: 'pointer', color: customFrom ? '#fff' : NAVY }}>
-              Custom range
-            </button>
-            {showCustom && (
-              <div style={{ position: 'absolute', top: 36, right: 0, background: '#fff', border: '1px solid #cccccc', borderRadius: 0, padding: 14, width: 280, zIndex: 10 }}>
-                <div style={{ fontSize: 13, fontWeight: 500, color: NAVY, marginBottom: 10 }}>Custom date range</div>
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8, marginBottom: 10 }}>
-                  <div><label style={lbl}>From</label><input type="date" style={inp} value={customFrom} onChange={e => setCustomFrom(e.target.value)} /></div>
-                  <div><label style={lbl}>To</label><input type="date" style={inp} value={customTo} onChange={e => setCustomTo(e.target.value)} /></div>
-                </div>
-                <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 6 }}>
-                  <button onClick={() => { setShowCustom(false); setCustomFrom(''); setCustomTo('') }} style={{ background: 'none', border: '1px solid #cccccc', borderRadius: 0, padding: '6px 12px', fontSize: 12, cursor: 'pointer', color: '#6B7280' }}>Cancel</button>
-                  <button onClick={() => setShowCustom(false)} style={{ background: NAVY, color: '#fff', border: 'none', borderRadius: 0, padding: '6px 14px', fontSize: 12, cursor: 'pointer' }}>Apply</button>
-                </div>
-              </div>
-            )}
+        {/* Left: logo + view app */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+          <div style={{ fontSize: 15, fontWeight: 500, color: NAVY, fontFamily: "'Spectral', Georgia, serif", letterSpacing: '0.02em' }}>
+            space<span style={{ fontStyle: 'italic', fontWeight: 400 }}>book</span>{' '}
+            <span style={{ fontSize: 11, color: '#9CA3AF', fontWeight: 400, fontStyle: 'normal', fontFamily: 'inherit' }}>admin</span>
           </div>
-        )}
-        <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginLeft: 'auto' }}>
+          <a href={`/${workspace}`} style={{ fontSize: 12, color: '#fff', textDecoration: 'none', padding: '6px 14px', background: NAVY, whiteSpace: 'nowrap', fontWeight: 500 }}
+            onMouseEnter={e => (e.currentTarget.style.opacity = '0.85')} onMouseLeave={e => (e.currentTarget.style.opacity = '1')}>
+            View app →
+          </a>
+        </div>
+        {/* Right: date range + export */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+          {showDateRange && (
+            <div style={{ display: 'flex', alignItems: 'center', gap: 6, position: 'relative' }}>
+              {PRESETS.map(p => (
+                <button key={p.key} onClick={() => { setPreset(p.key); setShowCustom(false); setCustomFrom(''); setCustomTo('') }}
+                  style={{ fontSize: 12, padding: '5px 10px', borderRadius: 0, border: `1px solid ${preset === p.key && !customFrom ? NAVY : '#cccccc'}`, background: preset === p.key && !customFrom ? NAVY_LIGHT : '#fff', cursor: 'pointer', color: preset === p.key && !customFrom ? NAVY : '#6B7280' }}>
+                  {p.label}
+                </button>
+              ))}
+              <button onClick={() => setShowCustom(c => !c)}
+                style={{ fontSize: 12, padding: '5px 10px', borderRadius: 0, border: `1px solid ${customFrom ? NAVY : '#cccccc'}`, background: customFrom ? NAVY : showCustom ? NAVY_LIGHT : '#fff', cursor: 'pointer', color: customFrom ? '#fff' : NAVY }}>
+                Custom range
+              </button>
+              {showCustom && (
+                <div style={{ position: 'absolute', top: 36, right: 0, background: '#fff', border: '1px solid #cccccc', borderRadius: 0, padding: 14, width: 280, zIndex: 10 }}>
+                  <div style={{ fontSize: 13, fontWeight: 500, color: NAVY, marginBottom: 10 }}>Custom date range</div>
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8, marginBottom: 10 }}>
+                    <div><label style={lbl}>From</label><input type="date" style={inp} value={customFrom} onChange={e => setCustomFrom(e.target.value)} /></div>
+                    <div><label style={lbl}>To</label><input type="date" style={inp} value={customTo} onChange={e => setCustomTo(e.target.value)} /></div>
+                  </div>
+                  <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 6 }}>
+                    <button onClick={() => { setShowCustom(false); setCustomFrom(''); setCustomTo('') }} style={{ background: 'none', border: '1px solid #cccccc', borderRadius: 0, padding: '6px 12px', fontSize: 12, cursor: 'pointer', color: '#6B7280' }}>Cancel</button>
+                    <button onClick={() => setShowCustom(false)} style={{ background: NAVY, color: '#fff', border: 'none', borderRadius: 0, padding: '6px 14px', fontSize: 12, cursor: 'pointer' }}>Apply</button>
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
           {nav === 'Bookings' && (
             <button onClick={exportCSV} style={{ fontSize: 12, padding: '6px 12px', borderRadius: 0, border: 'none', background: SAGE, color: '#fff', cursor: 'pointer' }}>
               Export CSV
             </button>
           )}
-          <a href={`/${workspace}`} style={{ fontSize: 12, color: '#fff', textDecoration: 'none', padding: '6px 14px', background: NAVY, whiteSpace: 'nowrap', fontWeight: 500 }}
-            onMouseEnter={e => (e.currentTarget.style.opacity = '0.85')} onMouseLeave={e => (e.currentTarget.style.opacity = '1')}>
-            View app →
-          </a>
         </div>
       </div>
 
