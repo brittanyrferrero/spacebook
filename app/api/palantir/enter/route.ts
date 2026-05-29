@@ -10,6 +10,7 @@ export async function POST(req: NextRequest) {
   if (!email) return Response.json({ error: 'Email required.' }, { status: 400 })
 
   const allowed = (process.env.PALANTIR_ADMINS ?? '').split(',').map(e => e.trim().toLowerCase()).filter(Boolean)
+  console.log('[palantir] allowed list length:', allowed.length, '| submitted:', email.trim().toLowerCase())
   if (!allowed.includes(email.trim().toLowerCase())) {
     // Don't reveal whether the email is registered
     return Response.json({ ok: true })
