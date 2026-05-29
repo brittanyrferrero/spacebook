@@ -15,15 +15,21 @@ export async function POST(req: NextRequest) {
     return Response.json({ ok: true })
   }
 
-  const token = crypto.randomUUID()
-  const r = await kv()
-  await r.set(`palantir:token:${token}`, email.trim().toLowerCase(), { ex: 60 * 15 })
+  try {
+    const token = crypto.randomUUID()
+    const r = await kv()
+    await r.set(`palantir:token:${token}`, email.trim().toLowerCase(), { ex: 60 * 15 })
 
-  const base = process.env.NEXT_PUBLIC_BASE_URL ?? 'http://localhost:3000'
-  const url = `${base}/api/palantir/verify/${token}`
+    const base = process.env.NEXT_PUBLIC_BASE_URL ?? 'http://localhost:3000'
+    const url = `${base}/api/palantir/verify/${token}`
 
-  const { sendPalantirMagicLink } = await import('@/lib/email')
-  await sendPalantirMagicLink({ to: email.trim(), url })
+    const { sendPalantirMagicLink } = await import('@/lib/email')
+    await sendPalantirMagicLink({ to: email.trim(), url })
+
+    console.log('[palantir] magic link sent to', email.trim())
+  } catch (err) {
+    console.error('[palantir] enter error:', err)
+  }
 
   return Response.json({ ok: true })
 }
