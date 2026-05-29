@@ -847,7 +847,7 @@ function RoomDisplayPageInner() {
 
   return (
     <div style={{ height: '100dvh', display: 'flex', flexDirection: 'column', overflow: 'hidden', background: '#fff', fontFamily: "'Nunito', system-ui, sans-serif" }}>
-      <style dangerouslySetInnerHTML={{ __html: `@import url('https://fonts.googleapis.com/css2?family=Spectral:ital,wght@0,400;0,500;0,600;1,400&family=Nunito:wght@400;500;600;700;800&display=swap');@keyframes shimmer{0%,60%{transform:translateX(-120%)}85%,100%{transform:translateX(120%)}}@keyframes chronoFlash{0%{opacity:0;transform:translateY(3px)}12%{opacity:1;transform:translateY(0)}70%{opacity:1}100%{opacity:0}}@keyframes checkDraw{from{stroke-dashoffset:50}to{stroke-dashoffset:0}}@keyframes celebIn{from{opacity:0;transform:scale(0.97)}to{opacity:1;transform:scale(1)}}button:not(:disabled):active{transform:scale(0.95)}` }} />
+      <style dangerouslySetInnerHTML={{ __html: `@import url('https://fonts.googleapis.com/css2?family=Spectral:ital,wght@0,400;0,500;0,600;1,400&family=Nunito:wght@400;500;600;700;800&display=swap');@keyframes shimmer{0%,100%{opacity:0}50%{opacity:1}}@keyframes chronoFlash{0%{opacity:0;transform:translateY(3px)}12%{opacity:1;transform:translateY(0)}70%{opacity:1}100%{opacity:0}}@keyframes checkDraw{from{stroke-dashoffset:50}to{stroke-dashoffset:0}}@keyframes celebIn{from{opacity:0;transform:scale(0.97)}to{opacity:1;transform:scale(1)}}button:not(:disabled):active{transform:scale(0.95)}` }} />
 
       {/* Clock bar */}
       <div style={{ background: '#111111', padding: '10px 24px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexShrink: 0 }}>
@@ -894,7 +894,7 @@ function RoomDisplayPageInner() {
                   <button
                     onClick={() => { setShowModal('now'); setMDone(false) }}
                     style={{ width: '100%', position: 'relative', overflow: 'hidden', backgroundColor: ROSE, color: '#fff', border: 'none', borderRadius: 0, padding: '10px 0', fontSize: 18, fontWeight: 800, cursor: 'pointer', fontFamily: 'inherit', letterSpacing: '0.04em' }}>
-                    <span style={{ position: 'absolute', inset: 0, background: 'linear-gradient(90deg,transparent 0%,rgba(255,255,255,0.12) 50%,transparent 100%)', animation: 'shimmer 4.5s ease-in-out infinite' }} />
+                    <span style={{ position: 'absolute', inset: 0, background: 'rgba(255,255,255,0.15)', animation: 'shimmer 3s ease-in-out infinite' }} />
                     BOOK NOW
                   </button>
                   <div style={{ display: 'flex', gap: 6 }}>
@@ -991,7 +991,7 @@ function RoomDisplayPageInner() {
                   const t = toHHMMExact(new Date()); const [h,m] = t.split(':').map(Number); const et = Math.min(h*60+m+60,23*60); setMDate(todayStr); setMTime(t); setMEndTime(`${String(Math.floor(et/60)).padStart(2,'0')}:${String(et%60).padStart(2,'0')}`); setShowModal('now'); setMDone(false)
                 }}
                 style={{ position: 'relative', overflow: 'hidden', backgroundColor: isFree ? ROSE : 'transparent', color: isFree ? '#fff' : '#9CA3AF', border: isFree ? 'none' : '1px solid #e5e7eb', borderRadius: 0, padding: '15px', fontSize: 15, fontWeight: 800, cursor: 'pointer', width: '100%', textDecoration: isFree ? 'none' : 'line-through', letterSpacing: '0.04em' }}>
-                {isFree && <span style={{ position: 'absolute', inset: 0, background: 'linear-gradient(90deg,transparent 0%,rgba(255,255,255,0.12) 50%,transparent 100%)', animation: 'shimmer 4.5s ease-in-out infinite' }} />}
+                {isFree && <span style={{ position: 'absolute', inset: 0, background: 'rgba(255,255,255,0.15)', animation: 'shimmer 3s ease-in-out infinite' }} />}
                 BOOK NOW
               </button>
               {busyFlash && (
