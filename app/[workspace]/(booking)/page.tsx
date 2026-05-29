@@ -599,7 +599,10 @@ export default function BookingPage() {
   const [editError,       setEditError]       = useState<string | null>(null)
   const [editScopeStep,    setEditScopeStep]    = useState(false)
   const [editConflicts,    setEditConflicts]    = useState<string[]>([])
-  const [bookingConflicts, setBookingConflicts] = useState<string[]>([])
+  const [bookingConflicts,      setBookingConflicts]      = useState<string[]>([])
+  const [lastCreatedBooking,    setLastCreatedBooking]    = useState<any>(null)
+  const [lastCreatedIsRecurring, setLastCreatedIsRecurring] = useState(false)
+  const [lastCreatedRecurFreq,  setLastCreatedRecurFreq]  = useState<string>('none')
   const [confirmCancel,   setConfirmCancel]   = useState<{ message?: string; onConfirm?: () => void; onConfirmScope?: (scope: 'this' | 'future') => void } | null>(null)
 
   const dark = theme === 'dark'
@@ -890,6 +893,13 @@ export default function BookingPage() {
     }
   }
 
+  function handleEditFromConfirm() {
+    if (!lastCreatedBooking) return
+    setShowModal(null)
+    setBookingConflicts([])
+    openEdit(lastCreatedBooking)
+  }
+
   function handleStartTime(time: string) {
     setMTime(time)
     if (time && !mEndTime) {
@@ -930,6 +940,9 @@ export default function BookingPage() {
       try { localStorage.setItem('spacebook_user', JSON.stringify({ name: mName, email: mEmail })) } catch {}
       const result = await res.json().catch(() => ({}))
       setBookingConflicts(result.conflictDates ?? [])
+      setLastCreatedBooking(result.booking ?? null)
+      setLastCreatedIsRecurring(!!recurrence)
+      setLastCreatedRecurFreq(recurrence?.frequency ?? 'none')
       setMTitle('Occupied'); setRecurFreq('none'); setMError(''); setMDone(true); fetchSidebar(); fetchRange()
     } else {
       const body = await res.json().catch(() => ({}))
@@ -1127,20 +1140,37 @@ export default function BookingPage() {
                     </div>
                   </>
                 )}
-                <div style={{ fontSize: 16, fontWeight: 500, color: dark ? T.text : NAVY, marginBottom: 8 }}>{txt.confirmed}</div>
-                <div style={{ fontSize: 13, color: T.textMuted, marginBottom: bookingConflicts.length > 0 ? 16 : 16 }}>{txt.subtext}</div>
+                <div style={{ fontSize: 16, fontWeight: 500, color: dark ? T.text : NAVY, marginBottom: 8 }}>
+                  {lotr ? txt.confirmed : (lastCreatedIsRecurring ? 'Series created' : 'Reserved')}
+                </div>
+                <div style={{ fontSize: 13, color: T.textMuted, marginBottom: 16 }}>
+                  {lotr ? txt.subtext : lastCreatedIsRecurring
+                    ? `From ${new Date(mDate + 'T12:00:00').toLocaleDateString('en-AU', { weekday: 'short', day: 'numeric', month: 'short' })} · ${fmtTime(mTime)}–${fmtTime(mEndTime)}, repeating ${lastCreatedRecurFreq}`
+                    : `${new Date(mDate + 'T12:00:00').toLocaleDateString('en-AU', { weekday: 'short', day: 'numeric', month: 'short' })} · ${fmtTime(mTime)}–${fmtTime(mEndTime)}`
+                  }
+                </div>
                 {bookingConflicts.length > 0 && (
                   <div style={{ background: dark ? 'rgba(251,191,36,0.1)' : '#FFFBEB', border: '1px solid #FDE68A', borderRadius: 4, padding: '10px 14px', marginBottom: 16, textAlign: 'left' }}>
                     <div style={{ fontSize: 12, fontWeight: 600, color: '#92400E', marginBottom: 6 }}>
-                      {bookingConflicts.length === 1 ? '1 meeting was skipped' : `${bookingConflicts.length} meetings were skipped`} — room already booked
+                      {bookingConflicts.length === 1 ? '1 date was skipped' : `${bookingConflicts.length} dates were skipped`} — room already booked
                     </div>
                     <div style={{ fontSize: 12, color: '#78350F', lineHeight: 1.7 }}>
-                      {bookingConflicts.map(d => new Date(d + 'T12:00:00').toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })).join(' · ')}
+                      {bookingConflicts.map(d => new Date(d + 'T12:00:00').toLocaleDateString('en-AU', { weekday: 'short', day: 'numeric', month: 'short' })).join(' · ')}
                     </div>
                   </div>
                 )}
-                <button onClick={() => { setShowModal(null); setBookingConflicts([]) }}
-                  style={{ background: ROSE, color: '#fff', border: 'none', borderRadius: 0, padding: '10px 24px', fontSize: 14, fontWeight: 500, cursor: 'pointer' }}>{txt.done}</button>
+                <div style={{ display: 'flex', gap: 8, justifyContent: 'center' }}>
+                  {lastCreatedBooking && (
+                    <button onClick={handleEditFromConfirm}
+                      style={{ background: 'none', border: `1px solid ${T.border}`, color: T.text, borderRadius: 0, padding: '10px 20px', fontSize: 14, cursor: 'pointer', fontFamily: 'inherit' }}>
+                      {lastCreatedIsRecurring ? 'Edit series' : 'Edit'}
+                    </button>
+                  )}
+                  <button onClick={() => { setShowModal(null); setBookingConflicts([]); setLastCreatedBooking(null) }}
+                    style={{ background: ROSE, color: '#fff', border: 'none', borderRadius: 0, padding: '10px 24px', fontSize: 14, fontWeight: 500, cursor: 'pointer', fontFamily: 'inherit' }}>
+                    {lotr ? txt.done : 'OK'}
+                  </button>
+                </div>
               </div>
             ) : (
               <>
