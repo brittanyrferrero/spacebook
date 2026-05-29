@@ -3,6 +3,10 @@
 import { useState, useEffect, useCallback, useRef } from 'react'
 import { useParams } from 'next/navigation'
 import { format, subDays, addDays } from 'date-fns'
+import { DndContext, closestCenter, PointerSensor, useSensor, useSensors } from '@dnd-kit/core'
+import type { DragEndEvent } from '@dnd-kit/core'
+import { SortableContext, verticalListSortingStrategy, useSortable, arrayMove } from '@dnd-kit/sortable'
+import { CSS } from '@dnd-kit/utilities'
 
 const SAGE = '#5C7A6B'; const SAGE_LIGHT = '#eef7f1'
 const NAVY = '#111111'; const NAVY_LIGHT = '#f0f0f0'
@@ -43,6 +47,15 @@ function fmtActivity(iso: string | null): { label: string; color: string } {
 }
 function fmtTime(iso: string) {
   return new Date(iso).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+}
+
+function SortableRoomItem({ id, children }: { id: string; children: (dragHandleProps: React.HTMLAttributes<HTMLDivElement>) => React.ReactNode }) {
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id })
+  return (
+    <div ref={setNodeRef} style={{ transform: CSS.Transform.toString(transform), transition, opacity: isDragging ? 0.45 : 1 }}>
+      {children({ ...attributes, ...listeners })}
+    </div>
+  )
 }
 
 export default function AdminPage() {
@@ -210,8 +223,23 @@ export default function AdminPage() {
 
   const fetchAllRooms = useCallback(async () => {
     const res = await fetch(`${api}/rooms?all=1`)
-    setAllRooms(await res.json())
+    const data = await res.json()
+    setAllRooms([...data].sort((a: any, b: any) => (a.display_order ?? 0) - (b.display_order ?? 0)))
   }, [])
+
+  const dndSensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 8 } }))
+
+  async function handleRoomDragEnd(event: DragEndEvent) {
+    const { active, over } = event
+    if (!over || active.id === over.id) return
+    const oldIndex = allRooms.findIndex((r: any) => r.id === active.id)
+    const newIndex = allRooms.findIndex((r: any) => r.id === over.id)
+    const reordered = arrayMove(allRooms, oldIndex, newIndex)
+    setAllRooms(reordered)
+    await Promise.all(reordered.map((r: any, i: number) =>
+      fetch(`${api}/rooms/${r.id}`, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ display_order: i }) })
+    ))
+  }
 
   const fetchMembers = useCallback(async () => {
     setMembersLoading(true)
@@ -1068,9 +1096,15 @@ export default function AdminPage() {
                   + Add room
                 </button>
               </div>
+              <DndContext sensors={dndSensors} collisionDetection={closestCenter} onDragEnd={handleRoomDragEnd}>
+                <SortableContext items={allRooms.map((r: any) => r.id)} strategy={verticalListSortingStrategy}>
               <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
                 {allRooms.map((r: any) => (
-                  <div key={r.id} style={{ background: '#fff', border: '1px solid #dddddd', borderRadius: 0, padding: '12px 14px', display: 'flex', alignItems: 'center', gap: 12 }}>
+                  <SortableRoomItem key={r.id} id={r.id}>{(dragHandleProps) => (
+                  <div style={{ background: '#fff', border: '1px solid #dddddd', borderRadius: 0, padding: '12px 14px', display: 'flex', alignItems: 'center', gap: 12 }}>
+                    <div {...dragHandleProps} style={{ cursor: 'grab', color: '#D1D5DB', flexShrink: 0, display: 'flex', alignItems: 'center', touchAction: 'none' }}>
+                      <svg width="12" height="16" viewBox="0 0 12 16" fill="currentColor"><circle cx="3" cy="3" r="1.5"/><circle cx="9" cy="3" r="1.5"/><circle cx="3" cy="8" r="1.5"/><circle cx="9" cy="8" r="1.5"/><circle cx="3" cy="13" r="1.5"/><circle cx="9" cy="13" r="1.5"/></svg>
+                    </div>
                     <div style={{ flex: 1 }}>
                       <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                         <span style={{ fontSize: 13, fontWeight: 500, color: r.is_active ? '#374151' : '#9CA3AF' }}>{r.name}</span>
@@ -1135,8 +1169,11 @@ export default function AdminPage() {
                       </button>
                     </div>
                   </div>
+                  )}</SortableRoomItem>
                 ))}
               </div>
+                </SortableContext>
+              </DndContext>
 
               {/* Edit modal */}
               {editingRoom && editDraft && (
