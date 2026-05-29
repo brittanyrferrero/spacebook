@@ -643,12 +643,17 @@ export default function AdminPage() {
             )}
           </div>
         )}
-        {nav === 'Bookings' && (
-          <button onClick={exportCSV} style={{ fontSize: 12, padding: '6px 12px', borderRadius: 0, border: 'none', background: SAGE, color: '#fff', cursor: 'pointer' }}>
-            Export CSV
-          </button>
-        )}
-        {(nav === 'Rooms' || nav === 'Members' || nav === 'Settings') && <div />}
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginLeft: 'auto' }}>
+          {nav === 'Bookings' && (
+            <button onClick={exportCSV} style={{ fontSize: 12, padding: '6px 12px', borderRadius: 0, border: 'none', background: SAGE, color: '#fff', cursor: 'pointer' }}>
+              Export CSV
+            </button>
+          )}
+          <a href={`/${workspace}`} style={{ fontSize: 12, color: '#9CA3AF', textDecoration: 'none', padding: '5px 10px', border: '1px solid #e5e7eb', whiteSpace: 'nowrap' }}
+            onMouseEnter={e => (e.currentTarget.style.color = NAVY)} onMouseLeave={e => (e.currentTarget.style.color = '#9CA3AF')}>
+            View app →
+          </a>
+        </div>
       </div>
 
       <div style={{ display: 'grid', gridTemplateColumns: '150px 1fr', minHeight: 'calc(100vh - 46px)' }}>
