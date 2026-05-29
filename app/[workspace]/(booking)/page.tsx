@@ -1514,7 +1514,7 @@ export default function BookingPage() {
 
       {/* Feedback button */}
       <button onClick={() => { setShowFeedback(true); setFbDone(false) }}
-        style={{ position: 'fixed', bottom: 16, right: 16, fontSize: 11, color: 'rgba(0,0,0,0.3)', background: 'none', border: '1px solid rgba(0,0,0,0.12)', padding: '5px 10px', cursor: 'pointer', zIndex: 50, fontFamily: 'inherit' }}>
+        style={{ position: 'fixed', bottom: 16, right: 16, fontSize: 12, color: 'rgba(0,0,0,0.5)', background: '#fff', border: '1px solid rgba(0,0,0,0.2)', padding: '6px 12px', cursor: 'pointer', zIndex: 50, fontFamily: 'inherit', boxShadow: '0 1px 4px rgba(0,0,0,0.08)' }}>
         feedback
       </button>
 
@@ -1523,7 +1523,7 @@ export default function BookingPage() {
         <div onClick={() => setShowFeedback(false)} style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.45)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 200 }}>
           <div onClick={e => e.stopPropagation()} style={{ background: T.cardBg, border: `1px solid ${T.border}`, padding: '24px', width: 360 }}>
             <div style={{ fontSize: 15, fontWeight: 600, color: T.text, marginBottom: 6 }}>Send feedback</div>
-            <div style={{ fontSize: 13, color: T.textMuted, marginBottom: 16, lineHeight: 1.5 }}>Bug, request, or anything else — we'll read it.</div>
+            <div style={{ fontSize: 13, color: T.textMuted, marginBottom: 16, lineHeight: 1.5 }}>Bug, request, or anything else — thanks for sharing!</div>
             {fbDone ? (
               <div style={{ fontSize: 14, color: SAGE, fontWeight: 500, padding: '12px 0' }}>Thanks! ✓</div>
             ) : (
