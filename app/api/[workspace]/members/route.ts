@@ -11,8 +11,28 @@ export async function GET(_req: NextRequest, { params }: { params: { workspace: 
   if (!workspaceId) return NextResponse.json({ error: 'Workspace not found' }, { status: 404 })
   const { createClient } = await import('@/lib/supabase/server')
   const supabase = await createClient()
-  const { data } = await supabase.from('members').select('*').eq('workspace_id', workspaceId).order('name')
-  return NextResponse.json(data ?? [])
+
+  const [{ data: members }, { data: lastBookings }] = await Promise.all([
+    supabase.from('members').select('*').eq('workspace_id', workspaceId).order('name'),
+    supabase.from('bookings')
+      .select('booker_email, created_at')
+      .eq('workspace_id', workspaceId)
+      .order('created_at', { ascending: false }),
+  ])
+
+  // Most recent booking created_at per email
+  const lastUsedMap: Record<string, string> = {}
+  for (const b of lastBookings ?? []) {
+    const email = b.booker_email.toLowerCase()
+    if (!lastUsedMap[email]) lastUsedMap[email] = b.created_at
+  }
+
+  const result = (members ?? []).map(m => ({
+    ...m,
+    last_used: lastUsedMap[m.email.toLowerCase()] ?? null,
+  }))
+
+  return NextResponse.json(result)
 }
 
 export async function POST(req: NextRequest, { params }: { params: { workspace: string } }) {

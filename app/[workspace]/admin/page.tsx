@@ -31,6 +31,16 @@ function getRange(preset: Preset): { from: string; to: string } {
 function fmtDate(iso: string) {
   return new Date(iso).toLocaleDateString('en-AU', { day: 'numeric', month: 'short', year: 'numeric' })
 }
+
+function fmtActivity(iso: string | null): { label: string; color: string } {
+  if (!iso) return { label: '—', color: '#D1D5DB' }
+  const days = (Date.now() - new Date(iso).getTime()) / 86_400_000
+  if (days <= 7)  return { label: 'Past week',    color: '#2d7044' }
+  if (days <= 30) return { label: 'Past 30 days', color: '#5C7A6B' }
+  if (days <= 90) return { label: 'Past 90 days', color: '#9CA3AF' }
+  if (days <= 365) return { label: 'Past year',   color: '#9CA3AF' }
+  return { label: 'Dormant', color: '#D1D5DB' }
+}
 function fmtTime(iso: string) {
   return new Date(iso).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
 }
@@ -1382,7 +1392,7 @@ export default function AdminPage() {
                               })()}
                             </td>
                             <td style={{ padding: '8px 12px', borderBottom: '1px solid #eeeeee', color: '#9CA3AF', whiteSpace: 'nowrap' }}>{fmtJoined(m.added_at)}</td>
-                            <td style={{ padding: '8px 12px', borderBottom: '1px solid #eeeeee', color: '#9CA3AF', whiteSpace: 'nowrap' }}>{m.last_used ? fmtDate(m.last_used) : '—'}</td>
+                            <td style={{ padding: '8px 12px', borderBottom: '1px solid #eeeeee', whiteSpace: 'nowrap' }}>{(() => { const { label, color } = fmtActivity(m.last_used ?? null); return <span style={{ color, fontSize: 12, fontWeight: label === '—' ? 400 : 500 }}>{label}</span> })()}</td>
                             <td style={{ padding: '6px 12px', borderBottom: '1px solid #eeeeee', whiteSpace: 'nowrap' }}>
                               {isEditing ? (
                                 <div style={{ display: 'flex', gap: 4, alignItems: 'center' }}>

@@ -217,9 +217,9 @@ export function cancelBooking(store: MockStore, cancelToken: string, scope: Canc
 export function getMembers(store: MockStore): (Member & { last_used: string | null })[] {
   return [...store.members].map(m => {
     const latest = store.bookings
-      .filter(b => !b.cancelled_at && b.booker_email.toLowerCase() === m.email.toLowerCase())
-      .sort((a, b) => b.start_time.localeCompare(a.start_time))[0]
-    return { ...m, last_used: latest?.start_time ?? null }
+      .filter(b => b.booker_email.toLowerCase() === m.email.toLowerCase())
+      .sort((a, b) => b.created_at.localeCompare(a.created_at))[0]
+    return { ...m, last_used: latest?.created_at ?? null }
   }).sort((a, b) => a.name.localeCompare(b.name))
 }
 
