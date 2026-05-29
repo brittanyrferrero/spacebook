@@ -163,6 +163,7 @@ async function processWebhook(channelId: string) {
       start_time: startTime,
       end_time: endTime,
       google_event_id: googleEventId,
+      origin: 'gcal',
     })
   }
 }

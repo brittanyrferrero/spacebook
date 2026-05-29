@@ -783,7 +783,7 @@ function RoomDisplayPageInner() {
     const res = await fetch(`${api}/bookings`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ room_id: room.id, booker_name: mName, booker_email: mEmail, start_time: startTime, end_time: endTime, title: mTitle || null, ...(recurrence ? { recurrence } : {}) }),
+      body: JSON.stringify({ room_id: room.id, booker_name: mName, booker_email: mEmail, start_time: startTime, end_time: endTime, title: mTitle || null, origin: 'tablet', ...(recurrence ? { recurrence } : {}) }),
     })
     if (res.ok) {
       try { localStorage.setItem('spacebook_user', JSON.stringify({ name: mName, email: mEmail, savedAt: Date.now() })) } catch {}
@@ -812,7 +812,7 @@ function RoomDisplayPageInner() {
     const res = await fetch(`${api}/bookings`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ room_id: room.id, booker_name: 'Walk-in', booker_email: 'walkin@local', start_time: start.toISOString(), end_time: end.toISOString(), title: 'Occupied' }),
+      body: JSON.stringify({ room_id: room.id, booker_name: 'Walk-in', booker_email: 'walkin@local', start_time: start.toISOString(), end_time: end.toISOString(), title: 'Occupied', origin: 'tablet' }),
     })
     if (res.ok) {
       setWalkInError(null)

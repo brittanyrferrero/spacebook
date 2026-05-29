@@ -49,6 +49,7 @@ export interface Booking {
   google_event_id: string | null
   cancelled_at: string | null
   created_at: string
+  origin?: 'desktop' | 'tablet' | 'gcal'
 }
 
 export interface BookingWithRoom extends Booking {
@@ -64,6 +65,7 @@ export interface CreateBookingPayload {
   title?: string
   start_time: string
   end_time: string
+  origin?: 'desktop' | 'tablet' | 'gcal'
   // If present, creates a recurring series and expands occurrences up to series_end
   recurrence?: {
     frequency: RecurringFrequency

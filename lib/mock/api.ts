@@ -135,6 +135,7 @@ export function createBooking(store: MockStore, payload: CreateBookingPayload): 
       booker_name: payload.booker_name, booker_email: payload.booker_email,
       title: payload.title ?? null, start_time: start.toISOString(), end_time: end.toISOString(),
       cancel_token: token(), google_event_id: null, cancelled_at: null, created_at: new Date().toISOString(),
+      origin: payload.origin ?? 'desktop',
     }
     store.bookings.push(b)
     return { booking: b }
@@ -172,6 +173,7 @@ export function createBooking(store: MockStore, payload: CreateBookingPayload): 
       booker_name: payload.booker_name, booker_email: payload.booker_email,
       title: payload.title ?? null, start_time: occStart.toISOString(), end_time: occEnd.toISOString(),
       cancel_token: token(), google_event_id: null, cancelled_at: null, created_at: new Date().toISOString(),
+      origin: payload.origin ?? 'desktop',
     }
     store.bookings.push(b)
     if (!firstBooking) firstBooking = b
@@ -414,6 +416,20 @@ export function getAdminStats(store: MockStore, from: string, to: string, roomId
     distribution: concurrentDist.map((slots, rooms_in_use) => ({ rooms_in_use, slots })),
   }
 
+  const originCounts = { desktop: 0, tablet: 0, gcal: 0 }
+  active.forEach(b => {
+    const o = (b as any).origin as 'desktop' | 'tablet' | 'gcal' | undefined
+    if (o === 'tablet') originCounts.tablet++
+    else if (o === 'gcal') originCounts.gcal++
+    else originCounts.desktop++
+  })
+  const total = active.length
+  const originStats = {
+    desktop: { count: originCounts.desktop, pct: total > 0 ? Math.round(originCounts.desktop / total * 100) : 0 },
+    tablet:  { count: originCounts.tablet,  pct: total > 0 ? Math.round(originCounts.tablet  / total * 100) : 0 },
+    gcal:    { count: originCounts.gcal,    pct: total > 0 ? Math.round(originCounts.gcal    / total * 100) : 0 },
+  }
+
   return {
     totals: {
       total_bookings: active.length,
@@ -429,5 +445,6 @@ export function getAdminStats(store: MockStore, from: string, to: string, roomId
     concurrentStats,
     dowHourStats,
     busiestDate,
+    originStats,
   }
 }

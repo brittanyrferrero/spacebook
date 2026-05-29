@@ -684,6 +684,33 @@ export default function AdminPage() {
                 </div>
               )}
 
+              {stats.originStats && totals.total_bookings > 0 && (() => {
+                const os = stats.originStats
+                const bars: { key: string; label: string; color: string; count: number; pct: number }[] = [
+                  { key: 'desktop', label: 'Desktop',        color: SAGE,      count: os.desktop.count, pct: os.desktop.pct },
+                  { key: 'tablet',  label: 'Tablet',         color: '#c45f80', count: os.tablet.count,  pct: os.tablet.pct  },
+                  { key: 'gcal',    label: 'Google Calendar', color: '#4285F4', count: os.gcal.count,    pct: os.gcal.pct    },
+                ].filter(b => b.count > 0)
+                return (
+                  <div style={{ background: '#fff', border: '1px solid #dddddd', padding: 13, marginBottom: 14 }}>
+                    <div style={{ fontSize: 12, fontWeight: 500, color: '#374151', marginBottom: 10 }}>Booking origin</div>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: 7 }}>
+                      {bars.map(b => (
+                        <div key={b.key}>
+                          <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 11, color: '#6B7280', marginBottom: 3 }}>
+                            <span>{b.label}</span>
+                            <span style={{ fontWeight: 500, color: '#374151' }}>{b.pct}% <span style={{ color: '#9CA3AF', fontWeight: 400 }}>({b.count})</span></span>
+                          </div>
+                          <div style={{ height: 6, background: '#f3f4f6', borderRadius: 3 }}>
+                            <div style={{ height: 6, borderRadius: 3, background: b.color, width: `${b.pct}%`, transition: 'width .4s ease' }} />
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )
+              })()}
+
               {!filterRoom && concurrentStats && concurrentStats.total_rooms >= 2 && (() => {
                 const cs = concurrentStats
                 const maxSlots = Math.max(...cs.distribution.map((d: any) => d.slots), 1)
