@@ -649,8 +649,8 @@ export default function AdminPage() {
               Export CSV
             </button>
           )}
-          <a href={`/${workspace}`} style={{ fontSize: 12, color: '#9CA3AF', textDecoration: 'none', padding: '5px 10px', border: '1px solid #e5e7eb', whiteSpace: 'nowrap' }}
-            onMouseEnter={e => (e.currentTarget.style.color = NAVY)} onMouseLeave={e => (e.currentTarget.style.color = '#9CA3AF')}>
+          <a href={`/${workspace}`} style={{ fontSize: 12, color: '#fff', textDecoration: 'none', padding: '6px 14px', background: NAVY, whiteSpace: 'nowrap', fontWeight: 500 }}
+            onMouseEnter={e => (e.currentTarget.style.opacity = '0.85')} onMouseLeave={e => (e.currentTarget.style.opacity = '1')}>
             View app →
           </a>
         </div>
