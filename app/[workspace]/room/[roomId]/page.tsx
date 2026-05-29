@@ -568,20 +568,22 @@ function RoomDisplayPageInner() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [mDate, showModal, calView])
 
-  // Pre-fill name/email from last booking — only within a 2-minute window
+  // When modal opens, pre-fill name/email only if within 2 minutes of last booking
   useEffect(() => {
+    if (!showModal) return
     try {
       const saved = localStorage.getItem('spacebook_user')
       if (saved) {
         const { name, email, savedAt } = JSON.parse(saved)
         if (savedAt && Date.now() - savedAt < 2 * 60 * 1000) {
-          setMName(name); setMEmail(email)
+          setMName(name); setMEmail(email); return
         } else {
           localStorage.removeItem('spacebook_user')
         }
       }
     } catch {}
-  }, [])
+    setMName(''); setMEmail('')
+  }, [showModal])
 
   // Clock
   useEffect(() => {
