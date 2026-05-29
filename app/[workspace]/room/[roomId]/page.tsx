@@ -847,7 +847,7 @@ function RoomDisplayPageInner() {
 
   return (
     <div style={{ height: '100dvh', display: 'flex', flexDirection: 'column', overflow: 'hidden', background: '#fff', fontFamily: "'Nunito', system-ui, sans-serif" }}>
-      <style dangerouslySetInnerHTML={{ __html: `@import url('https://fonts.googleapis.com/css2?family=Spectral:ital,wght@0,400;0,500;0,600;1,400&family=Nunito:wght@400;500;600;700;800&display=swap');@keyframes shimmer{0%,55%{background-position:-250% center}80%,100%{background-position:250% center}}@keyframes chronoFlash{0%{opacity:0;transform:translateY(3px)}12%{opacity:1;transform:translateY(0)}70%{opacity:1}100%{opacity:0}}@keyframes checkDraw{from{stroke-dashoffset:50}to{stroke-dashoffset:0}}@keyframes celebIn{from{opacity:0;transform:scale(0.97)}to{opacity:1;transform:scale(1)}}button:not(:disabled):active{transform:scale(0.95)}` }} />
+      <style dangerouslySetInnerHTML={{ __html: `@import url('https://fonts.googleapis.com/css2?family=Spectral:ital,wght@0,400;0,500;0,600;1,400&family=Nunito:wght@400;500;600;700;800&display=swap');@keyframes shimmer{0%,55%{transform:translateX(-100%)}80%,100%{transform:translateX(100%)}}@keyframes chronoFlash{0%{opacity:0;transform:translateY(3px)}12%{opacity:1;transform:translateY(0)}70%{opacity:1}100%{opacity:0}}@keyframes checkDraw{from{stroke-dashoffset:50}to{stroke-dashoffset:0}}@keyframes celebIn{from{opacity:0;transform:scale(0.97)}to{opacity:1;transform:scale(1)}}button:not(:disabled):active{transform:scale(0.95)}` }} />
 
       {/* Clock bar */}
       <div style={{ background: '#111111', padding: '10px 24px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexShrink: 0 }}>
@@ -893,7 +893,8 @@ function RoomDisplayPageInner() {
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
                   <button
                     onClick={() => { setShowModal('now'); setMDone(false) }}
-                    style={{ width: '100%', backgroundImage: `linear-gradient(90deg,${ROSE} 0%,${ROSE} 30%,#d9789c 45%,#f0c0d4 50%,#d9789c 55%,${ROSE} 70%,${ROSE} 100%)`, backgroundSize: '300% 100%', backgroundColor: ROSE, color: '#fff', border: 'none', borderRadius: 0, padding: '10px 0', fontSize: 18, fontWeight: 800, cursor: 'pointer', fontFamily: 'inherit', animation: 'shimmer 4.5s ease-in-out infinite', letterSpacing: '0.04em' }}>
+                    style={{ width: '100%', position: 'relative', overflow: 'hidden', backgroundColor: ROSE, color: '#fff', border: 'none', borderRadius: 0, padding: '10px 0', fontSize: 18, fontWeight: 800, cursor: 'pointer', fontFamily: 'inherit', letterSpacing: '0.04em' }}>
+                    <span style={{ position: 'absolute', inset: 0, background: 'linear-gradient(90deg,transparent 0%,rgba(255,255,255,0.25) 50%,transparent 100%)', animation: 'shimmer 4.5s ease-in-out infinite' }} />
                     BOOK NOW
                   </button>
                   <div style={{ display: 'flex', gap: 6 }}>
@@ -989,7 +990,8 @@ function RoomDisplayPageInner() {
                   if (!isFree) { setBusyFlash(true); setTimeout(() => setBusyFlash(false), 2200); return }
                   const t = toHHMMExact(new Date()); const [h,m] = t.split(':').map(Number); const et = Math.min(h*60+m+60,23*60); setMDate(todayStr); setMTime(t); setMEndTime(`${String(Math.floor(et/60)).padStart(2,'0')}:${String(et%60).padStart(2,'0')}`); setShowModal('now'); setMDone(false)
                 }}
-                style={{ backgroundImage: isFree ? `linear-gradient(90deg,${ROSE} 0%,${ROSE} 30%,#d9789c 45%,#f0c0d4 50%,#d9789c 55%,${ROSE} 70%,${ROSE} 100%)` : 'none', backgroundSize: isFree ? '300% 100%' : undefined, backgroundColor: isFree ? ROSE : 'transparent', color: isFree ? '#fff' : '#9CA3AF', border: isFree ? 'none' : '1px solid #e5e7eb', borderRadius: 0, padding: '15px', fontSize: 15, fontWeight: 800, cursor: 'pointer', width: '100%', textDecoration: isFree ? 'none' : 'line-through', animation: isFree ? 'shimmer 4.5s ease-in-out infinite' : 'none', letterSpacing: '0.04em' }}>
+                style={{ position: 'relative', overflow: 'hidden', backgroundColor: isFree ? ROSE : 'transparent', color: isFree ? '#fff' : '#9CA3AF', border: isFree ? 'none' : '1px solid #e5e7eb', borderRadius: 0, padding: '15px', fontSize: 15, fontWeight: 800, cursor: 'pointer', width: '100%', textDecoration: isFree ? 'none' : 'line-through', letterSpacing: '0.04em' }}>
+                {isFree && <span style={{ position: 'absolute', inset: 0, background: 'linear-gradient(90deg,transparent 0%,rgba(255,255,255,0.25) 50%,transparent 100%)', animation: 'shimmer 4.5s ease-in-out infinite' }} />}
                 BOOK NOW
               </button>
               {busyFlash && (
