@@ -76,8 +76,8 @@ function mkT(dark: boolean) {
     weekendBg:       dark ? 'rgba(0,0,0,0.09)'           : WEEKEND_BG,
     pastBg:          dark ? 'rgba(0,0,0,0.50)'          : PAST_BG,
     pastText:        dark ? '#424242'                   : PAST_TEXT,
-    blockBg:         dark ? '#1e2838'                   : '#dce0e6',
-    blockBorder:     dark ? '#3a4e68'                   : '#5a6e84',
+    blockBg:         dark ? '#303a4a'                   : '#dce0e6',
+    blockBorder:     dark ? '#4c607a'                   : '#5a6e84',
     pastBlockBg:     dark ? '#1e1e26'                   : '#e8e8e8',
     pastBlockBorder: dark ? '#2e2e3e'                   : '#cccccc',
     calDayBg:        dark ? '#161616'                   : '#ffffff',
@@ -310,7 +310,7 @@ function DayView({ bookings, viewDate, onSlotClick, onBookingClick, pendingSlot,
             const isMine = !!myEmail && b.booker_email === myEmail
             const othersClickable = !isMine && (visShowTitle || visShowOrganizer)
             const isBlockPast = !!now && new Date(b.end_time) < now
-            const bg     = isBlockPast ? (isMine ? (dark ? '#2e2030' : '#e0c8d0') : (dark ? '#1e222a' : '#c8cdd4')) : isMine ? (dark ? '#4a2535' : '#f5e0e7') : T.blockBg
+            const bg     = isBlockPast ? (isMine ? (dark ? '#2e2030' : '#e0c8d0') : (dark ? '#1e222a' : '#c8cdd4')) : isMine ? (dark ? '#5c3747' : '#f5e0e7') : T.blockBg
             const border = isBlockPast ? (isMine ? (dark ? '#3e3048' : '#c0a0b4') : (dark ? '#2a303a' : '#a8b0bc')) : isMine ? ROSE : T.blockBorder
             const label  = isMine ? (b.title || b.booker_name) : visShowTitle ? (b.title || 'Occupied') : visShowOrganizer ? b.booker_name : 'Occupied'
             const textColor = isBlockPast ? T.textFaint : isMine ? (dark ? '#e8b4c4' : '#8a3d58') : (dark ? '#a0b4c8' : '#3d5068')
@@ -437,7 +437,7 @@ function WeekView({ bookings, weekDays, onSlotClick, onBookingClick, pendingSlot
                     const isMine = !!myEmail && b.booker_email === myEmail
                     const othersClickable = !isMine && (visShowTitle || visShowOrganizer)
                     const isBlockPast = !!now && new Date(b.end_time) < now
-                    const bg     = isBlockPast ? (isMine ? (dark ? '#2e2030' : '#e0c8d0') : (dark ? '#1e222a' : '#c8cdd4')) : isMine ? (dark ? '#4a2535' : '#f5e0e7') : T.blockBg
+                    const bg     = isBlockPast ? (isMine ? (dark ? '#2e2030' : '#e0c8d0') : (dark ? '#1e222a' : '#c8cdd4')) : isMine ? (dark ? '#5c3747' : '#f5e0e7') : T.blockBg
                     const border = isBlockPast ? (isMine ? (dark ? '#3e3048' : '#c0a0b4') : (dark ? '#2a303a' : '#a8b0bc')) : isMine ? ROSE : T.blockBorder
                     const label  = isMine ? (b.title || b.booker_name) : visShowTitle ? (b.title || 'Occupied') : visShowOrganizer ? b.booker_name : 'Occupied'
                     const textColor = isBlockPast ? T.textFaint : isMine ? (dark ? '#e8b4c4' : '#8a3d58') : (dark ? '#a0b4c8' : '#3d5068')
