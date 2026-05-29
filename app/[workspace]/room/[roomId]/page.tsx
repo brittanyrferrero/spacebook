@@ -891,7 +891,7 @@ function RoomDisplayPageInner() {
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
                   <button
                     onClick={() => { setShowModal('now'); setMDone(false) }}
-                    style={{ width: '100%', background: `linear-gradient(90deg,${ROSE} 0%,${ROSE} 30%,#d9789c 45%,#f0c0d4 50%,#d9789c 55%,${ROSE} 70%,${ROSE} 100%)`, backgroundSize: '300% 100%', color: '#fff', border: 'none', borderRadius: 0, padding: '10px 0', fontSize: 18, fontWeight: 800, cursor: 'pointer', fontFamily: 'inherit', animation: 'shimmer 4.5s ease-in-out infinite', letterSpacing: '0.04em' }}>
+                    style={{ width: '100%', backgroundImage: `linear-gradient(90deg,${ROSE} 0%,${ROSE} 30%,#d9789c 45%,#f0c0d4 50%,#d9789c 55%,${ROSE} 70%,${ROSE} 100%)`, backgroundSize: '300% 100%', backgroundColor: ROSE, color: '#fff', border: 'none', borderRadius: 0, padding: '10px 0', fontSize: 18, fontWeight: 800, cursor: 'pointer', fontFamily: 'inherit', animation: 'shimmer 4.5s ease-in-out infinite', letterSpacing: '0.04em' }}>
                     BOOK NOW
                   </button>
                   <div style={{ display: 'flex', gap: 6 }}>
@@ -987,7 +987,7 @@ function RoomDisplayPageInner() {
                   if (!isFree) { setBusyFlash(true); setTimeout(() => setBusyFlash(false), 2200); return }
                   const t = toHHMMExact(new Date()); const [h,m] = t.split(':').map(Number); const et = Math.min(h*60+m+60,23*60); setMDate(todayStr); setMTime(t); setMEndTime(`${String(Math.floor(et/60)).padStart(2,'0')}:${String(et%60).padStart(2,'0')}`); setShowModal('now'); setMDone(false)
                 }}
-                style={{ background: isFree ? `linear-gradient(90deg,${ROSE} 0%,${ROSE} 30%,#d9789c 45%,#f0c0d4 50%,#d9789c 55%,${ROSE} 70%,${ROSE} 100%)` : 'transparent', backgroundSize: isFree ? '300% 100%' : undefined, color: isFree ? '#fff' : '#9CA3AF', border: isFree ? 'none' : '1px solid #e5e7eb', borderRadius: 0, padding: '15px', fontSize: 15, fontWeight: 800, cursor: 'pointer', width: '100%', textDecoration: isFree ? 'none' : 'line-through', animation: isFree ? 'shimmer 4.5s ease-in-out infinite' : 'none', letterSpacing: '0.04em' }}>
+                style={{ backgroundImage: isFree ? `linear-gradient(90deg,${ROSE} 0%,${ROSE} 30%,#d9789c 45%,#f0c0d4 50%,#d9789c 55%,${ROSE} 70%,${ROSE} 100%)` : 'none', backgroundSize: isFree ? '300% 100%' : undefined, backgroundColor: isFree ? ROSE : 'transparent', color: isFree ? '#fff' : '#9CA3AF', border: isFree ? 'none' : '1px solid #e5e7eb', borderRadius: 0, padding: '15px', fontSize: 15, fontWeight: 800, cursor: 'pointer', width: '100%', textDecoration: isFree ? 'none' : 'line-through', animation: isFree ? 'shimmer 4.5s ease-in-out infinite' : 'none', letterSpacing: '0.04em' }}>
                 BOOK NOW
               </button>
               {busyFlash && (
