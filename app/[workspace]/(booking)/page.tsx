@@ -553,6 +553,25 @@ export default function BookingPage() {
   const [mDone,       setMDone]       = useState(false)
   const [mError,      setMError]      = useState('')
   const [recurFreq,   setRecurFreq]   = useState<'none' | 'weekly' | 'monthly'>('none')
+
+  // Feedback
+  const [showFeedback,    setShowFeedback]    = useState(false)
+  const [fbMessage,       setFbMessage]       = useState('')
+  const [fbSubmitting,    setFbSubmitting]    = useState(false)
+  const [fbDone,          setFbDone]          = useState(false)
+
+  async function submitFeedback() {
+    if (!fbMessage.trim()) return
+    setFbSubmitting(true)
+    await fetch(`/api/${workspace}/feedback`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ name: mName, email: mEmail, message: fbMessage }),
+    })
+    setFbSubmitting(false)
+    setFbDone(true)
+    setTimeout(() => { setShowFeedback(false); setFbMessage(''); setFbDone(false) }, 2000)
+  }
   const [recurUntil,  setRecurUntil]  = useState(() => { const d = new Date(); d.setMonth(d.getMonth() + 3); return dateStr(d) })
 
   // Visibility settings
@@ -1489,6 +1508,46 @@ export default function BookingPage() {
                 </button>
               </div>
             </>}
+          </div>
+        </div>
+      )}
+
+      {/* Feedback button */}
+      <button onClick={() => { setShowFeedback(true); setFbDone(false) }}
+        style={{ position: 'fixed', bottom: 16, right: 16, fontSize: 11, color: 'rgba(0,0,0,0.3)', background: 'none', border: '1px solid rgba(0,0,0,0.12)', padding: '5px 10px', cursor: 'pointer', zIndex: 50, fontFamily: 'inherit' }}>
+        feedback
+      </button>
+
+      {/* Feedback modal */}
+      {showFeedback && (
+        <div onClick={() => setShowFeedback(false)} style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.45)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 200 }}>
+          <div onClick={e => e.stopPropagation()} style={{ background: T.cardBg, border: `1px solid ${T.border}`, padding: '24px', width: 360 }}>
+            <div style={{ fontSize: 15, fontWeight: 600, color: T.text, marginBottom: 6 }}>Send feedback</div>
+            <div style={{ fontSize: 13, color: T.textMuted, marginBottom: 16, lineHeight: 1.5 }}>Bug, request, or anything else — we'll read it.</div>
+            {fbDone ? (
+              <div style={{ fontSize: 14, color: SAGE, fontWeight: 500, padding: '12px 0' }}>Thanks! ✓</div>
+            ) : (
+              <>
+                <textarea
+                  autoFocus
+                  value={fbMessage}
+                  onChange={e => setFbMessage(e.target.value)}
+                  placeholder="What's on your mind?"
+                  rows={4}
+                  style={{ width: '100%', padding: '9px 10px', fontSize: 13, border: `1px solid ${T.border}`, background: T.cardBg, color: T.text, outline: 'none', resize: 'none', boxSizing: 'border-box', fontFamily: 'inherit', marginBottom: 12 }}
+                />
+                <div style={{ display: 'flex', gap: 8 }}>
+                  <button onClick={() => setShowFeedback(false)}
+                    style={{ flex: 1, padding: '9px 0', background: 'none', border: `1px solid ${T.border}`, color: T.textMuted, fontSize: 13, cursor: 'pointer', fontFamily: 'inherit' }}>
+                    Cancel
+                  </button>
+                  <button onClick={submitFeedback} disabled={fbSubmitting || !fbMessage.trim()}
+                    style={{ flex: 1, padding: '9px 0', background: fbMessage.trim() ? NAVY : T.border, border: 'none', color: fbMessage.trim() ? '#fff' : T.textMuted, fontSize: 13, fontWeight: 500, cursor: fbMessage.trim() ? 'pointer' : 'default', fontFamily: 'inherit' }}>
+                    {fbSubmitting ? 'Sending…' : 'Send'}
+                  </button>
+                </div>
+              </>
+            )}
           </div>
         </div>
       )}
