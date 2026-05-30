@@ -48,7 +48,7 @@ export async function GET(req: NextRequest, { params }: { params: { workspace: s
   const secure = process.env.NODE_ENV === 'production'
   cookieStore.set(`ws_${params.workspace}`, wsToken ?? token, {
     httpOnly: true, secure, sameSite: 'lax', path: '/',
-    // No maxAge → session cookie; clears when browser closes
+    maxAge: 60 * 60 * 24 * 365 * 10,
   })
 
   return NextResponse.redirect(new URL(`/${params.workspace}/room/${roomId}`, req.url))
