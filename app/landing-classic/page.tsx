@@ -71,7 +71,7 @@ const PLANS = [
     rooms: '6 – 12 rooms',
     price: { monthly: 120, annual: 100 },
     blurb: 'For larger shared spaces that want custom branding and hands-on support.',
-    features: ['Up to 12 rooms', 'Custom domain & branding', 'Google Calendar sync', 'Priority support'],
+    features: ['Up to 12 rooms', 'Custom branding', 'Google Calendar sync', 'Priority support'],
     cta: 'Get started',
     href: '#',
     highlight: false,
