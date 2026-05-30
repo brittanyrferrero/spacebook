@@ -603,6 +603,7 @@ export default function BookingPage() {
   const [lastCreatedBooking,    setLastCreatedBooking]    = useState<any>(null)
   const [lastCreatedIsRecurring, setLastCreatedIsRecurring] = useState(false)
   const [lastCreatedRecurFreq,  setLastCreatedRecurFreq]  = useState<string>('none')
+  const [pendingReschedules,    setPendingReschedules]    = useState<{ date: string; startHHMM: string; endHHMM: string; title: string }[]>([])
   const [confirmCancel,   setConfirmCancel]   = useState<{ message?: string; onConfirm?: () => void; onConfirmScope?: (scope: 'this' | 'future') => void } | null>(null)
 
   const dark = theme === 'dark'
@@ -943,6 +944,7 @@ export default function BookingPage() {
       setLastCreatedBooking(result.booking ?? null)
       setLastCreatedIsRecurring(!!recurrence)
       setLastCreatedRecurFreq(recurrence?.frequency ?? 'none')
+      setPendingReschedules(prev => prev.filter(r => r.date !== mDate))
       setMTitle('Occupied'); setRecurFreq('none'); setMError(''); setMDone(true); fetchSidebar(); fetchRange()
     } else {
       const body = await res.json().catch(() => ({}))
@@ -1038,6 +1040,29 @@ export default function BookingPage() {
 
         {/* [1,0] Sidebar rooms list */}
         <div style={{ background: T.cardBg, overflowY: 'auto', display: 'flex', flexDirection: 'column' }}>
+          {pendingReschedules.length > 0 && (
+            <div style={{ padding: '9px 12px', borderBottom: `1px solid ${dark ? 'rgba(253,211,77,0.25)' : '#FDE68A'}`, background: dark ? 'rgba(251,191,36,0.08)' : '#FFFBEB', flexShrink: 0 }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
+                <div style={{ fontSize: 10, fontWeight: 600, color: dark ? '#FCD34D' : '#92400E', textTransform: 'uppercase', letterSpacing: '0.06em' }}>
+                  {pendingReschedules.length} date{pendingReschedules.length !== 1 ? 's' : ''} to book
+                </div>
+                <button onClick={() => setPendingReschedules([])}
+                  style={{ background: 'none', border: 'none', fontSize: 14, color: dark ? '#FCD34D' : '#92400E', cursor: 'pointer', padding: '0 2px', lineHeight: 1, opacity: 0.5 }}>×</button>
+              </div>
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4 }}>
+                {pendingReschedules.map(slot => (
+                  <button key={slot.date} onClick={() => {
+                    setMDate(slot.date); setMTime(slot.startHHMM); setMEndTime(slot.endHHMM)
+                    setMTitle(slot.title || 'Occupied'); setRecurFreq('none'); setMError(''); setMDone(false)
+                    setShowModal('later')
+                  }}
+                    style={{ fontSize: 10, padding: '3px 8px', background: dark ? 'rgba(253,211,77,0.15)' : '#FEF3C7', border: `1px solid ${dark ? 'rgba(253,211,77,0.3)' : '#FCD34D'}`, color: dark ? '#FCD34D' : '#78350F', cursor: 'pointer', fontFamily: 'inherit', borderRadius: 0 }}>
+                    {new Date(slot.date + 'T12:00:00').toLocaleDateString('en-AU', { weekday: 'short', day: 'numeric', month: 'short' })}
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
           {roomTypes.length > 0 && (
             <div style={{ padding: '8px 14px 4px', display: 'flex', flexWrap: 'wrap', gap: 4, borderBottom: `1px solid ${T.borderFaint}` }}>
               <button onClick={() => setFilterRoomType('')}
@@ -1154,8 +1179,23 @@ export default function BookingPage() {
                     <div style={{ fontSize: 12, fontWeight: 600, color: '#92400E', marginBottom: 6 }}>
                       {bookingConflicts.length === 1 ? '1 date was skipped' : `${bookingConflicts.length} dates were skipped`} — room already booked
                     </div>
-                    <div style={{ fontSize: 12, color: '#78350F', lineHeight: 1.7 }}>
-                      {bookingConflicts.map(d => new Date(d + 'T12:00:00').toLocaleDateString('en-AU', { weekday: 'short', day: 'numeric', month: 'short' })).join(' · ')}
+                    <div style={{ fontSize: 11, color: '#78350F', marginBottom: 8, opacity: 0.7 }}>Tap a date to book it now</div>
+                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: 5 }}>
+                      {bookingConflicts.map(d => (
+                        <button key={d} onClick={() => {
+                          const others = bookingConflicts.filter(x => x !== d)
+                          if (others.length > 0) {
+                            setPendingReschedules(prev => {
+                              const existing = new Set(prev.map(r => r.date))
+                              return [...prev, ...others.filter(x => !existing.has(x)).map(x => ({ date: x, startHHMM: mTime, endHHMM: mEndTime, title: lastCreatedBooking?.title || '' }))]
+                            })
+                          }
+                          setMDate(d); setMDone(false)
+                        }}
+                          style={{ fontSize: 11, padding: '4px 9px', background: '#FEF3C7', border: '1px solid #FCD34D', color: '#78350F', cursor: 'pointer', fontFamily: 'inherit', borderRadius: 0 }}>
+                          {new Date(d + 'T12:00:00').toLocaleDateString('en-AU', { weekday: 'short', day: 'numeric', month: 'short' })} →
+                        </button>
+                      ))}
                     </div>
                   </div>
                 )}
@@ -1166,7 +1206,15 @@ export default function BookingPage() {
                       {lastCreatedIsRecurring ? 'Edit series' : 'Edit'}
                     </button>
                   )}
-                  <button onClick={() => { setShowModal(null); setBookingConflicts([]); setLastCreatedBooking(null) }}
+                  <button onClick={() => {
+                    if (bookingConflicts.length > 0) {
+                      setPendingReschedules(prev => {
+                        const existing = new Set(prev.map(r => r.date))
+                        return [...prev, ...bookingConflicts.filter(d => !existing.has(d)).map(d => ({ date: d, startHHMM: mTime, endHHMM: mEndTime, title: lastCreatedBooking?.title || '' }))]
+                      })
+                    }
+                    setShowModal(null); setBookingConflicts([]); setLastCreatedBooking(null)
+                  }}
                     style={{ background: ROSE, color: '#fff', border: 'none', borderRadius: 0, padding: '10px 24px', fontSize: 14, fontWeight: 500, cursor: 'pointer', fontFamily: 'inherit' }}>
                     {lotr ? txt.done : 'OK'}
                   </button>
