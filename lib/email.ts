@@ -158,6 +158,44 @@ export async function sendPalantirMagicLink({ to, url }: { to: string; url: stri
   })
 }
 
+export async function sendWorkspaceDeleteRequestEmail({
+  to,
+  workspaceName,
+  requesterEmail,
+  url,
+}: {
+  to: string
+  workspaceName: string
+  requesterEmail: string
+  url: string
+}) {
+  const key = process.env.RESEND_API_KEY
+  if (!key) return
+  const resend = new Resend(key)
+  await resend.emails.send({
+    from: FROM,
+    to,
+    subject: `Confirm deletion request for ${workspaceName}`,
+    html: `
+<div style="font-family:sans-serif;max-width:480px;margin:0 auto;padding:24px">
+  <div style="font-size:18px;font-weight:600;color:#2C3E6B;margin-bottom:4px">spacebook</div>
+  <div style="font-size:13px;color:#9CA3AF;margin-bottom:24px">Workspace deletion request</div>
+  <p style="font-size:14px;color:#374151">
+    A deletion request was submitted for <strong>${workspaceName}</strong> by <strong>${requesterEmail}</strong>.
+  </p>
+  <p style="font-size:14px;color:#374151">
+    Click below to confirm. Once confirmed, the request will appear in the spacebook admin queue for review — nothing is deleted automatically.
+  </p>
+  <div style="margin:24px 0">
+    <a href="${url}" style="display:inline-block;padding:10px 20px;background:#7f1d1d;color:#fca5a5;text-decoration:none;font-size:14px;font-weight:500">
+      Confirm deletion request
+    </a>
+  </div>
+  <p style="font-size:12px;color:#9CA3AF">This link expires in 24 hours. If you didn't request this, you can ignore it — nothing will happen unless this is confirmed.</p>
+</div>`,
+  })
+}
+
 export async function sendAdminRecoveryEmail({
   to,
   workspace,

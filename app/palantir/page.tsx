@@ -23,11 +23,16 @@ export default function PalantirPage() {
   const [deleteSlug, setDeleteSlug] = useState('')
   const [deleting, setDeleting] = useState(false)
   const [deleteError, setDeleteError] = useState('')
+  const [pendingDeletes, setPendingDeletes] = useState<any[]>([])
+  const [dismissingId, setDismissingId] = useState<string | null>(null)
 
   useEffect(() => {
     fetch('/api/palantir/workspaces')
       .then(r => r.json())
       .then(data => { setWorkspaces(data); setLoading(false) })
+    fetch('/api/palantir/delete-requests')
+      .then(r => r.json())
+      .then(data => { if (Array.isArray(data)) setPendingDeletes(data) })
   }, [])
 
   async function handleDelete() {
@@ -43,6 +48,12 @@ export default function PalantirPage() {
     })
     if (res.ok) {
       setWorkspaces(prev => prev.filter(w => w.id !== deleteTarget.id))
+      setPendingDeletes(prev => prev.filter(r => r.workspaceId !== deleteTarget.id))
+      await fetch('/api/palantir/delete-requests', {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ workspaceId: deleteTarget.id }),
+      }).catch(() => {})
       setDeleteTarget(null)
       setDeleteSlug('')
     } else {
@@ -50,6 +61,17 @@ export default function PalantirPage() {
       setDeleteError(err.error ?? 'Something went wrong.')
     }
     setDeleting(false)
+  }
+
+  async function handleDismissRequest(workspaceId: string) {
+    setDismissingId(workspaceId)
+    await fetch('/api/palantir/delete-requests', {
+      method: 'DELETE',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ workspaceId }),
+    })
+    setPendingDeletes(prev => prev.filter(r => r.workspaceId !== workspaceId))
+    setDismissingId(null)
   }
 
   const totalRooms    = workspaces.reduce((s, w) => s + w.room_count, 0)
@@ -135,6 +157,45 @@ export default function PalantirPage() {
           {workspaces.length === 0 && (
             <div style={{ padding: '24px 12px', color: 'rgba(255,255,255,0.25)', fontSize: 13 }}>No workspaces yet.</div>
           )}
+        </div>
+      )}
+
+      {/* Pending deletion requests */}
+      {pendingDeletes.length > 0 && (
+        <div style={{ marginTop: 48 }}>
+          <div style={{ fontSize: 11, color: 'rgba(255,100,100,0.7)', textTransform: 'uppercase', letterSpacing: '0.08em', fontWeight: 500, marginBottom: 12 }}>
+            Pending deletion requests
+          </div>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+            {pendingDeletes.map(req => {
+              const ws = workspaces.find(w => w.id === req.workspaceId)
+              return (
+                <div key={req.workspaceId} style={{ background: 'rgba(255,100,100,0.06)', border: '1px solid rgba(255,100,100,0.2)', padding: '14px 16px', display: 'flex', alignItems: 'center', gap: 16, flexWrap: 'wrap' }}>
+                  <div style={{ flex: 1, minWidth: 180 }}>
+                    <div style={{ fontSize: 14, fontWeight: 500, color: '#fff' }}>{req.workspaceName}</div>
+                    <div style={{ fontSize: 12, color: 'rgba(255,255,255,0.4)', fontFamily: 'monospace' }}>{req.workspaceSlug}</div>
+                  </div>
+                  <div style={{ fontSize: 12, color: 'rgba(255,255,255,0.5)' }}>
+                    <div>Requested by {req.requesterEmail}</div>
+                    <div>{new Date(req.confirmedAt).toLocaleString('en-AU', { day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' })}</div>
+                  </div>
+                  <div style={{ display: 'flex', gap: 8 }}>
+                    <button
+                      onClick={() => { setDeleteTarget(ws ?? { id: req.workspaceId, slug: req.workspaceSlug, name: req.workspaceName }); setDeleteSlug(''); setDeleteError('') }}
+                      style={{ fontSize: 11, padding: '5px 12px', background: 'rgba(127,29,29,0.4)', border: '1px solid rgba(255,100,100,0.4)', color: '#fca5a5', cursor: 'pointer', fontFamily: 'inherit' }}>
+                      Delete workspace
+                    </button>
+                    <button
+                      onClick={() => handleDismissRequest(req.workspaceId)}
+                      disabled={dismissingId === req.workspaceId}
+                      style={{ fontSize: 11, padding: '5px 12px', background: 'none', border: '1px solid rgba(255,255,255,0.15)', color: 'rgba(255,255,255,0.4)', cursor: 'pointer', fontFamily: 'inherit' }}>
+                      {dismissingId === req.workspaceId ? 'Dismissing…' : 'Dismiss'}
+                    </button>
+                  </div>
+                </div>
+              )
+            })}
+          </div>
         </div>
       )}
 

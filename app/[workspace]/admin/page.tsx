@@ -164,6 +164,12 @@ export default function AdminPage() {
   const [amenityError, setAmenityError] = useState('')
   const [deletingAmenity, setDeletingAmenity] = useState<string | null>(null)
 
+  // Workspace deletion request
+  const [deleteReqEmail, setDeleteReqEmail] = useState('')
+  const [deleteReqSending, setDeleteReqSending] = useState(false)
+  const [deleteReqSent, setDeleteReqSent] = useState(false)
+  const [deleteReqError, setDeleteReqError] = useState('')
+
   const { from, to } = (customFrom && customTo) ? { from: customFrom, to: customTo } : getRange(preset)
 
   useEffect(() => {
@@ -1634,7 +1640,7 @@ export default function AdminPage() {
                 </>)
               })()}
 
-              <div style={{ background: '#fff', border: '1px solid #dddddd', borderRadius: 0, padding: 16 }}>
+              <div style={{ background: '#fff', border: '1px solid #dddddd', borderRadius: 0, padding: 16, marginBottom: 10 }}>
                 <div style={{ fontSize: 12, fontWeight: 500, color: '#374151', marginBottom: 4 }}>Booking visibility</div>
                 <div style={{ fontSize: 12, color: '#9CA3AF', marginBottom: 14 }}>
                   What other users can see on bookings that aren't theirs. Your own bookings always show full detail.
@@ -1670,6 +1676,51 @@ export default function AdminPage() {
                   {visSaved ? 'Saved' : visSaving ? 'Saving…' : 'Save'}
                 </button>
               </div>
+              {myRole === 'super_admin' && (
+                <div style={{ marginTop: 24, paddingTop: 20, borderTop: '1px solid #dddddd' }}>
+                  <div style={{ fontSize: 12, fontWeight: 500, color: BUSY, marginBottom: 4 }}>Danger zone</div>
+                  <div style={{ fontSize: 12, color: '#9CA3AF', marginBottom: 12 }}>
+                    Request deletion of this workspace. You'll receive a confirmation email — nothing is deleted until the spacebook team reviews and actions the request.
+                  </div>
+                  {deleteReqSent ? (
+                    <div style={{ fontSize: 12, color: FREE, padding: '8px 12px', background: '#f0fdf4', border: '1px solid #bbf7d0' }}>
+                      Check your email to confirm the deletion request.
+                    </div>
+                  ) : (
+                    <div style={{ display: 'flex', gap: 8, alignItems: 'flex-start', flexDirection: 'column' }}>
+                      <input
+                        type="email"
+                        value={deleteReqEmail}
+                        onChange={e => { setDeleteReqEmail(e.target.value); setDeleteReqError('') }}
+                        placeholder="Your super admin email"
+                        style={{ fontSize: 12, padding: '6px 8px', border: `1px solid ${deleteReqError ? BUSY : '#dddddd'}`, borderRadius: 0, outline: 'none', fontFamily: 'inherit', width: '100%', boxSizing: 'border-box' }}
+                      />
+                      {deleteReqError && <div style={{ fontSize: 11, color: BUSY }}>{deleteReqError}</div>}
+                      <button
+                        disabled={deleteReqSending || !deleteReqEmail.trim()}
+                        onClick={async () => {
+                          setDeleteReqSending(true)
+                          setDeleteReqError('')
+                          const res = await fetch(`${api}/delete-request`, {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ requesterEmail: deleteReqEmail.trim() }),
+                          })
+                          setDeleteReqSending(false)
+                          if (res.ok) {
+                            setDeleteReqSent(true)
+                          } else {
+                            const err = await res.json().catch(() => ({}))
+                            setDeleteReqError(err.error ?? 'Something went wrong.')
+                          }
+                        }}
+                        style={{ fontSize: 12, padding: '7px 14px', borderRadius: 0, border: `1px solid ${BUSY}`, background: 'none', cursor: deleteReqSending || !deleteReqEmail.trim() ? 'default' : 'pointer', color: BUSY, opacity: deleteReqSending || !deleteReqEmail.trim() ? 0.5 : 1 }}>
+                        {deleteReqSending ? 'Sending…' : 'Request deletion'}
+                      </button>
+                    </div>
+                  )}
+                </div>
+              )}
             </div>
           )}
 
