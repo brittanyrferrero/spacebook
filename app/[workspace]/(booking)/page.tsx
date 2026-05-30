@@ -1183,14 +1183,12 @@ export default function BookingPage() {
                     <div style={{ display: 'flex', flexWrap: 'wrap', gap: 5 }}>
                       {bookingConflicts.map(d => (
                         <button key={d} onClick={() => {
-                          const others = bookingConflicts.filter(x => x !== d)
-                          if (others.length > 0) {
-                            setPendingReschedules(prev => {
-                              const existing = new Set(prev.map(r => r.date))
-                              return [...prev, ...others.filter(x => !existing.has(x)).map(x => ({ date: x, startHHMM: mTime, endHHMM: mEndTime, title: lastCreatedBooking?.title || '' }))]
-                            })
-                          }
-                          setMDate(d); setMDone(false)
+                          setPendingReschedules(prev => {
+                            const existing = new Set(prev.map(r => r.date))
+                            return [...prev, ...bookingConflicts.filter(x => !existing.has(x)).map(x => ({ date: x, startHHMM: mTime, endHHMM: mEndTime, title: lastCreatedBooking?.title || '' }))]
+                          })
+                          setViewDate(new Date(d + 'T12:00:00'))
+                          setShowModal(null); setBookingConflicts([]); setLastCreatedBooking(null)
                         }}
                           style={{ fontSize: 11, padding: '4px 9px', background: '#FEF3C7', border: '1px solid #FCD34D', color: '#78350F', cursor: 'pointer', fontFamily: 'inherit', borderRadius: 0 }}>
                           {new Date(d + 'T12:00:00').toLocaleDateString('en-AU', { weekday: 'short', day: 'numeric', month: 'short' })} →
