@@ -1245,7 +1245,7 @@ export default function BookingPage() {
                       <div style={{ display: 'flex', gap: 8, paddingBottom: 6, borderBottom: `1px solid ${T.borderFaint}`, marginBottom: 2 }}>
                         <div style={{ width: 80, flexShrink: 0 }} />
                         <div style={{ flex: 1, fontSize: 10, color: T.textMuted, textTransform: 'uppercase', letterSpacing: '0.06em' }}>Next available</div>
-                        <div style={{ flex: 1, fontSize: 10, color: T.textMuted, textTransform: 'uppercase', letterSpacing: '0.06em' }}>Same room type</div>
+                        <div style={{ flex: 1, fontSize: 10, color: T.textMuted, textTransform: 'uppercase', letterSpacing: '0.06em' }}>Alternate available {selectedRoom?.room_type || 'room'}</div>
                       </div>
                     )}
                     {conflictResLoading && bookingConflicts.map(d => (
@@ -1285,6 +1285,7 @@ export default function BookingPage() {
                           <div style={{ flex: 1, display: 'flex', alignItems: 'center', gap: 5, minWidth: 0 }}>
                             {res.altRoom ? (
                               <>
+                                <span style={{ fontSize: 11, color: T.textMuted, whiteSpace: 'nowrap', flexShrink: 0 }}>{fmtTime(mTime)}–{fmtTime(mEndTime)}</span>
                                 <span style={{ fontSize: 11, color: T.textMuted, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{res.altRoom.name}</span>
                                 <button onClick={() => handleConflictBook(res.date, 'alt')} disabled={done || busy}
                                   style={btnStyle(!done && !busy && res.status !== 'error')}>
