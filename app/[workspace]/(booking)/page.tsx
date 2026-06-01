@@ -604,6 +604,8 @@ export default function BookingPage() {
   const [lastCreatedIsRecurring, setLastCreatedIsRecurring] = useState(false)
   const [lastCreatedRecurFreq,  setLastCreatedRecurFreq]  = useState<string>('none')
   const [pendingReschedules,    setPendingReschedules]    = useState<{ date: string; startHHMM: string; endHHMM: string; title: string }[]>([])
+  const [conflictResolutions,   setConflictResolutions]   = useState<{ date: string; nextAvail: { startHHMM: string; endHHMM: string } | null; altRoom: { id: string; name: string } | null; status: 'idle' | 'booking-next' | 'booking-alt' | 'done-next' | 'done-alt' | 'error'; error?: string }[]>([])
+  const [conflictResLoading,    setConflictResLoading]    = useState(false)
   const [confirmCancel,   setConfirmCancel]   = useState<{ message?: string; onConfirm?: () => void; onConfirmScope?: (scope: 'this' | 'future') => void } | null>(null)
 
   const dark = theme === 'dark'
@@ -901,6 +903,27 @@ export default function BookingPage() {
     openEdit(lastCreatedBooking)
   }
 
+  async function handleConflictBook(date: string, type: 'next' | 'alt') {
+    const res = conflictResolutions.find(r => r.date === date)
+    if (!res || res.status !== 'idle') return
+    const startHHMM = type === 'next' ? res.nextAvail!.startHHMM : mTime
+    const endHHMM   = type === 'next' ? res.nextAvail!.endHHMM   : mEndTime
+    const roomId    = type === 'alt'  ? res.altRoom!.id           : selectedRoomId
+    setConflictResolutions(prev => prev.map(r => r.date === date ? { ...r, status: type === 'next' ? 'booking-next' : 'booking-alt' } : r))
+    const bookRes = await fetch(`${api}/bookings`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ room_id: roomId, booker_name: mName, booker_email: mEmail, start_time: new Date(`${date}T${startHHMM}`).toISOString(), end_time: new Date(`${date}T${endHHMM}`).toISOString(), title: lastCreatedBooking?.title || null }),
+    })
+    if (bookRes.ok) {
+      setConflictResolutions(prev => prev.map(r => r.date === date ? { ...r, status: type === 'next' ? 'done-next' : 'done-alt' } : r))
+      fetchSidebar(); fetchRange()
+    } else {
+      const body = await bookRes.json().catch(() => ({}))
+      setConflictResolutions(prev => prev.map(r => r.date === date ? { ...r, status: 'error', error: body.error ?? 'Failed to book' } : r))
+    }
+  }
+
   function handleStartTime(time: string) {
     setMTime(time)
     if (time && !mEndTime) {
@@ -940,12 +963,46 @@ export default function BookingPage() {
     if (res.ok) {
       try { localStorage.setItem('spacebook_user', JSON.stringify({ name: mName, email: mEmail })) } catch {}
       const result = await res.json().catch(() => ({}))
-      setBookingConflicts(result.conflictDates ?? [])
+      const conflictDates: string[] = result.conflictDates ?? []
+      const capturedTime = mTime; const capturedEndTime = mEndTime
+      const capturedRoom = selectedRoom; const capturedRooms = rooms
+      setBookingConflicts(conflictDates)
       setLastCreatedBooking(result.booking ?? null)
       setLastCreatedIsRecurring(!!recurrence)
       setLastCreatedRecurFreq(recurrence?.frequency ?? 'none')
       setPendingReschedules(prev => prev.filter(r => r.date !== mDate))
+      setConflictResolutions([])
       setMTitle('Occupied'); setRecurFreq('none'); setMError(''); setMDone(true); fetchSidebar(); fetchRange()
+      if (conflictDates.length > 0 && capturedRoom) {
+        setConflictResLoading(true)
+        const minDate = conflictDates.reduce((a, b) => a < b ? a : b)
+        const maxDate = conflictDates.reduce((a, b) => a > b ? a : b)
+        fetch(`${api}/bookings?from=${minDate}&to=${maxDate}`)
+          .then(r => r.json())
+          .then((allBkgs: any[]) => {
+            const dur = toMins(capturedEndTime) - toMins(capturedTime)
+            const resolutions = conflictDates.map(date => {
+              const roomBkgs = allBkgs.filter((b: any) => b.room_id === capturedRoom.id && !b.cancelled_at)
+              const nextStart = findNextAvailable(date, capturedTime, capturedEndTime, roomBkgs, gridEnd)
+              const nextAvail = nextStart ? { startHHMM: nextStart, endHHMM: fromMins(toMins(nextStart) + dur) } : null
+              const sameTypeRooms = capturedRooms.filter(r => r.id !== capturedRoom.id && r.room_type && r.room_type === capturedRoom.room_type)
+              let altRoom: { id: string; name: string } | null = null
+              for (const r of sameTypeRooms) {
+                const conflict = allBkgs.filter((b: any) => b.room_id === r.id && !b.cancelled_at && dateStr(new Date(b.start_time)) === date)
+                  .some((b: any) => {
+                    const bs = new Date(b.start_time).getHours() * 60 + new Date(b.start_time).getMinutes()
+                    const be = new Date(b.end_time).getHours() * 60 + new Date(b.end_time).getMinutes()
+                    return bs < toMins(capturedEndTime) && be > toMins(capturedTime)
+                  })
+                if (!conflict) { altRoom = { id: r.id, name: r.name }; break }
+              }
+              return { date, nextAvail, altRoom, status: 'idle' as const }
+            })
+            setConflictResolutions(resolutions)
+          })
+          .catch(() => setConflictResolutions(conflictDates.map(date => ({ date, nextAvail: null, altRoom: null, status: 'idle' as const }))))
+          .finally(() => setConflictResLoading(false))
+      }
     } else {
       const body = await res.json().catch(() => ({}))
       let errorMsg = body.error ?? 'Something went wrong. Please try again.'
@@ -1153,7 +1210,7 @@ export default function BookingPage() {
       {/* Modal */}
       {showModal && (
         <div onClick={() => setShowModal(null)} style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 100 }}>
-          <div onClick={e => e.stopPropagation()} style={{ background: T.modalBg, borderRadius: 0, padding: 28, width: 370, border: `1px solid ${T.modalBorder}`, boxShadow: dark ? '0 24px 64px rgba(0,0,0,0.6)' : '0 12px 48px rgba(0,0,0,0.18)' }}>
+          <div onClick={e => e.stopPropagation()} style={{ background: T.modalBg, borderRadius: 0, padding: 28, width: mDone && bookingConflicts.length > 0 ? 500 : 370, border: `1px solid ${T.modalBorder}`, boxShadow: dark ? '0 24px 64px rgba(0,0,0,0.6)' : '0 12px 48px rgba(0,0,0,0.18)', transition: 'width 0.2s ease' }}>
             {mDone ? (
               <div style={{ textAlign: 'center', position: 'relative' }}>
                 {lotr && (
@@ -1176,26 +1233,70 @@ export default function BookingPage() {
                   }
                 </div>
                 {bookingConflicts.length > 0 && (
-                  <div style={{ background: dark ? 'rgba(251,191,36,0.1)' : '#FFFBEB', border: '1px solid #FDE68A', borderRadius: 4, padding: '10px 14px', marginBottom: 16, textAlign: 'left' }}>
-                    <div style={{ fontSize: 12, fontWeight: 600, color: '#92400E', marginBottom: 6 }}>
-                      {bookingConflicts.length === 1 ? '1 date was skipped' : `${bookingConflicts.length} dates were skipped`} — room already booked
+                  <div style={{ textAlign: 'left', marginBottom: 16 }}>
+                    <div style={{ display: 'flex', alignItems: 'baseline', gap: 8, marginBottom: 10 }}>
+                      <div style={{ fontSize: 12, fontWeight: 600, color: dark ? T.text : NAVY }}>
+                        {bookingConflicts.length} date{bookingConflicts.length !== 1 ? 's' : ''} couldn't be booked
+                      </div>
+                      {conflictResLoading && <div style={{ fontSize: 11, color: T.textMuted }}>Finding alternatives…</div>}
                     </div>
-                    <div style={{ fontSize: 11, color: '#78350F', marginBottom: 8, opacity: 0.7 }}>Tap a date to book it now</div>
-                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: 5 }}>
-                      {bookingConflicts.map(d => (
-                        <button key={d} onClick={() => {
-                          setPendingReschedules(prev => {
-                            const existing = new Set(prev.map(r => r.date))
-                            return [...prev, ...bookingConflicts.filter(x => !existing.has(x)).map(x => ({ date: x, startHHMM: mTime, endHHMM: mEndTime, title: lastCreatedBooking?.title || '' }))]
-                          })
-                          setViewDate(new Date(d + 'T12:00:00'))
-                          setShowModal(null); setBookingConflicts([]); setLastCreatedBooking(null)
-                        }}
-                          style={{ fontSize: 11, padding: '4px 9px', background: '#FEF3C7', border: '1px solid #FCD34D', color: '#78350F', cursor: 'pointer', fontFamily: 'inherit', borderRadius: 0 }}>
-                          {new Date(d + 'T12:00:00').toLocaleDateString('en-AU', { weekday: 'short', day: 'numeric', month: 'short' })} →
-                        </button>
-                      ))}
-                    </div>
+                    {/* Column headers — only show when resolutions loaded */}
+                    {conflictResolutions.length > 0 && (
+                      <div style={{ display: 'flex', gap: 8, paddingBottom: 6, borderBottom: `1px solid ${T.borderFaint}`, marginBottom: 2 }}>
+                        <div style={{ width: 80, flexShrink: 0 }} />
+                        <div style={{ flex: 1, fontSize: 10, color: T.textMuted, textTransform: 'uppercase', letterSpacing: '0.06em' }}>Next available</div>
+                        <div style={{ flex: 1, fontSize: 10, color: T.textMuted, textTransform: 'uppercase', letterSpacing: '0.06em' }}>Same room type</div>
+                      </div>
+                    )}
+                    {conflictResLoading && bookingConflicts.map(d => (
+                      <div key={d} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '8px 0', borderBottom: `1px solid ${T.borderFaint}` }}>
+                        <div style={{ width: 80, flexShrink: 0, fontSize: 12, fontWeight: 500, color: T.text }}>
+                          {new Date(d + 'T12:00:00').toLocaleDateString('en-AU', { weekday: 'short', day: 'numeric', month: 'short' })}
+                        </div>
+                        <div style={{ flex: 1, fontSize: 11, color: T.textMuted }}>—</div>
+                        <div style={{ flex: 1, fontSize: 11, color: T.textMuted }}>—</div>
+                      </div>
+                    ))}
+                    {conflictResolutions.map(res => {
+                      const done = res.status === 'done-next' || res.status === 'done-alt'
+                      const busy = res.status === 'booking-next' || res.status === 'booking-alt'
+                      const fmtD = new Date(res.date + 'T12:00:00').toLocaleDateString('en-AU', { weekday: 'short', day: 'numeric', month: 'short' })
+                      const btnStyle = (active: boolean): React.CSSProperties => ({
+                        fontSize: 11, padding: '3px 9px', border: 'none', cursor: active ? 'pointer' : 'default',
+                        fontFamily: 'inherit', background: active ? ROSE : T.borderFaint, color: active ? '#fff' : T.textMuted,
+                        flexShrink: 0, whiteSpace: 'nowrap',
+                      })
+                      return (
+                        <div key={res.date} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '8px 0', borderBottom: `1px solid ${T.borderFaint}`, opacity: done ? 0.45 : 1 }}>
+                          <div style={{ width: 80, flexShrink: 0, fontSize: 12, fontWeight: 500, color: T.text }}>
+                            {done ? <span style={{ color: '#15803D' }}>✓ </span> : null}{fmtD}
+                          </div>
+                          <div style={{ flex: 1, display: 'flex', alignItems: 'center', gap: 5, minWidth: 0 }}>
+                            {res.nextAvail ? (
+                              <>
+                                <span style={{ fontSize: 11, color: T.textMuted, whiteSpace: 'nowrap' }}>{fmtTime(res.nextAvail.startHHMM)}–{fmtTime(res.nextAvail.endHHMM)}</span>
+                                <button onClick={() => handleConflictBook(res.date, 'next')} disabled={done || busy}
+                                  style={btnStyle(!done && !busy && res.status !== 'error')}>
+                                  {res.status === 'booking-next' ? '…' : 'Book'}
+                                </button>
+                              </>
+                            ) : <span style={{ fontSize: 11, color: T.textFaint }}>—</span>}
+                          </div>
+                          <div style={{ flex: 1, display: 'flex', alignItems: 'center', gap: 5, minWidth: 0 }}>
+                            {res.altRoom ? (
+                              <>
+                                <span style={{ fontSize: 11, color: T.textMuted, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{res.altRoom.name}</span>
+                                <button onClick={() => handleConflictBook(res.date, 'alt')} disabled={done || busy}
+                                  style={btnStyle(!done && !busy && res.status !== 'error')}>
+                                  {res.status === 'booking-alt' ? '…' : 'Book'}
+                                </button>
+                              </>
+                            ) : <span style={{ fontSize: 11, color: T.textFaint }}>—</span>}
+                          </div>
+                          {res.status === 'error' && <div style={{ fontSize: 10, color: '#DC2626', flexShrink: 0 }}>{res.error}</div>}
+                        </div>
+                      )
+                    })}
                   </div>
                 )}
                 <div style={{ display: 'flex', gap: 8, justifyContent: 'center' }}>
@@ -1206,13 +1307,16 @@ export default function BookingPage() {
                     </button>
                   )}
                   <button onClick={() => {
-                    if (bookingConflicts.length > 0) {
+                    const unresolved = conflictResolutions.length > 0
+                      ? conflictResolutions.filter(r => r.status !== 'done-next' && r.status !== 'done-alt').map(r => r.date)
+                      : bookingConflicts
+                    if (unresolved.length > 0) {
                       setPendingReschedules(prev => {
                         const existing = new Set(prev.map(r => r.date))
-                        return [...prev, ...bookingConflicts.filter(d => !existing.has(d)).map(d => ({ date: d, startHHMM: mTime, endHHMM: mEndTime, title: lastCreatedBooking?.title || '' }))]
+                        return [...prev, ...unresolved.filter(d => !existing.has(d)).map(d => ({ date: d, startHHMM: mTime, endHHMM: mEndTime, title: lastCreatedBooking?.title || '' }))]
                       })
                     }
-                    setShowModal(null); setBookingConflicts([]); setLastCreatedBooking(null)
+                    setShowModal(null); setBookingConflicts([]); setLastCreatedBooking(null); setConflictResolutions([])
                   }}
                     style={{ background: ROSE, color: '#fff', border: 'none', borderRadius: 0, padding: '10px 24px', fontSize: 14, fontWeight: 500, cursor: 'pointer', fontFamily: 'inherit' }}>
                     {lotr ? txt.done : 'OK'}
