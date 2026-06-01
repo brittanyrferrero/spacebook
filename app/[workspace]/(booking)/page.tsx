@@ -1052,6 +1052,7 @@ export default function BookingPage() {
               <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4 }}>
                 {pendingReschedules.map(slot => (
                   <button key={slot.date} onClick={() => {
+                    setViewDate(new Date(slot.date + 'T12:00:00'))
                     setMDate(slot.date); setMTime(slot.startHHMM); setMEndTime(slot.endHHMM)
                     setMTitle(slot.title || 'Occupied'); setRecurFreq('none'); setMError(''); setMDone(false)
                     setShowModal('later')
