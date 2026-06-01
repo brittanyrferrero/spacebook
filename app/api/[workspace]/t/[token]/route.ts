@@ -10,6 +10,7 @@ export async function GET(req: NextRequest, { params }: { params: { workspace: s
     const cookieStore = await cookies()
     cookieStore.set(`ws_${params.workspace}`, 'demo', {
       httpOnly: true, secure: process.env.NODE_ENV === 'production', sameSite: 'lax', path: '/',
+      maxAge: 60 * 60 * 24 * 365 * 10,
     })
     return NextResponse.redirect(new URL(`/${params.workspace}/room/${room.id}`, req.url))
   }
@@ -36,7 +37,7 @@ export async function GET(req: NextRequest, { params }: { params: { workspace: s
   const secure = process.env.NODE_ENV === 'production'
   cookieStore.set(`ws_${params.workspace}`, wsToken ?? params.token, {
     httpOnly: true, secure, sameSite: 'lax', path: '/',
-    // No maxAge — session cookie, cleared when browser closes
+    maxAge: 60 * 60 * 24 * 365 * 10,
   })
 
   return NextResponse.redirect(new URL(`/${params.workspace}/room/${room.id}`, req.url))
