@@ -1319,7 +1319,7 @@ export default function BookingPage() {
                     }
                     setShowModal(null); setBookingConflicts([]); setLastCreatedBooking(null); setConflictResolutions([])
                   }}
-                    style={{ background: ROSE, color: '#fff', border: 'none', borderRadius: 0, padding: '10px 24px', fontSize: 14, fontWeight: 500, cursor: 'pointer', fontFamily: 'inherit' }}>
+                    style={{ background: bookingConflicts.length > 0 && (conflictResLoading || conflictResolutions.some(r => r.status !== 'done-next' && r.status !== 'done-alt')) ? (dark ? '#4B5563' : '#D1D5DB') : ROSE, color: bookingConflicts.length > 0 && (conflictResLoading || conflictResolutions.some(r => r.status !== 'done-next' && r.status !== 'done-alt')) ? (dark ? '#9CA3AF' : '#6B7280') : '#fff', border: 'none', borderRadius: 0, padding: '10px 24px', fontSize: 14, fontWeight: 500, cursor: 'pointer', fontFamily: 'inherit' }}>
                     {lotr ? txt.done : 'OK'}
                   </button>
                 </div>
