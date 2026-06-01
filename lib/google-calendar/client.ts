@@ -37,11 +37,13 @@ export async function createCalendarEvent(booking: Booking, room: Room): Promise
   const calendar = google.calendar({ version: 'v3', auth })
   const event = await calendar.events.insert({
     calendarId: room.google_calendar_id,
+    sendUpdates: 'none',
     requestBody: {
       summary: booking.title ?? `Booking — ${room.name}`,
       description: `Booked by ${booking.booker_name} (${booking.booker_email})`,
       start: { dateTime: booking.start_time },
       end:   { dateTime: booking.end_time },
+      attendees: [{ email: booking.booker_email, displayName: booking.booker_name }],
     },
   })
   return event.data.id ?? null
@@ -61,11 +63,13 @@ export async function updateCalendarEvent(
   await calendar.events.patch({
     calendarId,
     eventId: googleEventId,
+    sendUpdates: 'none',
     requestBody: {
       summary: booking.title ?? `Booking — ${roomName}`,
       description: `Booked by ${booking.booker_name} (${booking.booker_email})`,
       start: { dateTime: booking.start_time },
       end:   { dateTime: booking.end_time },
+      attendees: [{ email: booking.booker_email, displayName: booking.booker_name }],
     },
   })
 }
