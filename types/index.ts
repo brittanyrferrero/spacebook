@@ -66,6 +66,7 @@ export interface CreateBookingPayload {
   start_time: string
   end_time: string
   origin?: 'desktop' | 'tablet' | 'gcal'
+  recurring_series_id?: string
   // If present, creates a recurring series and expands occurrences up to series_end
   recurrence?: {
     frequency: RecurringFrequency

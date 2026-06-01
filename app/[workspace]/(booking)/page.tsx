@@ -601,6 +601,7 @@ export default function BookingPage() {
   const [editConflicts,    setEditConflicts]    = useState<string[]>([])
   const [bookingConflicts,      setBookingConflicts]      = useState<string[]>([])
   const [lastCreatedBooking,    setLastCreatedBooking]    = useState<any>(null)
+  const [lastCreatedSeries,     setLastCreatedSeries]     = useState<any>(null)
   const [lastCreatedIsRecurring, setLastCreatedIsRecurring] = useState(false)
   const [lastCreatedRecurFreq,  setLastCreatedRecurFreq]  = useState<string>('none')
   const [pendingReschedules,    setPendingReschedules]    = useState<{ date: string; startHHMM: string; endHHMM: string; title: string }[]>([])
@@ -913,7 +914,7 @@ export default function BookingPage() {
     const bookRes = await fetch(`${api}/bookings`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ room_id: roomId, booker_name: mName, booker_email: mEmail, start_time: new Date(`${date}T${startHHMM}`).toISOString(), end_time: new Date(`${date}T${endHHMM}`).toISOString(), title: lastCreatedBooking?.title || null }),
+      body: JSON.stringify({ room_id: roomId, booker_name: mName, booker_email: mEmail, start_time: new Date(`${date}T${startHHMM}`).toISOString(), end_time: new Date(`${date}T${endHHMM}`).toISOString(), title: lastCreatedBooking?.title || null, ...(lastCreatedSeries?.id ? { recurring_series_id: lastCreatedSeries.id } : {}) }),
     })
     if (bookRes.ok) {
       setConflictResolutions(prev => prev.map(r => r.date === date ? { ...r, status: type === 'next' ? 'done-next' : 'done-alt' } : r))
@@ -968,6 +969,7 @@ export default function BookingPage() {
       const capturedRoom = selectedRoom; const capturedRooms = rooms
       setBookingConflicts(conflictDates)
       setLastCreatedBooking(result.booking ?? null)
+      setLastCreatedSeries(result.series ?? null)
       setLastCreatedIsRecurring(!!recurrence)
       setLastCreatedRecurFreq(recurrence?.frequency ?? 'none')
       setPendingReschedules(prev => prev.filter(r => r.date !== mDate))
@@ -1317,7 +1319,7 @@ export default function BookingPage() {
                         return [...prev, ...unresolved.filter(d => !existing.has(d)).map(d => ({ date: d, startHHMM: mTime, endHHMM: mEndTime, title: lastCreatedBooking?.title || '' }))]
                       })
                     }
-                    setShowModal(null); setBookingConflicts([]); setLastCreatedBooking(null); setConflictResolutions([])
+                    setShowModal(null); setBookingConflicts([]); setLastCreatedBooking(null); setLastCreatedSeries(null); setConflictResolutions([])
                   }}
                     style={{ background: bookingConflicts.length > 0 && (conflictResLoading || conflictResolutions.some(r => r.status !== 'done-next' && r.status !== 'done-alt')) ? (dark ? '#4B5563' : '#D1D5DB') : ROSE, color: bookingConflicts.length > 0 && (conflictResLoading || conflictResolutions.some(r => r.status !== 'done-next' && r.status !== 'done-alt')) ? (dark ? '#9CA3AF' : '#6B7280') : '#fff', border: 'none', borderRadius: 0, padding: '10px 24px', fontSize: 14, fontWeight: 500, cursor: 'pointer', fontFamily: 'inherit' }}>
                     {lotr ? txt.done : 'OK'}

@@ -129,7 +129,7 @@ export async function POST(req: NextRequest, { params }: { params: { workspace: 
 
   const { data: booking, error } = await supabase
     .from('bookings')
-    .insert({ room_id: payload.room_id, booker_name: payload.booker_name, booker_email: payload.booker_email, title: payload.title ?? null, start_time: payload.start_time, end_time: payload.end_time, workspace_id: workspaceId, origin: payload.origin ?? 'desktop' })
+    .insert({ room_id: payload.room_id, booker_name: payload.booker_name, booker_email: payload.booker_email, title: payload.title ?? null, start_time: payload.start_time, end_time: payload.end_time, workspace_id: workspaceId, origin: payload.origin ?? 'desktop', ...(payload.recurring_series_id ? { recurring_series_id: payload.recurring_series_id } : {}) })
     .select().single()
   if (error) {
     const isConflict = error.code === '23P01'
