@@ -619,6 +619,7 @@ export default function BookingPage() {
   const [confirmCancel,   setConfirmCancel]   = useState<{ message?: string; onConfirm?: () => void; onConfirmScope?: (scope: 'this' | 'future') => void } | null>(null)
   const [mRoomId,        setMRoomId]        = useState('')
   const [laterDayBkgs,   setLaterDayBkgs]   = useState<Booking[]>([])
+  const [laterRoomOpen,  setLaterRoomOpen]  = useState(false)
 
   const dark = theme === 'dark'
   const T = mkT(dark)
@@ -988,10 +989,10 @@ export default function BookingPage() {
   const mRoom = rooms.find(r => r.id === mRoomId) ?? selectedRoom
 
   const laterRoomAvailability = useMemo(() => {
-    if (!mTime || !mEndTime) return rooms.map(r => ({ id: r.id, name: r.name, taken: false }))
+    if (!mTime || !mEndTime) return rooms.map(r => ({ id: r.id, name: r.name, room_type: r.room_type, taken: false }))
     const startMins = toMins(mTime), endMins = toMins(mEndTime)
     return rooms.map(r => ({
-      id: r.id, name: r.name,
+      id: r.id, name: r.name, room_type: r.room_type,
       taken: laterDayBkgs.filter(b => b.room_id === r.id && !b.cancelled_at).some(b => {
         const bs = new Date(b.start_time).getHours() * 60 + new Date(b.start_time).getMinutes()
         const be = new Date(b.end_time).getHours() * 60 + new Date(b.end_time).getMinutes()
@@ -1471,20 +1472,54 @@ export default function BookingPage() {
                     })()}
                   </div>
                 )}
-                {showModal === 'later' && (
-                  <div style={{ marginBottom: 12 }}>
-                    <label style={lbl}>Room</label>
-                    <select
-                      style={{ ...inp, appearance: 'none' as any, backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath d='M1 1l5 5 5-5' stroke='%236B7280' stroke-width='1.5' fill='none' stroke-linecap='round'/%3E%3C/svg%3E")`, backgroundRepeat: 'no-repeat', backgroundPosition: 'right 10px center', paddingRight: 28 }}
-                      value={mRoomId}
-                      onChange={e => { setMRoomId(e.target.value); setSingleConflict(null) }}
-                    >
-                      {laterRoomAvailability.map(r => (
-                        <option key={r.id} value={r.id}>{r.name}{r.taken ? ' — taken' : ''}</option>
-                      ))}
-                    </select>
-                  </div>
-                )}
+                {showModal === 'later' && (() => {
+                  const sel = laterRoomAvailability.find(r => r.id === mRoomId)
+                  const types = [...new Set(laterRoomAvailability.map(r => r.room_type).filter(Boolean))] as string[]
+                  const untyped = laterRoomAvailability.filter(r => !r.room_type)
+                  const CONFLICT = '#C0392B'
+                  return (
+                    <div style={{ marginBottom: 12, position: 'relative' }}>
+                      <label style={lbl}>Room</label>
+                      <button
+                        type="button"
+                        onClick={() => setLaterRoomOpen(o => !o)}
+                        style={{ ...inp, display: 'flex', justifyContent: 'space-between', alignItems: 'center', cursor: 'pointer', color: sel?.taken ? CONFLICT : T.inpText, textAlign: 'left', gap: 8 }}
+                      >
+                        <span style={{ flex: 1, minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                          {sel?.name ?? '—'}
+                        </span>
+                        {sel?.taken && <span style={{ fontSize: 11, fontWeight: 600, color: CONFLICT, flexShrink: 0 }}>conflict</span>}
+                        <span style={{ fontSize: 10, color: T.textMuted, flexShrink: 0 }}>▾</span>
+                      </button>
+                      {laterRoomOpen && (
+                        <>
+                          <div style={{ position: 'fixed', inset: 0, zIndex: 10 }} onClick={() => setLaterRoomOpen(false)} />
+                          <div style={{ position: 'absolute', top: '100%', left: 0, right: 0, zIndex: 11, background: T.modalBg, border: `1px solid ${T.inputBorder}`, boxShadow: dark ? '0 8px 24px rgba(0,0,0,0.5)' : '0 4px 16px rgba(0,0,0,0.12)', maxHeight: 220, overflowY: 'auto' }}>
+                            {types.map((type, ti) => (
+                              <div key={type}>
+                                <div style={{ fontSize: 10, fontWeight: 600, color: T.textMuted, padding: `${ti === 0 ? 6 : 10}px 12px 3px`, letterSpacing: '0.08em', textTransform: 'uppercase' as const }}>{type}</div>
+                                {laterRoomAvailability.filter(r => r.room_type === type).map(r => (
+                                  <div key={r.id} onClick={() => { setMRoomId(r.id); setSingleConflict(null); setLaterRoomOpen(false) }}
+                                    style={{ padding: '7px 12px', cursor: 'pointer', display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: r.id === mRoomId ? (dark ? 'rgba(255,255,255,0.06)' : '#f3f4f6') : 'transparent', gap: 8 }}>
+                                    <span style={{ fontSize: 13, color: r.taken ? CONFLICT : T.text }}>{r.name}</span>
+                                    {r.taken && <span style={{ fontSize: 11, fontWeight: 600, color: CONFLICT, flexShrink: 0 }}>conflict</span>}
+                                  </div>
+                                ))}
+                              </div>
+                            ))}
+                            {untyped.map(r => (
+                              <div key={r.id} onClick={() => { setMRoomId(r.id); setSingleConflict(null); setLaterRoomOpen(false) }}
+                                style={{ padding: '7px 12px', cursor: 'pointer', display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: r.id === mRoomId ? (dark ? 'rgba(255,255,255,0.06)' : '#f3f4f6') : 'transparent', gap: 8 }}>
+                                <span style={{ fontSize: 13, color: r.taken ? CONFLICT : T.text }}>{r.name}</span>
+                                {r.taken && <span style={{ fontSize: 11, fontWeight: 600, color: CONFLICT, flexShrink: 0 }}>conflict</span>}
+                              </div>
+                            ))}
+                          </div>
+                        </>
+                      )}
+                    </div>
+                  )
+                })()}
                 {singleConflict ? (
                   <div style={{ marginBottom: 12, border: `1px solid #f5c6c6`, borderRadius: 0 }}>
                     {/* Header */}
