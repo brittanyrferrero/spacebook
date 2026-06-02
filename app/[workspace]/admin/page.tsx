@@ -107,7 +107,7 @@ export default function AdminPage() {
   const [memberAdding, setMemberAdding] = useState(false)
   const [memberError, setMemberError] = useState('')
   const [removingMemberId, setRemovingMemberId] = useState<string | null>(null)
-  const [memberSortCol, setMemberSortCol] = useState<'name' | 'email' | 'joined' | 'last_used'>('name')
+  const [memberSortCol, setMemberSortCol] = useState<'name' | 'email' | 'role' | 'joined' | 'last_used'>('name')
   const [memberSortDir, setMemberSortDir] = useState<'asc' | 'desc'>('asc')
   const [selectedMembers, setSelectedMembers] = useState<Set<string>>(new Set())
   const [bulkRemovingMembers, setBulkRemovingMembers] = useState(false)
@@ -488,6 +488,10 @@ export default function AdminPage() {
         let av: string, bv: string
         if (memberSortCol === 'name')       { av = a.name;      bv = b.name }
         else if (memberSortCol === 'email') { av = a.email;     bv = b.email }
+        else if (memberSortCol === 'role')  {
+          const roleOrder = (email: string) => { const r = adminList.find((a: any) => a.email.toLowerCase() === email.toLowerCase())?.role; return r === 'super_admin' ? '0' : r === 'admin' ? '1' : '2' }
+          av = roleOrder(a.email); bv = roleOrder(b.email)
+        }
         else if (memberSortCol === 'joined'){ av = a.added_at;  bv = b.added_at }
         else                               { av = a.last_used ?? ''; bv = b.last_used ?? '' }
         return memberSortDir === 'asc' ? av.localeCompare(bv) : bv.localeCompare(av)
@@ -1375,7 +1379,7 @@ export default function AdminPage() {
                             onChange={e => setSelectedMembers(e.target.checked ? new Set(members.map((m: any) => m.id)) : new Set())}
                           />
                         </th>
-                        {([['Name', 'name'], ['Email', 'email'], ['Role', null], ['Joined', 'joined'], ['Last active', 'last_used'], ['', null]] as [string, string | null][]).map(([label, col]) => (
+                        {([['Name', 'name'], ['Email', 'email'], ['Role', 'role'], ['Joined', 'joined'], ['Last active', 'last_used'], ['', null]] as [string, string | null][]).map(([label, col]) => (
                           <th key={label} onClick={col ? () => handleMemberSort(col as any) : undefined}
                             style={{ background: '#ffffff', padding: '8px 12px', textAlign: 'left', fontSize: 11, fontWeight: 500, color: col ? NAVY : '#9CA3AF', borderBottom: '1px solid #dddddd', whiteSpace: 'nowrap', cursor: col ? 'pointer' : 'default', userSelect: 'none' }}>
                             {label}{col ? mSortIndicator(col as any) : ''}

@@ -586,6 +586,8 @@ export default function BookingPage() {
   const [myBkSelected,    setMyBkSelected]    = useState<Set<string>>(new Set())
   const [myBkCancelling,  setMyBkCancelling]  = useState(false)
   const [myBkCancelConfirm, setMyBkCancelConfirm] = useState(false)
+  const [myBkVerifySent,  setMyBkVerifySent]  = useState(false)
+  const [verifiedEmail,   setVerifiedEmail]   = useState<string | null>(null)
 
   // Edit existing booking
   const [editBooking,     setEditBooking]     = useState<Booking | null>(null)
@@ -607,6 +609,13 @@ export default function BookingPage() {
   const [pendingReschedules,    setPendingReschedules]    = useState<{ date: string; startHHMM: string; endHHMM: string; title: string }[]>([])
   const [conflictResolutions,   setConflictResolutions]   = useState<{ date: string; nextAvail: { startHHMM: string; endHHMM: string } | null; altRoom: { id: string; name: string } | null; status: 'idle' | 'booking-next' | 'booking-alt' | 'done-next' | 'done-alt' | 'error'; error?: string }[]>([])
   const [conflictResLoading,    setConflictResLoading]    = useState(false)
+  const [singleConflict, setSingleConflict] = useState<{
+    nextAvail: { startHHMM: string; endHHMM: string } | null
+    altRooms: { id: string; name: string }[]
+    bookingStatus: 'idle' | 'booking-next' | 'booking-alt' | 'error'
+    bookedRoomId?: string
+    error?: string
+  } | null>(null)
   const [confirmCancel,   setConfirmCancel]   = useState<{ message?: string; onConfirm?: () => void; onConfirmScope?: (scope: 'this' | 'future') => void } | null>(null)
 
   const dark = theme === 'dark'
@@ -662,6 +671,10 @@ export default function BookingPage() {
   }, [selectedRoomId, calView, viewDateStr])
 
   useEffect(() => { fetchRooms() }, [fetchRooms])
+  useEffect(() => {
+    if (process.env.NEXT_PUBLIC_MOCK_MODE === 'true') return
+    fetch(`${api}/my-bookings-session`).then(r => r.json()).then(({ email }) => { if (email) setVerifiedEmail(email) }).catch(() => {})
+  }, [api])
   useEffect(() => {
     fetch(`${api}/settings`).then(r => r.json()).then(d => {
       setGridStart(d.displayHours?.start ?? 8)
@@ -773,7 +786,9 @@ export default function BookingPage() {
   function openMyBookings() {
     setShowMyBookings(true)
     setMyBkSelected(new Set())
-    if (mEmail) { setMyBkEmail(mEmail); fetchMyBkgs(mEmail) }
+    setMyBkVerifySent(false)
+    const emailToUse = mEmail || verifiedEmail
+    if (emailToUse) { setMyBkEmail(emailToUse); fetchMyBkgs(emailToUse) }
     else { setMyBkgs(null); setMyBkEmail('') }
   }
 
@@ -925,7 +940,28 @@ export default function BookingPage() {
     }
   }
 
+  async function handleSingleConflictBook(type: 'next' | 'alt', altRoomId?: string) {
+    if (!singleConflict) return
+    const startHHMM = type === 'next' ? singleConflict.nextAvail!.startHHMM : mTime
+    const endHHMM   = type === 'next' ? singleConflict.nextAvail!.endHHMM   : mEndTime
+    const roomId    = type === 'alt' ? altRoomId! : selectedRoomId
+    setSingleConflict(prev => prev ? { ...prev, bookingStatus: type === 'next' ? 'booking-next' : 'booking-alt', bookedRoomId: altRoomId } : null)
+    const res = await fetch(`${api}/bookings`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ room_id: roomId, booker_name: mName, booker_email: mEmail, start_time: new Date(`${mDate}T${startHHMM}`).toISOString(), end_time: new Date(`${mDate}T${endHHMM}`).toISOString(), title: mTitle || null, origin: 'desktop' }),
+    })
+    if (res.ok) {
+      setSingleConflict(null)
+      setMTitle('Occupied'); setMError(''); setMDone(true); fetchSidebar(); fetchRange()
+    } else {
+      const body = await res.json().catch(() => ({}))
+      setSingleConflict(prev => prev ? { ...prev, bookingStatus: 'error', error: body.error ?? 'Failed to book' } : null)
+    }
+  }
+
   function handleStartTime(time: string) {
+    setSingleConflict(null)
     setMTime(time)
     if (time && !mEndTime) {
       const [h, m] = time.split(':').map(Number)
@@ -945,6 +981,7 @@ export default function BookingPage() {
 
   async function handleQuickBook() {
     if (!selectedRoom || !mName || !mEmail || !mTime || !mEndTime) return
+    setSingleConflict(null)
     setMSubmitting(true)
     const startTime = new Date(`${mDate}T${mTime}`).toISOString()
     const endTime   = new Date(`${mDate}T${mEndTime}`).toISOString()
@@ -1007,15 +1044,26 @@ export default function BookingPage() {
       }
     } else {
       const body = await res.json().catch(() => ({}))
-      let errorMsg = body.error ?? 'Something went wrong. Please try again.'
       if (res.status === 409) {
         const next = findNextAvailable(mDate, mTime, mEndTime, rangeBkgs, gridEnd)
         const dur = toMins(mEndTime) - toMins(mTime)
-        errorMsg = next
-          ? `There's a conflict! Next available: ${fmtTime(next)}–${fmtTime(fromMins(toMins(next) + dur))}.`
-          : `There's a conflict! No availability left today for that duration.`
+        const nextAvail = next ? { startHHMM: next, endHHMM: fromMins(toMins(next) + dur) } : null
+        const allDayBkgs: Booking[] = await fetch(`${api}/bookings?date=${mDate}`).then(r => r.json()).catch(() => [])
+        const startMins = toMins(mTime), endMins = toMins(mEndTime)
+        const altRooms = rooms
+          .filter(r => r.id !== selectedRoomId && r.room_type && r.room_type === selectedRoom?.room_type)
+          .filter(r => !allDayBkgs.filter((b: any) => b.room_id === r.id && !b.cancelled_at)
+            .some((b: any) => {
+              const bs = new Date(b.start_time).getHours() * 60 + new Date(b.start_time).getMinutes()
+              const be = new Date(b.end_time).getHours() * 60 + new Date(b.end_time).getMinutes()
+              return bs < endMins && be > startMins
+            }))
+          .slice(0, 3)
+          .map(r => ({ id: r.id, name: r.name }))
+        setSingleConflict({ nextAvail, altRooms, bookingStatus: 'idle' })
+      } else {
+        setMError(body.error ?? 'Something went wrong. Please try again.')
       }
-      setMError(errorMsg)
     }
     setMSubmitting(false)
   }
@@ -1211,7 +1259,7 @@ export default function BookingPage() {
 
       {/* Modal */}
       {showModal && (
-        <div onClick={() => setShowModal(null)} style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 100 }}>
+        <div onClick={() => { setShowModal(null); setSingleConflict(null) }} style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 100 }}>
           <div onClick={e => e.stopPropagation()} style={{ background: T.modalBg, borderRadius: 0, padding: 28, width: mDone && bookingConflicts.length > 0 ? 580 : 370, border: `1px solid ${T.modalBorder}`, boxShadow: dark ? '0 24px 64px rgba(0,0,0,0.6)' : '0 12px 48px rgba(0,0,0,0.18)', transition: 'width 0.2s ease' }}>
             {mDone ? (
               <div style={{ textAlign: 'center', position: 'relative' }}>
@@ -1334,7 +1382,7 @@ export default function BookingPage() {
                 {showModal === 'later' && (
                   <div style={{ marginBottom: 12 }}>
                     <label style={lbl}>Date</label>
-                    <input style={inp} type="date" value={mDate} onChange={e => setMDate(e.target.value)} />
+                    <input style={inp} type="date" value={mDate} onChange={e => { setMDate(e.target.value); setSingleConflict(null) }} />
                   </div>
                 )}
                 <div style={{ marginBottom: 12 }}>
@@ -1364,7 +1412,7 @@ export default function BookingPage() {
                   </div>
                   <div style={{ flex: 1 }}>
                     <label style={lbl}>End time</label>
-                    <TimePicker value={mEndTime} onChange={setMEndTime} dark={dark} />
+                    <TimePicker value={mEndTime} onChange={v => { setMEndTime(v); setSingleConflict(null) }} dark={dark} />
                   </div>
                 </div>
                 {timeInvalid && (
@@ -1397,9 +1445,45 @@ export default function BookingPage() {
                     })()}
                   </div>
                 )}
-                {mError && (
+                {singleConflict ? (
+                  <div style={{ marginBottom: 12, border: `0.5px solid ${T.borderFaint}`, borderRadius: 0 }}>
+                    <div style={{ fontSize: 10, fontWeight: 600, color: '#B94040', padding: '7px 12px', borderBottom: `0.5px solid ${T.borderFaint}`, letterSpacing: '0.06em', textTransform: 'uppercase' as const }}>
+                      That slot is taken — pick an alternative
+                    </div>
+                    {singleConflict.nextAvail && (
+                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '8px 12px', borderBottom: singleConflict.altRooms.length > 0 ? `0.5px solid ${T.borderFaint}` : 'none', gap: 8 }}>
+                        <div>
+                          <div style={{ fontSize: 10, color: T.textMuted, textTransform: 'uppercase' as const, letterSpacing: '0.06em', marginBottom: 2 }}>Next available · {selectedRoom?.name}</div>
+                          <div style={{ fontSize: 12, color: T.text }}>{fmtTime(singleConflict.nextAvail.startHHMM)}–{fmtTime(singleConflict.nextAvail.endHHMM)}</div>
+                        </div>
+                        <button onClick={() => handleSingleConflictBook('next')} disabled={singleConflict.bookingStatus !== 'idle'}
+                          style={{ fontSize: 11, padding: '5px 12px', border: 'none', background: ROSE, color: '#fff', cursor: singleConflict.bookingStatus !== 'idle' ? 'default' : 'pointer', opacity: singleConflict.bookingStatus !== 'idle' ? 0.6 : 1, flexShrink: 0, fontFamily: 'inherit' }}>
+                          {singleConflict.bookingStatus === 'booking-next' ? '…' : 'Book'}
+                        </button>
+                      </div>
+                    )}
+                    {singleConflict.altRooms.map((r, i) => (
+                      <div key={r.id} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '8px 12px', borderBottom: i < singleConflict.altRooms.length - 1 ? `0.5px solid ${T.borderFaint}` : 'none', gap: 8 }}>
+                        <div>
+                          <div style={{ fontSize: 10, color: T.textMuted, textTransform: 'uppercase' as const, letterSpacing: '0.06em', marginBottom: 2 }}>Alternate {selectedRoom?.room_type || 'room'}</div>
+                          <div style={{ fontSize: 12, color: T.text }}>{r.name} · {fmtTime(mTime)}–{fmtTime(mEndTime)}</div>
+                        </div>
+                        <button onClick={() => handleSingleConflictBook('alt', r.id)} disabled={singleConflict.bookingStatus !== 'idle'}
+                          style={{ fontSize: 11, padding: '5px 12px', border: 'none', background: ROSE, color: '#fff', cursor: singleConflict.bookingStatus !== 'idle' ? 'default' : 'pointer', opacity: singleConflict.bookingStatus !== 'idle' ? 0.6 : 1, flexShrink: 0, fontFamily: 'inherit' }}>
+                          {singleConflict.bookingStatus === 'booking-alt' && singleConflict.bookedRoomId === r.id ? '…' : 'Book'}
+                        </button>
+                      </div>
+                    ))}
+                    {!singleConflict.nextAvail && singleConflict.altRooms.length === 0 && (
+                      <div style={{ fontSize: 12, color: T.textMuted, padding: '8px 12px' }}>No alternatives available for this time.</div>
+                    )}
+                    {singleConflict.error && (
+                      <div style={{ fontSize: 12, color: '#B94040', padding: '4px 12px 8px' }}>{singleConflict.error}</div>
+                    )}
+                  </div>
+                ) : mError ? (
                   <div style={{ fontSize: 12, color: '#B94040', background: '#fdf2f2', border: '0.5px solid #f5c6c6', borderRadius: 0, padding: '8px 12px', marginBottom: 12 }}>{mError}</div>
-                )}
+                ) : null}
                 <button onClick={handleQuickBook} disabled={mSubmitting || !mName || !mEmail || !mTime || !mEndTime || timeInvalid || (showModal === 'later' && recurFreq !== 'none' && !recurUntil)}
                   style={{ width: '100%', background: mSubmitting ? '#e8bdc7' : roseGrad, color: '#fff', border: 'none', borderRadius: 0, padding: '13px', fontSize: 14, fontWeight: 600, cursor: (mSubmitting || timeInvalid) ? 'default' : 'pointer', letterSpacing: '0.02em', marginTop: 4 }}>
                   {mSubmitting ? txt.confirming : txt.confirm}
@@ -1430,22 +1514,44 @@ export default function BookingPage() {
               {/* Lookup form (shown when no email yet) */}
               {!myBkgs && !myBkLoading && (
                 <div style={{ padding: '20px 24px' }}>
-                  <div style={{ fontSize: 13, color: T.textMuted, marginBottom: 12 }}>Enter your email to find your bookings.</div>
-                  <div style={{ display: 'flex', gap: 8 }}>
-                    <input
-                      autoFocus
-                      type="email"
-                      placeholder="your@email.com"
-                      value={myBkEmail}
-                      onChange={e => setMyBkEmail(e.target.value)}
-                      onKeyDown={e => { if (e.key === 'Enter' && myBkEmail.trim()) fetchMyBkgs(myBkEmail.trim()) }}
-                      style={{ ...inp, flex: 1 }}
-                    />
-                    <button onClick={() => myBkEmail.trim() && fetchMyBkgs(myBkEmail.trim())}
-                      style={{ background: ROSE, color: '#fff', border: 'none', borderRadius: 0, padding: '8px 18px', fontSize: 13, fontWeight: 500, cursor: 'pointer' }}>
-                      Find
-                    </button>
-                  </div>
+                  {myBkVerifySent ? (
+                    <>
+                      <div style={{ fontSize: 14, fontWeight: 500, color: T.text, marginBottom: 6 }}>Check your email</div>
+                      <div style={{ fontSize: 13, color: T.textMuted, marginBottom: 16 }}>We sent a link to <strong>{myBkEmail}</strong>. Click it to view your bookings.</div>
+                      <button onClick={() => setMyBkVerifySent(false)}
+                        style={{ fontSize: 12, background: 'none', border: 'none', cursor: 'pointer', color: T.textMuted, textDecoration: 'underline', textUnderlineOffset: 2, padding: 0 }}>
+                        Use a different email
+                      </button>
+                    </>
+                  ) : (
+                    <>
+                      <div style={{ fontSize: 13, color: T.textMuted, marginBottom: 12 }}>Enter your email and we'll send you a link to view your bookings.</div>
+                      <div style={{ display: 'flex', gap: 8 }}>
+                        <input
+                          autoFocus
+                          type="email"
+                          placeholder="your@email.com"
+                          value={myBkEmail}
+                          onChange={e => setMyBkEmail(e.target.value)}
+                          onKeyDown={e => {
+                            if (e.key === 'Enter' && myBkEmail.trim()) {
+                              fetch(`${api}/my-bookings-verify`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ email: myBkEmail.trim().toLowerCase() }) }).catch(() => {})
+                              setMyBkVerifySent(true)
+                            }
+                          }}
+                          style={{ ...inp, flex: 1 }}
+                        />
+                        <button onClick={() => {
+                          if (!myBkEmail.trim()) return
+                          fetch(`${api}/my-bookings-verify`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ email: myBkEmail.trim().toLowerCase() }) }).catch(() => {})
+                          setMyBkVerifySent(true)
+                        }}
+                          style={{ background: ROSE, color: '#fff', border: 'none', borderRadius: 0, padding: '8px 18px', fontSize: 13, fontWeight: 500, cursor: 'pointer' }}>
+                          Send link
+                        </button>
+                      </div>
+                    </>
+                  )}
                 </div>
               )}
 

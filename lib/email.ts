@@ -196,6 +196,37 @@ export async function sendWorkspaceDeleteRequestEmail({
   })
 }
 
+export async function sendMyBookingsMagicLink({
+  to,
+  url,
+  workspace,
+}: {
+  to: string
+  url: string
+  workspace: string
+}) {
+  const key = process.env.RESEND_API_KEY
+  if (!key) return
+  const resend = new Resend(key)
+  await resend.emails.send({
+    from: FROM,
+    to,
+    subject: `View your bookings — ${workspace}`,
+    html: `
+<div style="font-family:sans-serif;max-width:480px;margin:0 auto;padding:24px">
+  <div style="font-size:18px;font-weight:600;color:#2C3E6B;margin-bottom:4px">spacebook</div>
+  <div style="font-size:13px;color:#9CA3AF;margin-bottom:24px">My bookings</div>
+  <p style="font-size:14px;color:#374151">Click below to view and manage your bookings for <strong>${workspace}</strong>:</p>
+  <div style="margin:24px 0">
+    <a href="${url}" style="display:inline-block;padding:10px 20px;background:#C0577C;color:#ffffff;text-decoration:none;font-size:14px;font-weight:500">
+      View my bookings
+    </a>
+  </div>
+  <p style="font-size:12px;color:#9CA3AF">This link is valid for 7 days. If you didn't request this, you can ignore it.</p>
+</div>`,
+  })
+}
+
 export async function sendAdminRecoveryEmail({
   to,
   workspace,
