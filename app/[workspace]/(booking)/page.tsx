@@ -1058,7 +1058,6 @@ export default function BookingPage() {
               const be = new Date(b.end_time).getHours() * 60 + new Date(b.end_time).getMinutes()
               return bs < endMins && be > startMins
             }))
-          .slice(0, 3)
           .map(r => ({ id: r.id, name: r.name }))
         setSingleConflict({ nextAvail, altRooms, bookingStatus: 'idle' })
       } else {
@@ -1402,7 +1401,7 @@ export default function BookingPage() {
                 </div>
                 <div style={{ marginBottom: 12 }}>
                   <label style={lbl}>Title</label>
-                  <div style={{ fontSize: 11, color: '#C0392B', fontWeight: 600, marginBottom: 6 }}>⚠ Everyone can see this</div>
+                  {visShowTitle && <div style={{ fontSize: 11, color: '#C0392B', fontWeight: 600, marginBottom: 6 }}>⚠ Everyone can see this</div>}
                   <input style={inp} placeholder="e.g. Team standup" value={mTitle} onChange={e => setMTitle(e.target.value)} />
                 </div>
                 <div style={{ display: 'flex', gap: 8, marginBottom: timeInvalid ? 8 : 16 }}>
@@ -1446,36 +1445,52 @@ export default function BookingPage() {
                   </div>
                 )}
                 {singleConflict ? (
-                  <div style={{ marginBottom: 12, border: `0.5px solid ${T.borderFaint}`, borderRadius: 0 }}>
-                    <div style={{ fontSize: 10, fontWeight: 600, color: '#B94040', padding: '7px 12px', borderBottom: `0.5px solid ${T.borderFaint}`, letterSpacing: '0.06em', textTransform: 'uppercase' as const }}>
+                  <div style={{ marginBottom: 12, border: `1px solid #f5c6c6`, borderRadius: 0 }}>
+                    {/* Header */}
+                    <div style={{ fontSize: 11, fontWeight: 600, color: '#B94040', padding: '8px 12px', background: '#fdf2f2', borderBottom: `1px solid #f5c6c6`, letterSpacing: '0.03em' }}>
                       That slot is taken — pick an alternative
                     </div>
+
+                    {/* Section 1: different time, same room */}
                     {singleConflict.nextAvail && (
-                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '8px 12px', borderBottom: singleConflict.altRooms.length > 0 ? `0.5px solid ${T.borderFaint}` : 'none', gap: 8 }}>
-                        <div>
-                          <div style={{ fontSize: 10, color: T.textMuted, textTransform: 'uppercase' as const, letterSpacing: '0.06em', marginBottom: 2 }}>Next available · {selectedRoom?.name}</div>
-                          <div style={{ fontSize: 12, color: T.text }}>{fmtTime(singleConflict.nextAvail.startHHMM)}–{fmtTime(singleConflict.nextAvail.endHHMM)}</div>
+                      <div style={{ borderBottom: singleConflict.altRooms.length > 0 ? `2px solid ${dark ? '#374151' : '#e5e7eb'}` : 'none' }}>
+                        <div style={{ fontSize: 10, fontWeight: 600, color: T.textMuted, padding: '7px 12px 4px', letterSpacing: '0.08em', textTransform: 'uppercase' as const }}>
+                          Different time · {selectedRoom?.name}
                         </div>
-                        <button onClick={() => handleSingleConflictBook('next')} disabled={singleConflict.bookingStatus !== 'idle'}
-                          style={{ fontSize: 11, padding: '5px 12px', border: 'none', background: ROSE, color: '#fff', cursor: singleConflict.bookingStatus !== 'idle' ? 'default' : 'pointer', opacity: singleConflict.bookingStatus !== 'idle' ? 0.6 : 1, flexShrink: 0, fontFamily: 'inherit' }}>
-                          {singleConflict.bookingStatus === 'booking-next' ? '…' : 'Book'}
-                        </button>
+                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '6px 12px 10px', gap: 8 }}>
+                          <div style={{ fontSize: 13, fontWeight: 500, color: T.text }}>{fmtTime(singleConflict.nextAvail.startHHMM)}–{fmtTime(singleConflict.nextAvail.endHHMM)}</div>
+                          <button onClick={() => handleSingleConflictBook('next')} disabled={singleConflict.bookingStatus !== 'idle'}
+                            style={{ fontSize: 11, padding: '5px 14px', border: 'none', background: ROSE, color: '#fff', cursor: singleConflict.bookingStatus !== 'idle' ? 'default' : 'pointer', opacity: singleConflict.bookingStatus !== 'idle' ? 0.6 : 1, flexShrink: 0, fontFamily: 'inherit', fontWeight: 500 }}>
+                            {singleConflict.bookingStatus === 'booking-next' ? '…' : 'Book'}
+                          </button>
+                        </div>
                       </div>
                     )}
-                    {singleConflict.altRooms.map((r, i) => (
-                      <div key={r.id} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '8px 12px', borderBottom: i < singleConflict.altRooms.length - 1 ? `0.5px solid ${T.borderFaint}` : 'none', gap: 8 }}>
-                        <div>
-                          <div style={{ fontSize: 10, color: T.textMuted, textTransform: 'uppercase' as const, letterSpacing: '0.06em', marginBottom: 2 }}>Alternate {selectedRoom?.room_type || 'room'}</div>
-                          <div style={{ fontSize: 12, color: T.text }}>{r.name} · {fmtTime(mTime)}–{fmtTime(mEndTime)}</div>
+
+                    {/* Section 2: same time, alt rooms */}
+                    {singleConflict.altRooms.length > 0 && (
+                      <div>
+                        <div style={{ fontSize: 10, fontWeight: 600, color: T.textMuted, padding: '7px 12px 4px', letterSpacing: '0.08em', textTransform: 'uppercase' as const }}>
+                          Same time · {selectedRoom?.room_type || 'same type'}
                         </div>
-                        <button onClick={() => handleSingleConflictBook('alt', r.id)} disabled={singleConflict.bookingStatus !== 'idle'}
-                          style={{ fontSize: 11, padding: '5px 12px', border: 'none', background: ROSE, color: '#fff', cursor: singleConflict.bookingStatus !== 'idle' ? 'default' : 'pointer', opacity: singleConflict.bookingStatus !== 'idle' ? 0.6 : 1, flexShrink: 0, fontFamily: 'inherit' }}>
-                          {singleConflict.bookingStatus === 'booking-alt' && singleConflict.bookedRoomId === r.id ? '…' : 'Book'}
-                        </button>
+                        {singleConflict.altRooms.map((r, i) => (
+                          <div key={r.id} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '6px 12px', borderTop: i > 0 ? `0.5px solid ${T.borderFaint}` : 'none', gap: 8 }}>
+                            <div>
+                              <div style={{ fontSize: 13, fontWeight: 500, color: T.text }}>{r.name}</div>
+                              <div style={{ fontSize: 11, color: T.textMuted }}>{fmtTime(mTime)}–{fmtTime(mEndTime)}</div>
+                            </div>
+                            <button onClick={() => handleSingleConflictBook('alt', r.id)} disabled={singleConflict.bookingStatus !== 'idle'}
+                              style={{ fontSize: 11, padding: '5px 14px', border: 'none', background: ROSE, color: '#fff', cursor: singleConflict.bookingStatus !== 'idle' ? 'default' : 'pointer', opacity: singleConflict.bookingStatus !== 'idle' ? 0.6 : 1, flexShrink: 0, fontFamily: 'inherit', fontWeight: 500 }}>
+                              {singleConflict.bookingStatus === 'booking-alt' && singleConflict.bookedRoomId === r.id ? '…' : 'Book'}
+                            </button>
+                          </div>
+                        ))}
+                        <div style={{ height: 6 }} />
                       </div>
-                    ))}
+                    )}
+
                     {!singleConflict.nextAvail && singleConflict.altRooms.length === 0 && (
-                      <div style={{ fontSize: 12, color: T.textMuted, padding: '8px 12px' }}>No alternatives available for this time.</div>
+                      <div style={{ fontSize: 12, color: T.textMuted, padding: '10px 12px' }}>No alternatives available for this time.</div>
                     )}
                     {singleConflict.error && (
                       <div style={{ fontSize: 12, color: '#B94040', padding: '4px 12px 8px' }}>{singleConflict.error}</div>
@@ -1671,7 +1686,7 @@ export default function BookingPage() {
               {!isOthers && editConflicts.length === 0 && (
                 <div style={{ marginBottom: 12 }}>
                   <label style={lbl}>Title</label>
-                  <div style={{ fontSize: 11, color: '#C0392B', fontWeight: 600, marginBottom: 6 }}>⚠ {visShowTitle ? 'Everyone can see this' : 'Only you can see this'}</div>
+                  {visShowTitle && <div style={{ fontSize: 11, color: '#C0392B', fontWeight: 600, marginBottom: 6 }}>⚠ Everyone can see this</div>}
                   <input style={inp} placeholder="e.g. Team standup" value={editTitle} onChange={e => setEditTitle(e.target.value)} />
                 </div>
               )}
