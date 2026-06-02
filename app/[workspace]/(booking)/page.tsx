@@ -1904,7 +1904,7 @@ export default function BookingPage() {
 
       {/* Feedback button */}
       <button onClick={() => { setShowFeedback(true); setFbDone(false) }}
-        style={{ position: 'fixed', bottom: 16, right: 16, fontSize: 11, color: 'rgba(0,0,0,0.28)', background: 'none', border: '1px solid rgba(0,0,0,0.18)', padding: '5px 11px', cursor: 'pointer', zIndex: 50, fontFamily: 'inherit', boxShadow: '0 1px 4px rgba(0,0,0,0.08)' }}>
+        style={{ position: 'fixed', bottom: 16, right: 16, fontSize: 11, color: '#fff', background: '#6B7280', border: 'none', padding: '5px 11px', cursor: 'pointer', zIndex: 50, fontFamily: 'inherit', boxShadow: '0 1px 4px rgba(0,0,0,0.15)' }}>
         feedback
       </button>
 
