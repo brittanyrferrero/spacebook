@@ -1271,7 +1271,7 @@ export default function BookingPage() {
                 </div>
               )}
             </div>
-            <button onClick={() => { setMDate(todayStr); setMTime(''); setMEndTime(''); setMTitle('Occupied'); setRecurFreq('none'); setMError(''); setShowModal('later'); setMDone(false) }}
+            <button onClick={() => { setMDate(todayStr); setMTime(''); setMEndTime(''); setMTitle('Occupied'); setRecurFreq('none'); setMError(''); setMRoomId(selectedRoomId); setShowModal('later'); setMDone(false) }}
               style={{ background: 'transparent', border: `1px solid ${dark ? 'rgba(255,255,255,0.45)' : T.inputBorder}`, borderRadius: 0, padding: '12px 22px', fontSize: 14, cursor: 'pointer', color: T.text, whiteSpace: 'nowrap', letterSpacing: '0.01em' }}>
               {txt.schedule}
             </button>
@@ -1403,9 +1403,11 @@ export default function BookingPage() {
               </div>
             ) : (
               <>
-                <div style={{ fontSize: 17, fontWeight: 700, marginBottom: 20, color: dark ? T.text : NAVY, letterSpacing: '-0.02em' }}>
-                  {showModal === 'now' ? <>{txt.bookNow} <span style={{ color: ROSE }}>·</span> {selectedRoom?.name}</> : 'Schedule'}
-                </div>
+                {showModal === 'now' && (
+                  <div style={{ fontSize: 17, fontWeight: 700, marginBottom: 20, color: dark ? T.text : NAVY, letterSpacing: '-0.02em' }}>
+                    {txt.bookNow} <span style={{ color: ROSE }}>·</span> {selectedRoom?.name}
+                  </div>
+                )}
                 {showModal === 'later' && (
                   <div style={{ marginBottom: 12 }}>
                     <label style={lbl}>Date</label>
