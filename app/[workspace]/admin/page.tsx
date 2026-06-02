@@ -653,12 +653,16 @@ export default function AdminPage() {
         <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
           {showDateRange && (
             <div style={{ display: 'flex', alignItems: 'center', gap: 6, position: 'relative' }}>
-              {PRESETS.map(p => (
-                <button key={p.key} onClick={() => { setPreset(p.key); setShowCustom(false); setCustomFrom(''); setCustomTo('') }}
-                  style={{ fontSize: 12, padding: '5px 10px', borderRadius: 0, border: `1px solid ${preset === p.key && !customFrom ? NAVY : '#cccccc'}`, background: preset === p.key && !customFrom ? NAVY_LIGHT : '#fff', cursor: 'pointer', color: preset === p.key && !customFrom ? NAVY : '#6B7280' }}>
-                  {p.label}
-                </button>
-              ))}
+              {PRESETS.map(p => {
+                const r = getRange(p.key)
+                const tip = `${fmtDate(r.from)} – ${fmtDate(r.to)}`
+                return (
+                  <button key={p.key} title={tip} onClick={() => { setPreset(p.key); setShowCustom(false); setCustomFrom(''); setCustomTo('') }}
+                    style={{ fontSize: 12, padding: '5px 10px', borderRadius: 0, border: `1px solid ${preset === p.key && !customFrom ? NAVY : '#cccccc'}`, background: preset === p.key && !customFrom ? NAVY_LIGHT : '#fff', cursor: 'pointer', color: preset === p.key && !customFrom ? NAVY : '#6B7280' }}>
+                    {p.label}
+                  </button>
+                )
+              })}
               <button onClick={() => setShowCustom(c => !c)}
                 style={{ fontSize: 12, padding: '5px 10px', borderRadius: 0, border: `1px solid ${customFrom ? NAVY : '#cccccc'}`, background: customFrom ? NAVY : showCustom ? NAVY_LIGHT : '#fff', cursor: 'pointer', color: customFrom ? '#fff' : NAVY }}>
                 Custom range
