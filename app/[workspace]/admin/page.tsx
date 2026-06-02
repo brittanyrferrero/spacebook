@@ -1456,9 +1456,9 @@ export default function AdminPage() {
                                     }}
                                     style={{ marginLeft: 6, fontSize: 11, border: '1px solid #dddddd', background: '#fff', padding: '2px 4px', cursor: 'pointer', color: '#374151', fontFamily: 'inherit' }}
                                   >
-                                    <option value="">User</option>
-                                    <option value="admin">Admin</option>
-                                    <option value="super_admin">Super admin</option>
+                                    <option value="">User — no admin access</option>
+                                    <option value="admin">Admin — manage rooms, bookings &amp; settings</option>
+                                    <option value="super_admin">Super admin — + can manage other admins</option>
                                   </select>
                                 )
                               })()}
