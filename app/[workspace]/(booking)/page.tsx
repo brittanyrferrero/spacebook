@@ -617,6 +617,8 @@ export default function BookingPage() {
     error?: string
   } | null>(null)
   const [confirmCancel,   setConfirmCancel]   = useState<{ message?: string; onConfirm?: () => void; onConfirmScope?: (scope: 'this' | 'future') => void } | null>(null)
+  const [mRoomId,        setMRoomId]        = useState('')
+  const [laterDayBkgs,   setLaterDayBkgs]   = useState<Booking[]>([])
 
   const dark = theme === 'dark'
   const T = mkT(dark)
@@ -675,6 +677,10 @@ export default function BookingPage() {
     if (process.env.NEXT_PUBLIC_MOCK_MODE === 'true') return
     fetch(`${api}/my-bookings-session`).then(r => r.json()).then(({ email }) => { if (email) setVerifiedEmail(email) }).catch(() => {})
   }, [api])
+  useEffect(() => {
+    if (showModal !== 'later' || !mDate) { setLaterDayBkgs([]); return }
+    fetch(`${api}/bookings?date=${mDate}`).then(r => r.json()).then(setLaterDayBkgs).catch(() => {})
+  }, [showModal, mDate, api])
   useEffect(() => {
     fetch(`${api}/settings`).then(r => r.json()).then(d => {
       setGridStart(d.displayHours?.start ?? 8)
@@ -772,7 +778,7 @@ export default function BookingPage() {
     const [h, m] = time.split(':').map(Number)
     const endTotal = Math.min(h * 60 + m + 60, 23 * 60)
     const endHHMM = `${String(Math.floor(endTotal / 60)).padStart(2, '0')}:${String(endTotal % 60).padStart(2, '0')}`
-    setMDate(ds); setMTime(time); setMEndTime(endHHMM); setMTitle('Occupied'); setRecurFreq('none'); setMError(''); setMDone(false); setShowModal('later')
+    setMDate(ds); setMTime(time); setMEndTime(endHHMM); setMTitle('Occupied'); setRecurFreq('none'); setMError(''); setMDone(false); setMRoomId(selectedRoomId); setShowModal('later')
   }
 
   async function fetchMyBkgs(email: string) {
@@ -944,7 +950,7 @@ export default function BookingPage() {
     if (!singleConflict) return
     const startHHMM = type === 'next' ? singleConflict.nextAvail!.startHHMM : mTime
     const endHHMM   = type === 'next' ? singleConflict.nextAvail!.endHHMM   : mEndTime
-    const roomId    = type === 'alt' ? altRoomId! : selectedRoomId
+    const roomId    = type === 'alt' ? altRoomId! : (mRoomId || selectedRoomId)
     setSingleConflict(prev => prev ? { ...prev, bookingStatus: type === 'next' ? 'booking-next' : 'booking-alt', bookedRoomId: altRoomId } : null)
     const res = await fetch(`${api}/bookings`, {
       method: 'POST',
@@ -979,8 +985,24 @@ export default function BookingPage() {
   const selectedRoomTodayBkgs = sidebarBkgs.filter(b => b.room_id === selectedRoomId)
   const isFree = getRoomStatusFull(selectedRoomTodayBkgs).status === 'free'
 
+  const mRoom = rooms.find(r => r.id === mRoomId) ?? selectedRoom
+
+  const laterRoomAvailability = useMemo(() => {
+    if (!mTime || !mEndTime) return rooms.map(r => ({ id: r.id, name: r.name, taken: false }))
+    const startMins = toMins(mTime), endMins = toMins(mEndTime)
+    return rooms.map(r => ({
+      id: r.id, name: r.name,
+      taken: laterDayBkgs.filter(b => b.room_id === r.id && !b.cancelled_at).some(b => {
+        const bs = new Date(b.start_time).getHours() * 60 + new Date(b.start_time).getMinutes()
+        const be = new Date(b.end_time).getHours() * 60 + new Date(b.end_time).getMinutes()
+        return bs < endMins && be > startMins
+      }),
+    }))
+  }, [rooms, laterDayBkgs, mTime, mEndTime])
+
   async function handleQuickBook() {
-    if (!selectedRoom || !mName || !mEmail || !mTime || !mEndTime) return
+    const bookRoomId = showModal === 'later' ? mRoomId : selectedRoom?.id
+    if (!bookRoomId || !mName || !mEmail || !mTime || !mEndTime) return
     setSingleConflict(null)
     setMSubmitting(true)
     const startTime = new Date(`${mDate}T${mTime}`).toISOString()
@@ -996,7 +1018,7 @@ export default function BookingPage() {
     const res = await fetch(`${api}/bookings`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ room_id: selectedRoom.id, booker_name: mName, booker_email: mEmail, start_time: startTime, end_time: endTime, title: mTitle || null, ...(recurrence ? { recurrence } : {}) }),
+      body: JSON.stringify({ room_id: bookRoomId, booker_name: mName, booker_email: mEmail, start_time: startTime, end_time: endTime, title: mTitle || null, ...(recurrence ? { recurrence } : {}) }),
     })
     if (res.ok) {
       try { localStorage.setItem('spacebook_user', JSON.stringify({ name: mName, email: mEmail })) } catch {}
@@ -1045,13 +1067,18 @@ export default function BookingPage() {
     } else {
       const body = await res.json().catch(() => ({}))
       if (res.status === 409) {
-        const next = findNextAvailable(mDate, mTime, mEndTime, rangeBkgs, gridEnd)
+        const conflictRoom = mRoom
+        const conflictRoomId = bookRoomId
+        const roomBkgs = laterDayBkgs.length > 0
+          ? laterDayBkgs.filter(b => b.room_id === conflictRoomId)
+          : rangeBkgs.filter(b => b.room_id === conflictRoomId)
+        const next = findNextAvailable(mDate, mTime, mEndTime, roomBkgs, gridEnd)
         const dur = toMins(mEndTime) - toMins(mTime)
         const nextAvail = next ? { startHHMM: next, endHHMM: fromMins(toMins(next) + dur) } : null
-        const allDayBkgs: Booking[] = await fetch(`${api}/bookings?date=${mDate}`).then(r => r.json()).catch(() => [])
+        const allDayBkgs: Booking[] = laterDayBkgs.length > 0 ? laterDayBkgs : await fetch(`${api}/bookings?date=${mDate}`).then(r => r.json()).catch(() => [])
         const startMins = toMins(mTime), endMins = toMins(mEndTime)
         const altRooms = rooms
-          .filter(r => r.id !== selectedRoomId && r.room_type && r.room_type === selectedRoom?.room_type)
+          .filter(r => r.id !== conflictRoomId && r.room_type && r.room_type === conflictRoom?.room_type)
           .filter(r => !allDayBkgs.filter((b: any) => b.room_id === r.id && !b.cancelled_at)
             .some((b: any) => {
               const bs = new Date(b.start_time).getHours() * 60 + new Date(b.start_time).getMinutes()
@@ -1160,7 +1187,7 @@ export default function BookingPage() {
                   <button key={slot.date} onClick={() => {
                     setViewDate(new Date(slot.date + 'T12:00:00'))
                     setMDate(slot.date); setMTime(slot.startHHMM); setMEndTime(slot.endHHMM)
-                    setMTitle(slot.title || 'Occupied'); setRecurFreq('none'); setMError(''); setMDone(false)
+                    setMTitle(slot.title || 'Occupied'); setRecurFreq('none'); setMError(''); setMDone(false); setMRoomId(selectedRoomId)
                     setShowModal('later')
                   }}
                     style={{ fontSize: 10, padding: '3px 8px', background: dark ? 'rgba(253,211,77,0.15)' : '#FEF3C7', border: `1px solid ${dark ? 'rgba(253,211,77,0.3)' : '#FCD34D'}`, color: dark ? '#FCD34D' : '#78350F', cursor: 'pointer', fontFamily: 'inherit', borderRadius: 0 }}>
@@ -1376,7 +1403,7 @@ export default function BookingPage() {
             ) : (
               <>
                 <div style={{ fontSize: 17, fontWeight: 700, marginBottom: 20, color: dark ? T.text : NAVY, letterSpacing: '-0.02em' }}>
-                  {showModal === 'now' ? txt.bookNow : 'Schedule'} <span style={{ color: ROSE }}>·</span> {selectedRoom?.name}
+                  {showModal === 'now' ? txt.bookNow : 'Schedule'} <span style={{ color: ROSE }}>·</span> {showModal === 'later' ? (mRoom?.name ?? selectedRoom?.name) : selectedRoom?.name}
                 </div>
                 {showModal === 'later' && (
                   <div style={{ marginBottom: 12 }}>
@@ -1444,6 +1471,20 @@ export default function BookingPage() {
                     })()}
                   </div>
                 )}
+                {showModal === 'later' && (
+                  <div style={{ marginBottom: 12 }}>
+                    <label style={lbl}>Room</label>
+                    <select
+                      style={{ ...inp, appearance: 'none' as any, backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath d='M1 1l5 5 5-5' stroke='%236B7280' stroke-width='1.5' fill='none' stroke-linecap='round'/%3E%3C/svg%3E")`, backgroundRepeat: 'no-repeat', backgroundPosition: 'right 10px center', paddingRight: 28 }}
+                      value={mRoomId}
+                      onChange={e => { setMRoomId(e.target.value); setSingleConflict(null) }}
+                    >
+                      {laterRoomAvailability.map(r => (
+                        <option key={r.id} value={r.id}>{r.name}{r.taken ? ' — taken' : ''}</option>
+                      ))}
+                    </select>
+                  </div>
+                )}
                 {singleConflict ? (
                   <div style={{ marginBottom: 12, border: `1px solid #f5c6c6`, borderRadius: 0 }}>
                     {/* Header */}
@@ -1455,7 +1496,7 @@ export default function BookingPage() {
                     {singleConflict.nextAvail && (
                       <div style={{ borderBottom: singleConflict.altRooms.length > 0 ? `2px solid ${dark ? '#374151' : '#e5e7eb'}` : 'none' }}>
                         <div style={{ fontSize: 10, fontWeight: 600, color: T.textMuted, padding: '7px 12px 4px', letterSpacing: '0.08em', textTransform: 'uppercase' as const }}>
-                          Different time · {selectedRoom?.name}
+                          Different time · {mRoom?.name ?? selectedRoom?.name}
                         </div>
                         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '6px 12px 10px', gap: 8 }}>
                           <div style={{ fontSize: 13, fontWeight: 500, color: T.text }}>{fmtTime(singleConflict.nextAvail.startHHMM)}–{fmtTime(singleConflict.nextAvail.endHHMM)}</div>
@@ -1471,7 +1512,7 @@ export default function BookingPage() {
                     {singleConflict.altRooms.length > 0 && (
                       <div>
                         <div style={{ fontSize: 10, fontWeight: 600, color: T.textMuted, padding: '7px 12px 4px', letterSpacing: '0.08em', textTransform: 'uppercase' as const }}>
-                          Same time · {selectedRoom?.room_type || 'same type'}
+                          Same time · {mRoom?.room_type || selectedRoom?.room_type || 'same type'}
                         </div>
                         {singleConflict.altRooms.map((r, i) => (
                           <div key={r.id} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '6px 12px', borderTop: i > 0 ? `0.5px solid ${T.borderFaint}` : 'none', gap: 8 }}>
