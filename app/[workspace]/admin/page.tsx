@@ -130,6 +130,16 @@ export default function AdminPage() {
   const [slugSaving, setSlugSaving] = useState(false)
   const [slugError, setSlugError] = useState('')
 
+  function generateSlug() {
+    const adj = ['amber','arctic','ashen','azure','bold','brass','brisk','calm','cedar','chalk','cinder','cobalt','coral','crisp','dappled','dusty','elfin','ember','fern','flint','frosty','garnet','gentle','gilded','golden','granite','hazel','hollow','indigo','ivory','jade','jasper','jolly','keen','kelp','lemon','lunar','maple','misty','mossy','nimble','noble','ochre','olive','opal','pewter','pine','plum','polar','quartz','quiet','raven','russet','sage','sandy','scarlet','silver','slate','stormy','swift','teal','timber','topaz','umber','velvet','vivid','walnut','woven','yarrow','zesty']
+    const noun1 = ['alder','aspen','bay','beech','birch','bracken','briar','broom','cedar','clover','elder','elm','fern','fir','gorse','hazel','heath','heather','holly','ivy','juniper','larch','laurel','lichen','maple','moss','myrtle','oak','pine','reed','rowan','rush','sedge','sorrel','spruce','thistle','thorn','willow','wych','yew']
+    const noun2 = ['bay','bluff','brook','cliff','cove','creek','crest','dale','dell','dune','fen','fjord','ford','glade','glen','gorge','grove','heath','hill','inlet','isle','knoll','lake','lea','ledge','loch','moor','pass','peak','plain','pond','ravine','reef','ridge','shore','spit','spur','tarn','tide','tor','vale','wave','weald','wood']
+    const pick = (arr: string[]) => arr[Math.floor(Math.random() * arr.length)]
+    setNewSlug(`${pick(adj)}-${pick(noun1)}-${pick(noun2)}`)
+    setSlugError('')
+    setSlugConfirming(false)
+  }
+
   // Display hours (calendar grid range)
   const [dispStart, setDispStart] = useState(8)
   const [dispEnd,   setDispEnd]   = useState(20)
@@ -1576,17 +1586,22 @@ export default function AdminPage() {
                   ⚠️ <strong>Heads up:</strong> renaming your URL is going to be a pain. Every person on your team will need the new link, every tablet will need to be reconfigured, and any saved bookmarks will break. Only do this if you really need to.
                 </div>
                 {!slugConfirming ? (
-                  <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+                  <div style={{ display: 'flex', gap: 8, alignItems: 'center', marginBottom: 8 }}>
                     <input
                       value={newSlug}
-                      onChange={e => { setNewSlug(e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, '')); setSlugError('') }}
-                      placeholder={`e.g. ${workspace}-2`}
+                      onChange={e => { setNewSlug(e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, '')); setSlugError(''); setSlugConfirming(false) }}
+                      placeholder="new-workspace-url"
                       style={{ fontSize: 12, padding: '6px 8px', border: '1px solid #dddddd', borderRadius: 0, outline: 'none', fontFamily: 'inherit', flex: 1 }}
                     />
                     <button
+                      onClick={generateSlug}
+                      style={{ fontSize: 12, padding: '6px 10px', borderRadius: 0, border: '1px solid #dddddd', background: 'none', cursor: 'pointer', color: '#6B7280', whiteSpace: 'nowrap', flexShrink: 0 }}>
+                      ↺ Generate
+                    </button>
+                    <button
                       disabled={newSlug.length < 3}
                       onClick={() => { setSlugError(''); setSlugConfirming(true) }}
-                      style={{ fontSize: 12, padding: '6px 14px', borderRadius: 0, border: '1px solid #f5c6c6', background: 'none', cursor: newSlug.length < 3 ? 'default' : 'pointer', color: '#C0392B', whiteSpace: 'nowrap', opacity: newSlug.length < 3 ? 0.4 : 1 }}>
+                      style={{ fontSize: 12, padding: '6px 14px', borderRadius: 0, border: '1px solid #f5c6c6', background: 'none', cursor: newSlug.length < 3 ? 'default' : 'pointer', color: '#C0392B', whiteSpace: 'nowrap', opacity: newSlug.length < 3 ? 0.4 : 1, flexShrink: 0 }}>
                       Rename
                     </button>
                   </div>
