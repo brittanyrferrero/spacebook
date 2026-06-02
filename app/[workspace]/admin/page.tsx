@@ -125,6 +125,10 @@ export default function AdminPage() {
   const [wsName, setWsName] = useState('')
   const [wsNameSaving, setWsNameSaving] = useState(false)
   const [wsNameSaved, setWsNameSaved] = useState(false)
+  const [newSlug, setNewSlug] = useState('')
+  const [slugConfirming, setSlugConfirming] = useState(false)
+  const [slugSaving, setSlugSaving] = useState(false)
+  const [slugError, setSlugError] = useState('')
 
   // Display hours (calendar grid range)
   const [dispStart, setDispStart] = useState(8)
@@ -1562,6 +1566,63 @@ export default function AdminPage() {
               </div>
 
               <EntryLinkCard workspace={workspace} adminEntryToken={adminEntryToken} />
+
+              <div style={{ background: '#fff', border: '1px solid #f5c6c6', borderRadius: 0, padding: 16, marginBottom: 10 }}>
+                <div style={{ fontSize: 12, fontWeight: 500, color: '#374151', marginBottom: 4 }}>Rename workspace URL</div>
+                <div style={{ fontSize: 12, color: '#9CA3AF', marginBottom: 10, lineHeight: 1.6 }}>
+                  Use this to revoke access for former team members who know your current URL. This is a significant operation — proceed with caution.
+                </div>
+                <div style={{ background: '#fef9ec', border: '1px solid #fcd34d', borderRadius: 0, padding: '10px 12px', marginBottom: 12, fontSize: 12, color: '#78350f', lineHeight: 1.6 }}>
+                  ⚠️ <strong>Heads up:</strong> renaming your URL is going to be a pain. Every person on your team will need the new link, every tablet will need to be reconfigured, and any saved bookmarks will break. Only do this if you really need to.
+                </div>
+                {!slugConfirming ? (
+                  <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+                    <input
+                      value={newSlug}
+                      onChange={e => { setNewSlug(e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, '')); setSlugError('') }}
+                      placeholder={`e.g. ${workspace}-2`}
+                      style={{ fontSize: 12, padding: '6px 8px', border: '1px solid #dddddd', borderRadius: 0, outline: 'none', fontFamily: 'inherit', flex: 1 }}
+                    />
+                    <button
+                      disabled={newSlug.length < 3}
+                      onClick={() => { setSlugError(''); setSlugConfirming(true) }}
+                      style={{ fontSize: 12, padding: '6px 14px', borderRadius: 0, border: '1px solid #f5c6c6', background: 'none', cursor: newSlug.length < 3 ? 'default' : 'pointer', color: '#C0392B', whiteSpace: 'nowrap', opacity: newSlug.length < 3 ? 0.4 : 1 }}>
+                      Rename
+                    </button>
+                  </div>
+                ) : (
+                  <div>
+                    <div style={{ fontSize: 12, color: '#374151', marginBottom: 10 }}>
+                      Are you sure? Your workspace will move to <strong>/{newSlug}</strong>. Your current URL <strong>/{workspace}</strong> will stop working immediately.
+                    </div>
+                    <div style={{ display: 'flex', gap: 8 }}>
+                      <button
+                        onClick={() => { setSlugConfirming(false); setSlugError('') }}
+                        style={{ fontSize: 12, padding: '6px 14px', borderRadius: 0, border: '1px solid #dddddd', background: 'none', cursor: 'pointer', color: '#6B7280' }}>
+                        Cancel
+                      </button>
+                      <button
+                        disabled={slugSaving}
+                        onClick={async () => {
+                          setSlugSaving(true)
+                          const res = await fetch(`${api}/rename-slug`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ newSlug }) })
+                          if (res.ok) {
+                            window.location.href = `/${newSlug}/admin`
+                          } else {
+                            const body = await res.json().catch(() => ({}))
+                            setSlugError(body.error ?? 'Something went wrong.')
+                            setSlugSaving(false)
+                            setSlugConfirming(false)
+                          }
+                        }}
+                        style={{ fontSize: 12, padding: '6px 14px', borderRadius: 0, border: 'none', background: '#C0392B', cursor: slugSaving ? 'default' : 'pointer', color: '#fff', whiteSpace: 'nowrap' }}>
+                        {slugSaving ? 'Renaming…' : 'Yes, rename it'}
+                      </button>
+                    </div>
+                  </div>
+                )}
+                {slugError && <div style={{ fontSize: 12, color: '#C0392B', marginTop: 8 }}>{slugError}</div>}
+              </div>
 
               <div style={{ background: '#fff', border: '1px solid #dddddd', borderRadius: 0, padding: 16, marginBottom: 10 }}>
                 <div style={{ fontSize: 12, fontWeight: 500, color: '#374151', marginBottom: 4 }}>Admin password</div>
