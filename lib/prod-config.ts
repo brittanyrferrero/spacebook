@@ -58,6 +58,30 @@ export async function setBookingVisibility(workspaceId: string, v: { showTitle: 
   await kv().set(k(workspaceId, 'cfg:bookingVisibility'), v)
 }
 
+// ─── Workspace limits ─────────────────────────────────────────────────────────
+
+export interface WorkspaceLimits {
+  is_trial: boolean
+  max_rooms: number | null     // null = unlimited
+  max_members: number | null   // null = unlimited
+  max_bookings: number | null  // null = unlimited (counts total ever created)
+}
+
+export const TRIAL_LIMITS: WorkspaceLimits = {
+  is_trial: true,
+  max_rooms: 10,
+  max_members: 3,
+  max_bookings: 50,
+}
+
+export async function getLimits(workspaceId: string): Promise<WorkspaceLimits | null> {
+  return kv().get<WorkspaceLimits>(k(workspaceId, 'limits'))
+}
+
+export async function setLimits(workspaceId: string, limits: WorkspaceLimits): Promise<void> {
+  await kv().set(k(workspaceId, 'limits'), limits)
+}
+
 // ─── Workspace entry token ────────────────────────────────────────────────────
 
 export async function getWorkspaceToken(workspaceId: string): Promise<string | null> {

@@ -179,6 +179,10 @@ export default function AdminPage() {
   const [amenityError, setAmenityError] = useState('')
   const [deletingAmenity, setDeletingAmenity] = useState<string | null>(null)
 
+  // Trial banner
+  const [trialLimits, setTrialLimits] = useState<{ max_rooms: number | null; max_members: number | null; max_bookings: number | null } | null>(null)
+  const [trialUsage, setTrialUsage] = useState<{ members: number; bookings: number } | null>(null)
+
   // Workspace deletion request
   const [deleteReqEmail, setDeleteReqEmail] = useState('')
   const [deleteReqSending, setDeleteReqSending] = useState(false)
@@ -220,6 +224,7 @@ export default function AdminPage() {
       setVisAllowEditOthers(d.bookingVisibility?.allowEditOthers ?? false)
       if (d.adminEntryToken) setAdminEntryToken(d.adminEntryToken)
       if (d.workspaceName != null) setWsName(d.workspaceName)
+      if (d.limits?.is_trial) { setTrialLimits(d.limits); setTrialUsage(d.trial_usage ?? null) }
     }).catch(() => {})
   }, [])
 
@@ -703,6 +708,25 @@ export default function AdminPage() {
 
         {/* Main content */}
         <div style={{ padding: '16px 18px' }}>
+
+          {/* ── Trial banner ── */}
+          {trialLimits && (
+            <div style={{ background: '#fffbeb', border: '1px solid #f59e0b', padding: '12px 16px', marginBottom: 16, fontSize: 13 }}>
+              <div style={{ fontWeight: 600, color: '#92400e', marginBottom: 6 }}>Trial workspace</div>
+              <div style={{ color: '#78350f', lineHeight: 1.6 }}>
+                {trialUsage && (
+                  <>
+                    <span style={{ marginRight: 16 }}>Members: <strong>{trialUsage.members}</strong>/{trialLimits.max_members ?? '∞'}</span>
+                    <span style={{ marginRight: 16 }}>Rooms: <strong>{trialLimits.max_rooms ?? '∞'}</strong> max</span>
+                    <span>Bookings ever: <strong>{trialUsage.bookings}</strong>/{trialLimits.max_bookings ?? '∞'}</span>
+                  </>
+                )}
+              </div>
+              <div style={{ marginTop: 6, color: '#92400e', fontSize: 12 }}>
+                You&apos;re on a trial plan. Contact <a href="mailto:hello@spacebook.app" style={{ color: '#b45309' }}>hello@spacebook.app</a> to upgrade and remove limits.
+              </div>
+            </div>
+          )}
 
           {/* ── Overview ── */}
           {nav === 'Overview' && (

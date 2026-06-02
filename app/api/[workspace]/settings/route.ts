@@ -19,13 +19,26 @@ export async function GET(_req: NextRequest, { params }: { params: { workspace: 
   const workspace = await getWorkspaceBySlug(params.workspace)
   if (!workspace) return Response.json({ error: 'Workspace not found' }, { status: 404 })
   const workspaceId = workspace.id
-  const { getBookingHours, getDisplayHours, getBookingVisibility } = await import('@/lib/prod-config')
-  const [bookingHours, displayHours, bookingVisibility] = await Promise.all([
+  const { getBookingHours, getDisplayHours, getBookingVisibility, getLimits } = await import('@/lib/prod-config')
+  const [bookingHours, displayHours, bookingVisibility, limits] = await Promise.all([
     getBookingHours(workspaceId),
     getDisplayHours(workspaceId),
     getBookingVisibility(workspaceId),
+    getLimits(workspaceId),
   ])
-  return Response.json({ bookingHours, displayHours, bookingVisibility, adminEntryToken: workspace.admin_entry_token, workspaceName: workspace.name })
+
+  let trial_usage = null
+  if (limits?.is_trial) {
+    const { createClient: mkClient } = await import('@/lib/supabase/server')
+    const sb = await mkClient()
+    const [{ count: memberCount }, { count: bookingCount }] = await Promise.all([
+      sb.from('members').select('*', { count: 'exact', head: true }).eq('workspace_id', workspaceId).then(r => ({ count: r.count ?? 0 })),
+      sb.from('bookings').select('*', { count: 'exact', head: true }).eq('workspace_id', workspaceId).then(r => ({ count: r.count ?? 0 })),
+    ])
+    trial_usage = { members: memberCount, bookings: bookingCount }
+  }
+
+  return Response.json({ bookingHours, displayHours, bookingVisibility, adminEntryToken: workspace.admin_entry_token, workspaceName: workspace.name, limits, trial_usage })
 }
 
 export async function PATCH(req: NextRequest, { params }: { params: { workspace: string } }) {

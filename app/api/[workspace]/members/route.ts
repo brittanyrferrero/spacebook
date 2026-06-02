@@ -50,6 +50,18 @@ export async function POST(req: NextRequest, { params }: { params: { workspace: 
   if (!workspaceId) return NextResponse.json({ error: 'Workspace not found' }, { status: 404 })
   const { createClient } = await import('@/lib/supabase/server')
   const supabase = await createClient()
+
+  const { getLimits } = await import('@/lib/prod-config')
+  const limits = await getLimits(workspaceId)
+  if (limits?.max_members != null) {
+    const { count } = await supabase.from('members').select('*', { count: 'exact', head: true }).eq('workspace_id', workspaceId).then(r => ({ count: r.count ?? 0 }))
+    // Allow upsert if member already exists (email match) — only block net-new additions
+    const { data: existing } = await supabase.from('members').select('id').eq('workspace_id', workspaceId).ilike('email', email.trim()).maybeSingle()
+    if (!existing && count >= limits.max_members) {
+      return NextResponse.json({ error: `Member limit reached (${limits.max_members}). Upgrade to add more members.` }, { status: 403 })
+    }
+  }
+
   const { data, error } = await supabase.from('members').upsert({ name: name.trim(), email: email.trim().toLowerCase(), workspace_id: workspaceId }, { onConflict: 'email,workspace_id' }).select().single()
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })
   return NextResponse.json(data, { status: 201 })

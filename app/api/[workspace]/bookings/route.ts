@@ -57,6 +57,15 @@ export async function POST(req: NextRequest, { params }: { params: { workspace: 
   const { createClient } = await import('@/lib/supabase/server')
   const supabase = await createClient()
 
+  const { getLimits } = await import('@/lib/prod-config')
+  const limits = await getLimits(workspaceId)
+  if (limits?.max_bookings != null) {
+    const { count } = await supabase.from('bookings').select('*', { count: 'exact', head: true }).eq('workspace_id', workspaceId).then(r => ({ count: r.count ?? 0 }))
+    if (count >= limits.max_bookings) {
+      return Response.json({ error: `Booking limit reached (${limits.max_bookings}). Upgrade to continue making bookings.` }, { status: 403 })
+    }
+  }
+
   // Auto-add booker to members directory (non-fatal)
   const upsertMember = async () => {
     try {

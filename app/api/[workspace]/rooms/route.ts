@@ -28,6 +28,16 @@ export async function POST(req: NextRequest, { params }: { params: { workspace: 
   if (!workspaceId) return Response.json({ error: 'Workspace not found' }, { status: 404 })
   const { createClient } = await import('@/lib/supabase/server')
   const supabase = await createClient()
+
+  const { getLimits } = await import('@/lib/prod-config')
+  const limits = await getLimits(workspaceId)
+  if (limits?.max_rooms != null) {
+    const { count } = await supabase.from('rooms').select('*', { count: 'exact', head: true }).eq('workspace_id', workspaceId).eq('is_active', true).then(r => ({ count: r.count ?? 0 }))
+    if (count >= limits.max_rooms) {
+      return Response.json({ error: `Room limit reached (${limits.max_rooms}). Upgrade to add more rooms.` }, { status: 403 })
+    }
+  }
+
   const { data: room, error } = await supabase.from('rooms').insert({ ...data, workspace_id: workspaceId }).select().single()
   if (error) return Response.json({ error: error.message }, { status: 500 })
   return Response.json(room, { status: 201 })
