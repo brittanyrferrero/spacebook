@@ -1404,7 +1404,7 @@ export default function BookingPage() {
             ) : (
               <>
                 <div style={{ fontSize: 17, fontWeight: 700, marginBottom: 20, color: dark ? T.text : NAVY, letterSpacing: '-0.02em' }}>
-                  {showModal === 'now' ? txt.bookNow : 'Schedule'} <span style={{ color: ROSE }}>·</span> {showModal === 'later' ? (mRoom?.name ?? selectedRoom?.name) : selectedRoom?.name}
+                  {showModal === 'now' ? <>{txt.bookNow} <span style={{ color: ROSE }}>·</span> {selectedRoom?.name}</> : 'Schedule'}
                 </div>
                 {showModal === 'later' && (
                   <div style={{ marginBottom: 12 }}>
@@ -1499,7 +1499,8 @@ export default function BookingPage() {
                           <div style={{ position: 'absolute', top: '100%', left: 0, right: 0, zIndex: 11, background: T.modalBg, border: `1px solid ${T.inputBorder}`, boxShadow: dark ? '0 8px 24px rgba(0,0,0,0.5)' : '0 4px 16px rgba(0,0,0,0.12)', maxHeight: 220, overflowY: 'auto' }}>
                             {types.map((type, ti) => (
                               <div key={type}>
-                                <div style={{ fontSize: 10, fontWeight: 600, color: T.textMuted, padding: `${ti === 0 ? 6 : 10}px 12px 3px`, letterSpacing: '0.08em', textTransform: 'uppercase' as const }}>{type}</div>
+                                {ti > 0 && <div style={{ borderTop: `1px solid ${T.borderFaint}`, margin: '2px 0' }} />}
+                                <div style={{ fontSize: 10, fontWeight: 600, color: T.textMuted, padding: `${ti === 0 ? 6 : 8}px 12px 3px`, letterSpacing: '0.08em', textTransform: 'uppercase' as const }}>{type}</div>
                                 {laterRoomAvailability.filter(r => r.room_type === type).map(r => (
                                   <div key={r.id} onClick={() => { setMRoomId(r.id); setSingleConflict(null); setLaterRoomOpen(false) }}
                                     style={{ padding: '7px 12px', cursor: 'pointer', display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: r.id === mRoomId ? (dark ? 'rgba(255,255,255,0.06)' : '#f3f4f6') : 'transparent', gap: 8 }}>
