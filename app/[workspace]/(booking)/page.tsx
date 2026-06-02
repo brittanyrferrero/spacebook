@@ -1009,6 +1009,7 @@ export default function BookingPage() {
     const startTime = new Date(`${mDate}T${mTime}`).toISOString()
     const endTime   = new Date(`${mDate}T${mEndTime}`).toISOString()
     if (endTime <= startTime) { setMSubmitting(false); return }
+    if (new Date(startTime) < now) { setMError('Start time is in the past.'); setMSubmitting(false); return }
     const jsDay = new Date(`${mDate}T00:00:00`).getDay()
     const isoDay = jsDay === 0 ? 7 : jsDay
     const recurrence = (showModal === 'later' && recurFreq !== 'none') ? {
@@ -1411,7 +1412,7 @@ export default function BookingPage() {
                 {showModal === 'later' && (
                   <div style={{ marginBottom: 12 }}>
                     <label style={lbl}>Date</label>
-                    <input style={inp} type="date" value={mDate} onChange={e => { setMDate(e.target.value); setSingleConflict(null) }} />
+                    <input style={inp} type="date" value={mDate} min={todayStr} onChange={e => { setMDate(e.target.value); setSingleConflict(null) }} />
                   </div>
                 )}
                 <div style={{ marginBottom: 12 }}>
@@ -1584,7 +1585,7 @@ export default function BookingPage() {
                 ) : mError ? (
                   <div style={{ fontSize: 12, color: '#B94040', background: '#fdf2f2', border: '0.5px solid #f5c6c6', borderRadius: 0, padding: '8px 12px', marginBottom: 12 }}>{mError}</div>
                 ) : null}
-                <button onClick={handleQuickBook} disabled={mSubmitting || !mName || !mEmail || !mTime || !mEndTime || timeInvalid || (showModal === 'later' && recurFreq !== 'none' && !recurUntil)}
+                <button onClick={handleQuickBook} disabled={mSubmitting || !mName || !mEmail || !mTime || !mEndTime || timeInvalid || (showModal === 'later' && recurFreq !== 'none' && !recurUntil) || (showModal === 'later' && mDate < todayStr)}
                   style={{ width: '100%', background: mSubmitting ? '#e8bdc7' : roseGrad, color: '#fff', border: 'none', borderRadius: 0, padding: '13px', fontSize: 14, fontWeight: 600, cursor: (mSubmitting || timeInvalid) ? 'default' : 'pointer', letterSpacing: '0.02em', marginTop: 4 }}>
                   {mSubmitting ? txt.confirming : txt.confirm}
                 </button>
