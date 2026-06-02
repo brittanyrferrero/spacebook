@@ -1477,6 +1477,8 @@ export default function BookingPage() {
                   const types = [...new Set(laterRoomAvailability.map(r => r.room_type).filter(Boolean))] as string[]
                   const untyped = laterRoomAvailability.filter(r => !r.room_type)
                   const CONFLICT = '#C0392B'
+                  const AVAIL = dark ? '#6ee7a0' : '#15803d'
+                  const hasTimeData = !!(mTime && mEndTime && !timeInvalid)
                   return (
                     <div style={{ marginBottom: 12, position: 'relative' }}>
                       <label style={lbl}>Room</label>
@@ -1502,7 +1504,9 @@ export default function BookingPage() {
                                   <div key={r.id} onClick={() => { setMRoomId(r.id); setSingleConflict(null); setLaterRoomOpen(false) }}
                                     style={{ padding: '7px 12px', cursor: 'pointer', display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: r.id === mRoomId ? (dark ? 'rgba(255,255,255,0.06)' : '#f3f4f6') : 'transparent', gap: 8 }}>
                                     <span style={{ fontSize: 13, color: r.taken ? CONFLICT : T.text }}>{r.name}</span>
-                                    {r.taken && <span style={{ fontSize: 11, fontWeight: 600, color: CONFLICT, flexShrink: 0 }}>conflict</span>}
+                                    {r.taken
+                                      ? <span style={{ fontSize: 11, fontWeight: 600, color: CONFLICT, flexShrink: 0 }}>conflict</span>
+                                      : hasTimeData && <span style={{ fontSize: 11, fontWeight: 500, color: AVAIL, flexShrink: 0 }}>available</span>}
                                   </div>
                                 ))}
                               </div>
@@ -1511,7 +1515,9 @@ export default function BookingPage() {
                               <div key={r.id} onClick={() => { setMRoomId(r.id); setSingleConflict(null); setLaterRoomOpen(false) }}
                                 style={{ padding: '7px 12px', cursor: 'pointer', display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: r.id === mRoomId ? (dark ? 'rgba(255,255,255,0.06)' : '#f3f4f6') : 'transparent', gap: 8 }}>
                                 <span style={{ fontSize: 13, color: r.taken ? CONFLICT : T.text }}>{r.name}</span>
-                                {r.taken && <span style={{ fontSize: 11, fontWeight: 600, color: CONFLICT, flexShrink: 0 }}>conflict</span>}
+                                {r.taken
+                                  ? <span style={{ fontSize: 11, fontWeight: 600, color: CONFLICT, flexShrink: 0 }}>conflict</span>
+                                  : hasTimeData && <span style={{ fontSize: 11, fontWeight: 500, color: AVAIL, flexShrink: 0 }}>available</span>}
                               </div>
                             ))}
                           </div>
