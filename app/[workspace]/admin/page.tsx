@@ -1379,6 +1379,10 @@ export default function AdminPage() {
                 </div>
               )}
 
+              <div style={{ fontSize: 11, color: '#9CA3AF', marginBottom: 10 }}>
+                <strong style={{ color: '#6B7280' }}>Admin</strong> — can manage rooms, bookings and settings.&ensp;<strong style={{ color: '#6B7280' }}>Super admin</strong> — can also add and remove other admins.
+              </div>
+
               {membersLoading ? (
                 <div style={{ color: '#9CA3AF', fontSize: 13 }}>Loading…</div>
               ) : members.length === 0 ? (
@@ -1456,9 +1460,9 @@ export default function AdminPage() {
                                     }}
                                     style={{ marginLeft: 6, fontSize: 11, border: '1px solid #dddddd', background: '#fff', padding: '2px 4px', cursor: 'pointer', color: '#374151', fontFamily: 'inherit' }}
                                   >
-                                    <option value="">User — no admin access</option>
-                                    <option value="admin">Admin — manage rooms, bookings &amp; settings</option>
-                                    <option value="super_admin">Super admin — + can manage other admins</option>
+                                    <option value="">User</option>
+                                    <option value="admin">Admin</option>
+                                    <option value="super_admin">Super admin</option>
                                   </select>
                                 )
                               })()}
