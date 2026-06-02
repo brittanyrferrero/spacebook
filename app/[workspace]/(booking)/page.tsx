@@ -222,12 +222,12 @@ function TimePicker({ value, onChange, dark }: { value: string; onChange: (v: st
 }
 
 // ─── DayView ──────────────────────────────────────────────────────────────────
-function DayView({ bookings, viewDate, onSlotClick, onBookingClick, pendingSlot, now, dark, myEmail, hourH = HOUR_H, gridStart = GRID_START, gridEnd = GRID_END, visShowTitle = false, visShowOrganizer = false }: {
+function DayView({ bookings, viewDate, onSlotClick, onBookingClick, pendingSlot, now, dark, myEmail, hourH = HOUR_H, gridStart = GRID_START, gridEnd = GRID_END, visShowTitle = false, visShowOrganizer = false, visAllowEditOthers = false }: {
   bookings: Booking[]; viewDate: Date;
   onSlotClick?: (date: Date, time: string) => void;
   onBookingClick?: (b: Booking) => void;
   pendingSlot?: { ds: string; startHHMM: string; endHHMM: string } | null;
-  now?: Date; dark?: boolean; myEmail?: string; hourH?: number; gridStart?: number; gridEnd?: number; visShowTitle?: boolean; visShowOrganizer?: boolean;
+  now?: Date; dark?: boolean; myEmail?: string; hourH?: number; gridStart?: number; gridEnd?: number; visShowTitle?: boolean; visShowOrganizer?: boolean; visAllowEditOthers?: boolean;
 }) {
   const T = mkT(dark ?? false)
   const gridHours = gridEnd - gridStart
@@ -308,7 +308,7 @@ function DayView({ bookings, viewDate, onSlotClick, onBookingClick, pendingSlot,
             const topPx = Math.max(0, gp(bs.getHours(), bs.getMinutes()) * gridH)
             const heightPx = Math.max(16, (gp(be.getHours(), be.getMinutes()) - gp(bs.getHours(), bs.getMinutes())) * gridH)
             const isMine = !!myEmail && b.booker_email === myEmail
-            const othersClickable = !isMine && (visShowTitle || visShowOrganizer)
+            const othersClickable = !isMine && (visShowTitle || visShowOrganizer || visAllowEditOthers)
             const isBlockPast = !!now && new Date(b.end_time) < now
             const bg     = isBlockPast ? (isMine ? (dark ? '#2e2030' : '#e0c8d0') : (dark ? '#1e222a' : '#c8cdd4')) : isMine ? (dark ? '#5c3747' : '#f5e0e7') : T.blockBg
             const border = isBlockPast ? (isMine ? (dark ? '#3e3048' : '#c0a0b4') : (dark ? '#2a303a' : '#a8b0bc')) : isMine ? ROSE : T.blockBorder
@@ -328,12 +328,12 @@ function DayView({ bookings, viewDate, onSlotClick, onBookingClick, pendingSlot,
 }
 
 // ─── WeekView ─────────────────────────────────────────────────────────────────
-function WeekView({ bookings, weekDays, onSlotClick, onBookingClick, pendingSlot, now, dark, myEmail, hourH = HOUR_H, gridStart = GRID_START, gridEnd = GRID_END, visShowTitle = false, visShowOrganizer = false }: {
+function WeekView({ bookings, weekDays, onSlotClick, onBookingClick, pendingSlot, now, dark, myEmail, hourH = HOUR_H, gridStart = GRID_START, gridEnd = GRID_END, visShowTitle = false, visShowOrganizer = false, visAllowEditOthers = false }: {
   bookings: Booking[]; weekDays: Date[];
   onSlotClick?: (date: Date, time: string) => void;
   onBookingClick?: (b: Booking) => void;
   pendingSlot?: { ds: string; startHHMM: string; endHHMM: string } | null;
-  now?: Date; dark?: boolean; myEmail?: string; hourH?: number; gridStart?: number; gridEnd?: number; visShowTitle?: boolean; visShowOrganizer?: boolean;
+  now?: Date; dark?: boolean; myEmail?: string; hourH?: number; gridStart?: number; gridEnd?: number; visShowTitle?: boolean; visShowOrganizer?: boolean; visAllowEditOthers?: boolean;
 }) {
   const T = mkT(dark ?? false)
   const gridHours = gridEnd - gridStart
@@ -435,7 +435,7 @@ function WeekView({ bookings, weekDays, onSlotClick, onBookingClick, pendingSlot
                     const topPx = Math.max(0, gp(bs.getHours(), bs.getMinutes()) * gridH)
                     const heightPx = Math.max(16, (gp(be.getHours(), be.getMinutes()) - gp(bs.getHours(), bs.getMinutes())) * gridH)
                     const isMine = !!myEmail && b.booker_email === myEmail
-                    const othersClickable = !isMine && (visShowTitle || visShowOrganizer)
+                    const othersClickable = !isMine && (visShowTitle || visShowOrganizer || visAllowEditOthers)
                     const isBlockPast = !!now && new Date(b.end_time) < now
                     const bg     = isBlockPast ? (isMine ? (dark ? '#2e2030' : '#e0c8d0') : (dark ? '#1e222a' : '#c8cdd4')) : isMine ? (dark ? '#5c3747' : '#f5e0e7') : T.blockBg
                     const border = isBlockPast ? (isMine ? (dark ? '#3e3048' : '#c0a0b4') : (dark ? '#2a303a' : '#a8b0bc')) : isMine ? ROSE : T.blockBorder
@@ -575,8 +575,9 @@ export default function BookingPage() {
   const [recurUntil,  setRecurUntil]  = useState(() => { const d = new Date(); d.setMonth(d.getMonth() + 3); return dateStr(d) })
 
   // Visibility settings
-  const [visShowTitle,     setVisShowTitle]     = useState(false)
-  const [visShowOrganizer, setVisShowOrganizer] = useState(false)
+  const [visShowTitle,       setVisShowTitle]       = useState(false)
+  const [visShowOrganizer,   setVisShowOrganizer]   = useState(false)
+  const [visAllowEditOthers, setVisAllowEditOthers] = useState(false)
 
   // My bookings panel
   const [showMyBookings,  setShowMyBookings]  = useState(false)
@@ -688,6 +689,7 @@ export default function BookingPage() {
       setGridEnd(d.displayHours?.end ?? 20)
       setVisShowTitle(d.bookingVisibility?.showTitle ?? false)
       setVisShowOrganizer(d.bookingVisibility?.showOrganizer ?? false)
+      setVisAllowEditOthers(d.bookingVisibility?.allowEditOthers ?? false)
     }).catch(() => {})
   }, [])
 
@@ -1239,8 +1241,8 @@ export default function BookingPage() {
 
         {/* [1,1] Calendar */}
         <div ref={calRef} style={{ padding: '16px 20px', overflow: 'auto' }}>
-          {calView === 'day'   && <DayView   bookings={dayBookings} viewDate={viewDate} onSlotClick={openScheduleLater} onBookingClick={openEdit} pendingSlot={pendingSlot} now={now} dark={dark} myEmail={mEmail} hourH={dynHourH} gridStart={gridStart} gridEnd={gridEnd} visShowTitle={visShowTitle} visShowOrganizer={visShowOrganizer} />}
-          {calView === 'week'  && <WeekView  bookings={rangeBkgs}   weekDays={weekDays} onSlotClick={openScheduleLater} onBookingClick={openEdit} pendingSlot={pendingSlot} now={now} dark={dark} myEmail={mEmail} hourH={dynHourH} gridStart={gridStart} gridEnd={gridEnd} visShowTitle={visShowTitle} visShowOrganizer={visShowOrganizer} />}
+          {calView === 'day'   && <DayView   bookings={dayBookings} viewDate={viewDate} onSlotClick={openScheduleLater} onBookingClick={openEdit} pendingSlot={pendingSlot} now={now} dark={dark} myEmail={mEmail} hourH={dynHourH} gridStart={gridStart} gridEnd={gridEnd} visShowTitle={visShowTitle} visShowOrganizer={visShowOrganizer} visAllowEditOthers={visAllowEditOthers} />}
+          {calView === 'week'  && <WeekView  bookings={rangeBkgs}   weekDays={weekDays} onSlotClick={openScheduleLater} onBookingClick={openEdit} pendingSlot={pendingSlot} now={now} dark={dark} myEmail={mEmail} hourH={dynHourH} gridStart={gridStart} gridEnd={gridEnd} visShowTitle={visShowTitle} visShowOrganizer={visShowOrganizer} visAllowEditOthers={visAllowEditOthers} />}
           {calView === 'month' && <MonthView bookings={rangeBkgs}   viewDate={viewDate} onDayClick={d => { setViewDate(d); setCalView('day') }} dark={dark} />}
         </div>
 

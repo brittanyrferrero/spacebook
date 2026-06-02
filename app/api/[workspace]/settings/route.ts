@@ -1,7 +1,7 @@
 import { type NextRequest } from 'next/server'
 import { getWorkspaceId } from '@/lib/workspace'
 
-const DEFAULT_VISIBILITY = { showTitle: false, showOrganizer: false }
+const DEFAULT_VISIBILITY = { showTitle: false, showOrganizer: false, allowEditOthers: false }
 const DEFAULT_DISPLAY_HOURS = { start: 8, end: 20 }
 const DEFAULT_BOOKING_HOURS = { start: 6, end: 22 }
 
@@ -70,22 +70,22 @@ export async function PATCH(req: NextRequest, { params }: { params: { workspace:
   }
 
   if (body.bookingVisibility !== undefined) {
-    const { showTitle, showOrganizer } = body.bookingVisibility ?? {}
-    if (typeof showTitle !== 'boolean' || typeof showOrganizer !== 'boolean') {
+    const { showTitle, showOrganizer, allowEditOthers } = body.bookingVisibility ?? {}
+    if (typeof showTitle !== 'boolean' || typeof showOrganizer !== 'boolean' || typeof allowEditOthers !== 'boolean') {
       return Response.json({ error: 'Invalid visibility settings.' }, { status: 400 })
     }
     if (process.env.MOCK_MODE === 'true') {
       const { getSessionStore, saveSessionStore } = await import('@/lib/mock/store')
       const store = await getSessionStore()
-      store.bookingVisibility = { showTitle, showOrganizer }
+      store.bookingVisibility = { showTitle, showOrganizer, allowEditOthers }
       await saveSessionStore(store)
       return Response.json({ bookingVisibility: store.bookingVisibility })
     }
     const workspaceId = await getWorkspaceId(params.workspace)
     if (!workspaceId) return Response.json({ error: 'Workspace not found' }, { status: 404 })
     const { setBookingVisibility } = await import('@/lib/prod-config')
-    await setBookingVisibility(workspaceId, { showTitle, showOrganizer })
-    return Response.json({ bookingVisibility: { showTitle, showOrganizer } })
+    await setBookingVisibility(workspaceId, { showTitle, showOrganizer, allowEditOthers })
+    return Response.json({ bookingVisibility: { showTitle, showOrganizer, allowEditOthers } })
   }
 
   if (body.workspaceName !== undefined) {

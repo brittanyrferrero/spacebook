@@ -139,8 +139,9 @@ export default function AdminPage() {
   const [bhSaved,  setBhSaved]  = useState(false)
 
   // Booking visibility
-  const [visShowTitle,     setVisShowTitle]     = useState(false)
-  const [visShowOrganizer, setVisShowOrganizer] = useState(false)
+  const [visShowTitle,       setVisShowTitle]       = useState(false)
+  const [visShowOrganizer,   setVisShowOrganizer]   = useState(false)
+  const [visAllowEditOthers, setVisAllowEditOthers] = useState(false)
   const [visSaving,        setVisSaving]        = useState(false)
   const [visSaved,         setVisSaved]         = useState(false)
 
@@ -202,6 +203,7 @@ export default function AdminPage() {
       setBhEnd(d.bookingHours?.end ?? 22)
       setVisShowTitle(d.bookingVisibility?.showTitle ?? false)
       setVisShowOrganizer(d.bookingVisibility?.showOrganizer ?? false)
+      setVisAllowEditOthers(d.bookingVisibility?.allowEditOthers ?? false)
       if (d.adminEntryToken) setAdminEntryToken(d.adminEntryToken)
       if (d.workspaceName != null) setWsName(d.workspaceName)
     }).catch(() => {})
@@ -1651,8 +1653,9 @@ export default function AdminPage() {
                 </div>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 10, marginBottom: 14 }}>
                   {([
-                    [visShowTitle,     setVisShowTitle,     'Show meeting title'],
-                    [visShowOrganizer, setVisShowOrganizer, 'Show organizer name'],
+                    [visShowTitle,       setVisShowTitle,       'Show meeting title on calendar'],
+                    [visShowOrganizer,   setVisShowOrganizer,   'Show organizer name'],
+                    [visAllowEditOthers, setVisAllowEditOthers, 'Allow editing others\' bookings'],
                   ] as [boolean, (v: boolean) => void, string][]).map(([val, set, label]) => (
                     <label key={label} style={{ display: 'flex', alignItems: 'center', gap: 10, cursor: 'pointer' }}>
                       <div onClick={() => set(!val)}
@@ -1664,15 +1667,19 @@ export default function AdminPage() {
                   ))}
                 </div>
                 <div style={{ fontSize: 11, color: '#9CA3AF', marginBottom: 12 }}>
-                  {!visShowTitle && !visShowOrganizer && 'Others see: occupied blocks only'}
-                  {!visShowTitle && visShowOrganizer && 'Others see: occupied blocks · name revealed on click'}
-                  {visShowTitle && !visShowOrganizer && 'Others see: meeting title on block'}
-                  {visShowTitle && visShowOrganizer && 'Others see: meeting title on block · name revealed on click'}
+                  {!visShowTitle && !visShowOrganizer && !visAllowEditOthers && 'Others see: occupied blocks only, no editing'}
+                  {!visShowTitle && !visShowOrganizer && visAllowEditOthers && 'Others see: occupied blocks only · can edit'}
+                  {!visShowTitle && visShowOrganizer && !visAllowEditOthers && 'Others see: name revealed on click, no editing'}
+                  {!visShowTitle && visShowOrganizer && visAllowEditOthers && 'Others see: name revealed on click · can edit'}
+                  {visShowTitle && !visShowOrganizer && !visAllowEditOthers && 'Others see: meeting title on block, no editing'}
+                  {visShowTitle && !visShowOrganizer && visAllowEditOthers && 'Others see: meeting title on block · can edit'}
+                  {visShowTitle && visShowOrganizer && !visAllowEditOthers && 'Others see: meeting title · name on click, no editing'}
+                  {visShowTitle && visShowOrganizer && visAllowEditOthers && 'Others see: meeting title · name on click · can edit'}
                 </div>
                 <button
                   onClick={async () => {
                     setVisSaving(true)
-                    await fetch(`${api}/settings`, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ bookingVisibility: { showTitle: visShowTitle, showOrganizer: visShowOrganizer } }) })
+                    await fetch(`${api}/settings`, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ bookingVisibility: { showTitle: visShowTitle, showOrganizer: visShowOrganizer, allowEditOthers: visAllowEditOthers } }) })
                     setVisSaving(false); setVisSaved(true); setTimeout(() => setVisSaved(false), 2000)
                   }}
                   disabled={visSaving}
