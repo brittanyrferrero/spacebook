@@ -831,7 +831,7 @@ export default function AdminPage() {
                   const maxSlots = Math.max(...cs.distribution.map((d: any) => d.slots), 1)
                   return (
                     <div style={{ background: '#fff', border: '1px solid #dddddd', borderRadius: 0, padding: 13, flex: 1 }}>
-                      <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', marginBottom: 10, flexWrap: 'wrap', gap: 8 }}>
+                      <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', marginBottom: 14, flexWrap: 'wrap', gap: 8 }}>
                         <div style={{ fontSize: 12, fontWeight: 500, color: '#374151' }}>Space pressure</div>
                         <div style={{ display: 'flex', gap: 14, flexWrap: 'wrap' }}>
                           <span style={{ fontSize: 11, color: '#9CA3AF' }}>
