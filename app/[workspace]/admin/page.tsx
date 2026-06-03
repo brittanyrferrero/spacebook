@@ -19,14 +19,25 @@ const PRESETS: { key: Preset; label: string; days: number }[] = [
   { key: '7d', label: '7 days', days: 7 },
   { key: '30d', label: '30 days', days: 30 },
   { key: 'month', label: 'This month', days: 0 },
-  { key: 'quarter', label: 'Quarter', days: 90 },
+  { key: 'quarter', label: 'Current quarter', days: 0 },
 ]
+
+function currentQuarterLabel(): string {
+  const now = new Date()
+  return `Q${Math.floor(now.getMonth() / 3) + 1} ${now.getFullYear()}`
+}
 
 function getRange(preset: Preset): { from: string; to: string } {
   const today = new Date()
   const to = format(addDays(today, 30), 'yyyy-MM-dd')
   if (preset === 'month') {
     return { from: format(new Date(today.getFullYear(), today.getMonth(), 1), 'yyyy-MM-dd'), to }
+  }
+  if (preset === 'quarter') {
+    const q = Math.floor(today.getMonth() / 3)
+    const qStart = new Date(today.getFullYear(), q * 3, 1)
+    const qEnd = new Date(today.getFullYear(), q * 3 + 3, 0)
+    return { from: format(qStart, 'yyyy-MM-dd'), to: format(qEnd, 'yyyy-MM-dd') }
   }
   const p = PRESETS.find(p => p.key === preset)!
   return { from: format(subDays(today, p.days - 1), 'yyyy-MM-dd'), to }
@@ -660,7 +671,9 @@ export default function AdminPage() {
             <div style={{ display: 'flex', alignItems: 'center', gap: 6, position: 'relative' }}>
               {PRESETS.map(p => {
                 const r = getRange(p.key)
-                const tip = `${fmtDate(r.from)} – ${fmtDate(r.to)}`
+                const tip = p.key === 'quarter'
+                  ? `${currentQuarterLabel()} · ${fmtDate(r.from)} – ${fmtDate(r.to)}`
+                  : `${fmtDate(r.from)} – ${fmtDate(r.to)}`
                 return (
                   <button key={p.key} title={tip} onClick={() => { setPreset(p.key); setShowCustom(false); setCustomFrom(''); setCustomTo('') }}
                     style={{ fontSize: 12, padding: '5px 10px', borderRadius: 0, border: `1px solid ${preset === p.key && !customFrom ? NAVY : '#cccccc'}`, background: preset === p.key && !customFrom ? NAVY_LIGHT : '#fff', cursor: 'pointer', color: preset === p.key && !customFrom ? NAVY : '#6B7280' }}>
@@ -785,71 +798,72 @@ export default function AdminPage() {
                 </div>
               )}
 
-              {stats.originStats && totals.total_bookings > 0 && (() => {
-                const os = stats.originStats
-                const bars: { key: string; label: string; color: string; count: number; pct: number }[] = [
-                  { key: 'desktop', label: 'Desktop',        color: SAGE,      count: os.desktop.count, pct: os.desktop.pct },
-                  { key: 'tablet',  label: 'Tablet',         color: '#c45f80', count: os.tablet.count,  pct: os.tablet.pct  },
-                  { key: 'gcal',    label: 'Google Calendar', color: '#4285F4', count: os.gcal.count,    pct: os.gcal.pct    },
-                ].filter(b => b.count > 0)
-                return (
-                  <div style={{ background: '#fff', border: '1px solid #dddddd', padding: 13, marginBottom: 14 }}>
-                    <div style={{ fontSize: 12, fontWeight: 500, color: '#374151', marginBottom: 10 }}>Booking origin</div>
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: 7 }}>
-                      {bars.map(b => (
-                        <div key={b.key}>
-                          <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 11, color: '#6B7280', marginBottom: 3 }}>
-                            <span>{b.label}</span>
-                            <span style={{ fontWeight: 500, color: '#374151' }}>{b.pct}% <span style={{ color: '#9CA3AF', fontWeight: 400 }}>({b.count})</span></span>
+              <div style={{ display: 'flex', gap: 10, marginBottom: 14, alignItems: 'flex-start' }}>
+                {stats.originStats && totals.total_bookings > 0 && (() => {
+                  const os = stats.originStats
+                  const bars: { key: string; label: string; color: string; count: number; pct: number }[] = [
+                    { key: 'desktop', label: 'Desktop',        color: SAGE,      count: os.desktop.count, pct: os.desktop.pct },
+                    { key: 'tablet',  label: 'Tablet',         color: '#c45f80', count: os.tablet.count,  pct: os.tablet.pct  },
+                    { key: 'gcal',    label: 'Google Calendar', color: '#4285F4', count: os.gcal.count,    pct: os.gcal.pct    },
+                  ].filter(b => b.count > 0)
+                  return (
+                    <div style={{ background: '#fff', border: '1px solid #dddddd', padding: 13, flex: 1 }}>
+                      <div style={{ fontSize: 12, fontWeight: 500, color: '#374151', marginBottom: 10 }}>Booking origin</div>
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: 7 }}>
+                        {bars.map(b => (
+                          <div key={b.key}>
+                            <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 11, color: '#6B7280', marginBottom: 3 }}>
+                              <span>{b.label}</span>
+                              <span style={{ fontWeight: 500, color: '#374151' }}>{b.pct}% <span style={{ color: '#9CA3AF', fontWeight: 400 }}>({b.count})</span></span>
+                            </div>
+                            <div style={{ height: 6, background: '#f3f4f6', borderRadius: 3 }}>
+                              <div style={{ height: 6, borderRadius: 3, background: b.color, width: `${b.pct}%`, transition: 'width .4s ease' }} />
+                            </div>
                           </div>
-                          <div style={{ height: 6, background: '#f3f4f6', borderRadius: 3 }}>
-                            <div style={{ height: 6, borderRadius: 3, background: b.color, width: `${b.pct}%`, transition: 'width .4s ease' }} />
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                )
-              })()}
-
-              {!filterRoom && concurrentStats && concurrentStats.total_rooms >= 2 && (() => {
-                const cs = concurrentStats
-                const maxSlots = Math.max(...cs.distribution.map((d: any) => d.slots), 1)
-                return (
-                  <div style={{ background: '#fff', border: '1px solid #dddddd', borderRadius: 0, padding: 13, marginBottom: 14 }}>
-                    <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', marginBottom: 10, flexWrap: 'wrap', gap: 8 }}>
-                      <div style={{ fontSize: 12, fontWeight: 500, color: '#374151' }}>Space pressure</div>
-                      <div style={{ display: 'flex', gap: 14, flexWrap: 'wrap' }}>
-                        <span style={{ fontSize: 11, color: '#9CA3AF' }}>
-                          Peak: <span style={{ color: '#374151', fontWeight: 500 }}>{cs.peak_concurrent} / {cs.total_rooms} rooms</span>
-                        </span>
-                        <span style={{ fontSize: 11, color: '#9CA3AF' }}>
-                          At capacity: <span style={{ color: cs.full_pct >= 10 ? BUSY : '#374151', fontWeight: 500 }}>{cs.full_pct}%</span> of hours
-                        </span>
-                        <span style={{ fontSize: 11, color: '#9CA3AF' }}>
-                          High demand: <span style={{ color: cs.high_demand_pct >= 20 ? '#D97706' : '#374151', fontWeight: 500 }}>{cs.high_demand_pct}%</span>
-                        </span>
+                        ))}
                       </div>
                     </div>
-                    <div style={{ display: 'flex', alignItems: 'flex-end', gap: 3, height: 64 }}>
-                      {cs.distribution.map((d: any) => {
-                        const barH = Math.max(2, Math.round(d.slots / maxSlots * 60))
-                        const pct = cs.total_slots > 0 ? Math.round(d.slots / cs.total_slots * 100) : 0
-                        const fraction = cs.total_rooms > 0 ? d.rooms_in_use / cs.total_rooms : 0
-                        const color = fraction >= 1 ? BUSY : fraction >= 0.8 ? '#D97706' : fraction >= 0.5 ? '#7A9A4A' : SAGE
-                        return (
-                          <div key={d.rooms_in_use} style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 3, flex: 1 }}>
-                            <div title={`${d.rooms_in_use} room${d.rooms_in_use !== 1 ? 's' : ''} occupied: ${pct}% of business hours`}
-                              style={{ borderRadius: '2px 2px 0 0', width: '100%', height: barH, background: color, opacity: d.slots === 0 ? 0.15 : 0.82 }} />
-                            <div style={{ fontSize: 10, color: '#9CA3AF' }}>{d.rooms_in_use}</div>
-                          </div>
-                        )
-                      })}
+                  )
+                })()}
+
+                {!filterRoom && concurrentStats && concurrentStats.total_rooms >= 2 && (() => {
+                  const cs = concurrentStats
+                  const maxSlots = Math.max(...cs.distribution.map((d: any) => d.slots), 1)
+                  return (
+                    <div style={{ background: '#fff', border: '1px solid #dddddd', borderRadius: 0, padding: 13, flex: 1 }}>
+                      <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', marginBottom: 10, flexWrap: 'wrap', gap: 8 }}>
+                        <div style={{ fontSize: 12, fontWeight: 500, color: '#374151' }}>Space pressure</div>
+                        <div style={{ display: 'flex', gap: 14, flexWrap: 'wrap' }}>
+                          <span style={{ fontSize: 11, color: '#9CA3AF' }}>
+                            Peak: <span style={{ color: '#374151', fontWeight: 500 }}>{cs.peak_concurrent} / {cs.total_rooms} rooms</span>
+                          </span>
+                          <span style={{ fontSize: 11, color: '#9CA3AF' }}>
+                            At capacity: <span style={{ color: cs.full_pct >= 10 ? BUSY : '#374151', fontWeight: 500 }}>{cs.full_pct}%</span> of hours
+                          </span>
+                          <span style={{ fontSize: 11, color: '#9CA3AF' }}>
+                            High demand: <span style={{ color: cs.high_demand_pct >= 20 ? '#D97706' : '#374151', fontWeight: 500 }}>{cs.high_demand_pct}%</span>
+                          </span>
+                        </div>
+                      </div>
+                      <div style={{ display: 'flex', alignItems: 'flex-end', gap: 3, height: 64 }}>
+                        {cs.distribution.map((d: any) => {
+                          const barH = Math.max(2, Math.round(d.slots / maxSlots * 60))
+                          const pct = cs.total_slots > 0 ? Math.round(d.slots / cs.total_slots * 100) : 0
+                          const fraction = cs.total_rooms > 0 ? d.rooms_in_use / cs.total_rooms : 0
+                          const color = fraction >= 1 ? BUSY : fraction >= 0.8 ? '#D97706' : fraction >= 0.5 ? '#7A9A4A' : SAGE
+                          return (
+                            <div key={d.rooms_in_use} title={`${d.rooms_in_use} room${d.rooms_in_use !== 1 ? 's' : ''} occupied: ${pct}% of business hours`} style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 3, flex: 1, cursor: 'default' }}>
+                              <div style={{ borderRadius: '2px 2px 0 0', width: '100%', height: barH, background: color, opacity: d.slots === 0 ? 0.15 : 0.82 }} />
+                              <div style={{ fontSize: 10, color: '#9CA3AF' }}>{d.rooms_in_use}</div>
+                            </div>
+                          )
+                        })}
+                      </div>
+                      <div style={{ fontSize: 10, color: '#C0C8D0', marginTop: 2 }}>rooms occupied simultaneously · sampled every 30 min</div>
                     </div>
-                    <div style={{ fontSize: 10, color: '#C0C8D0', marginTop: 2 }}>rooms occupied simultaneously · sampled every 30 min</div>
-                  </div>
-                )
-              })()}
+                  )
+                })()}
+              </div>
 
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 10, marginBottom: 14 }}>
                 {!filterRoom && (
