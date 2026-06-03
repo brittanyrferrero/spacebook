@@ -321,6 +321,12 @@ export function getAdminStats(store: MockStore, from: string, to: string, roomId
   const dispEnd   = store.displayHours?.end   ?? 20
   const bkHrsStart = store.bookingHours?.start ?? 6
   const bkHrsEnd   = store.bookingHours?.end   ?? 22
+
+  // Shift UTC timestamp to local time so .getUTC* methods return local values.
+  // tzOffset = getTimezoneOffset() = (UTC - local) in minutes, e.g. PDT = 420.
+  const tzOffset = store.tzOffset ?? 0
+  const localDate = (iso: string) => new Date(new Date(iso).getTime() - tzOffset * 60_000)
+
   const availableDays = (store.countWeekends ?? false) ? rangeDays : (() => {
     let n = 0; const d = new Date(fromDate)
     while (d <= toDate) { const dow = d.getDay(); if (dow !== 0 && dow !== 6) n++; d.setDate(d.getDate() + 1) }
@@ -340,18 +346,18 @@ export function getAdminStats(store: MockStore, from: string, to: string, roomId
   })
 
   const hourCounts: number[] = Array(24).fill(0)
-  active.forEach(b => { hourCounts[new Date(b.start_time).getHours()]++ })
+  active.forEach(b => { hourCounts[localDate(b.start_time).getUTCHours()]++ })
   const hourStats = hourCounts.map((total_bookings, hour) => ({ hour, total_bookings })).filter(h => h.hour >= bkHrsStart && h.hour < bkHrsEnd)
 
   const dailyMap: Record<string, number> = {}
   active.forEach(b => {
-    const d = b.start_time.slice(0, 10)
+    const d = localDate(b.start_time).toISOString().slice(0, 10)
     dailyMap[d] = (dailyMap[d] ?? 0) + 1
   })
   const dailyStats = Object.entries(dailyMap).sort(([a], [b]) => a.localeCompare(b)).map(([date, total_bookings]) => ({ date, total_bookings }))
 
   const dowCounts = Array(7).fill(0)
-  active.forEach(b => { dowCounts[(new Date(b.start_time).getDay() + 6) % 7]++ })
+  active.forEach(b => { dowCounts[(localDate(b.start_time).getUTCDay() + 6) % 7]++ })
   const DOW_LABELS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun']
   const dowStats = dowCounts.map((total_bookings: number, i: number) => ({ dow: i, label: DOW_LABELS[i], total_bookings }))
 
@@ -359,16 +365,16 @@ export function getAdminStats(store: MockStore, from: string, to: string, roomId
   const bkEnd   = dispEnd
 
   const outsideDisplayHours = active.filter(b => {
-    const h = new Date(b.start_time).getHours()
+    const h = localDate(b.start_time).getUTCHours()
     return h < bkStart || h >= bkEnd
   }).length
 
   // Day-of-week × hour heatmap
   const dowHourMap: number[][] = Array.from({ length: 7 }, () => Array(24).fill(0))
   active.forEach(b => {
-    const d = new Date(b.start_time)
-    const dow = (d.getDay() + 6) % 7
-    dowHourMap[dow][d.getHours()]++
+    const ld = localDate(b.start_time)
+    const dow = (ld.getUTCDay() + 6) % 7
+    dowHourMap[dow][ld.getUTCHours()]++
   })
   const dowHourStats: { dow: number; hour: number; count: number }[] = []
   for (let dow = 0; dow < 7; dow++) {

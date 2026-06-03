@@ -243,7 +243,7 @@ export default function AdminPage() {
   }, [])
 
   useEffect(() => {
-    let url = `${api}/admin/stats?from=${from}&to=${to}`
+    let url = `${api}/admin/stats?from=${from}&to=${to}&tz=${new Date().getTimezoneOffset()}`
     if (filterRoom) url += `&room_id=${filterRoom}`
     else if (filterRoomType) url += `&room_type=${encodeURIComponent(filterRoomType)}`
     fetch(url).then(r => r.json()).then(setStats)
@@ -433,7 +433,7 @@ export default function AdminPage() {
       body: JSON.stringify({ is_active: !room.is_active }),
     })
     fetchAllRooms()
-    if (nav === 'Overview') fetch(`${api}/admin/stats?from=${from}&to=${to}`).then(r => r.json()).then(setStats)
+    if (nav === 'Overview') fetch(`${api}/admin/stats?from=${from}&to=${to}&tz=${new Date().getTimezoneOffset()}`).then(r => r.json()).then(setStats)
   }
 
   async function saveRoom() {
