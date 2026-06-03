@@ -797,7 +797,7 @@ export default function AdminPage() {
               </div>
               {totals.outside_display_hours > 0 && (
                 <div style={{ fontSize: 11, color: '#9CA3AF', marginBottom: 14 }}>
-                  + {totals.outside_display_hours} booking{totals.outside_display_hours !== 1 ? 's' : ''} outside display hours ({Math.round(totals.outside_display_hours / totals.total_bookings * 100)}% of total)
+                  + {totals.outside_display_hours} booking{totals.outside_display_hours !== 1 ? 's' : ''} outside display window ({Math.round(totals.outside_display_hours / totals.total_bookings * 100)}% of total)
                 </div>
               )}
 
