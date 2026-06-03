@@ -1495,7 +1495,7 @@ export default function BookingPage() {
                         <span style={{ flex: 1, minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                           {sel?.name ?? '—'}
                         </span>
-                        {sel?.taken && <span style={{ fontSize: 11, fontWeight: 600, color: CONFLICT, flexShrink: 0 }}>conflict</span>}
+                        {sel?.taken && <span style={{ fontSize: 11, fontWeight: 600, color: CONFLICT, flexShrink: 0 }}>{recurFreq !== 'none' ? 'conflicts' : 'conflict'}</span>}
                         <span style={{ fontSize: 10, color: T.textMuted, flexShrink: 0 }}>▾</span>
                       </button>
                       {laterRoomOpen && (
@@ -1511,7 +1511,7 @@ export default function BookingPage() {
                                     style={{ padding: '7px 12px', cursor: 'pointer', display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: r.id === mRoomId ? (dark ? 'rgba(255,255,255,0.06)' : '#f3f4f6') : 'transparent', gap: 8 }}>
                                     <span style={{ fontSize: 13, color: r.taken ? CONFLICT : T.text }}>{r.name}</span>
                                     {r.taken
-                                      ? <span style={{ fontSize: 11, fontWeight: 600, color: CONFLICT, flexShrink: 0 }}>conflict</span>
+                                      ? <span style={{ fontSize: 11, fontWeight: 600, color: CONFLICT, flexShrink: 0 }}>{recurFreq !== 'none' ? 'conflicts' : 'conflict'}</span>
                                       : hasTimeData && <span style={{ fontSize: 11, fontWeight: 500, color: AVAIL, flexShrink: 0 }}>available</span>}
                                   </div>
                                 ))}
@@ -1589,7 +1589,7 @@ export default function BookingPage() {
                 ) : null}
                 <button onClick={handleQuickBook} disabled={mSubmitting || !mName || !mEmail || !mTime || !mEndTime || timeInvalid || (showModal === 'later' && recurFreq !== 'none' && !recurUntil) || (showModal === 'later' && mDate < todayStr)}
                   style={{ width: '100%', background: mSubmitting ? '#e8bdc7' : roseGrad, color: '#fff', border: 'none', borderRadius: 0, padding: '13px', fontSize: 14, fontWeight: 600, cursor: (mSubmitting || timeInvalid) ? 'default' : 'pointer', letterSpacing: '0.02em', marginTop: 4 }}>
-                  {mSubmitting ? txt.confirming : txt.confirm}
+                  {mSubmitting ? txt.confirming : (recurFreq !== 'none' && laterRoomAvailability.find(r => r.id === mRoomId)?.taken) ? 'Book series — resolve conflicts after' : txt.confirm}
                 </button>
               </>
             )}
