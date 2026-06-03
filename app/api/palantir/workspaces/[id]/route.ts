@@ -6,6 +6,23 @@ async function requirePalantir() {
   return cookieStore.get('palantir_session')?.value ?? null
 }
 
+export async function PATCH(req: NextRequest, { params }: { params: { id: string } }) {
+  if (!await requirePalantir()) return Response.json({ error: 'Unauthorized' }, { status: 401 })
+
+  const body = await req.json()
+  const { is_trial, max_rooms, max_members, max_bookings } = body
+
+  if (typeof is_trial !== 'boolean') return Response.json({ error: 'is_trial must be boolean' }, { status: 400 })
+  const validateLimit = (v: unknown) => v === null || (typeof v === 'number' && v > 0 && Number.isInteger(v))
+  if (!validateLimit(max_rooms) || !validateLimit(max_members) || !validateLimit(max_bookings)) {
+    return Response.json({ error: 'max_* must be a positive integer or null' }, { status: 400 })
+  }
+
+  const { setLimits } = await import('@/lib/prod-config')
+  await setLimits(params.id, { is_trial, max_rooms, max_members, max_bookings })
+  return Response.json({ ok: true })
+}
+
 export async function DELETE(req: NextRequest, { params }: { params: { id: string } }) {
   if (!await requirePalantir()) return Response.json({ error: 'Unauthorized' }, { status: 401 })
 

@@ -10,6 +10,8 @@ export async function POST(req: NextRequest) {
   const { createWorkspace } = await import('@/lib/workspace')
   try {
     const workspace = await createWorkspace(name?.trim() || undefined)
+    const { setLimits, TRIAL_LIMITS } = await import('@/lib/prod-config')
+    await setLimits(workspace.id, TRIAL_LIMITS)
     return Response.json({
       slug: workspace.slug,
       name: workspace.name,

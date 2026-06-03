@@ -6,7 +6,7 @@ const PUBLIC_SEGMENTS = new Set(['enter', 'admin-enter', 'demo', 'demo-admin', '
 // Non-workspace API sub-paths (second segment after /api/)
 const PUBLIC_API_SEGMENTS = new Set(['cancel', 'workspaces', 'notify', 'demo-access', 'admin', 'palantir', 'delete-confirm'])
 // Public workspace-scoped API routes (third segment after /api/[workspace]/)
-const PUBLIC_WORKSPACE_ROUTES = new Set(['admin-enter', 'admin-recover', 'enter-check', 'enter-set-cookie', 'notify', 'tablet-enter', 't'])
+const PUBLIC_WORKSPACE_ROUTES = new Set(['admin-enter', 'admin-recover', 'enter-check', 'enter-set-cookie', 'notify', 'tablet-enter', 't', 'my-bookings-enter'])
 
 function getWorkspaceSlug(pathname: string): string | null {
   const parts = pathname.split('/').filter(Boolean)

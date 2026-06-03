@@ -1,7 +1,7 @@
 import { type NextRequest } from 'next/server'
 import { getWorkspaceId } from '@/lib/workspace'
 
-const DEFAULT_VISIBILITY = { showTitle: false, showOrganizer: false }
+const DEFAULT_VISIBILITY = { showTitle: false, showOrganizer: false, allowEditOthers: false }
 const DEFAULT_DISPLAY_HOURS = { start: 8, end: 20 }
 const DEFAULT_BOOKING_HOURS = { start: 6, end: 22 }
 
@@ -19,13 +19,26 @@ export async function GET(_req: NextRequest, { params }: { params: { workspace: 
   const workspace = await getWorkspaceBySlug(params.workspace)
   if (!workspace) return Response.json({ error: 'Workspace not found' }, { status: 404 })
   const workspaceId = workspace.id
-  const { getBookingHours, getDisplayHours, getBookingVisibility } = await import('@/lib/prod-config')
-  const [bookingHours, displayHours, bookingVisibility] = await Promise.all([
+  const { getBookingHours, getDisplayHours, getBookingVisibility, getLimits } = await import('@/lib/prod-config')
+  const [bookingHours, displayHours, bookingVisibility, limits] = await Promise.all([
     getBookingHours(workspaceId),
     getDisplayHours(workspaceId),
     getBookingVisibility(workspaceId),
+    getLimits(workspaceId),
   ])
-  return Response.json({ bookingHours, displayHours, bookingVisibility, adminEntryToken: workspace.admin_entry_token, workspaceName: workspace.name })
+
+  let trial_usage = null
+  if (limits?.is_trial) {
+    const { createClient: mkClient } = await import('@/lib/supabase/server')
+    const sb = await mkClient()
+    const [{ count: memberCount }, { count: bookingCount }] = await Promise.all([
+      sb.from('members').select('*', { count: 'exact', head: true }).eq('workspace_id', workspaceId).then(r => ({ count: r.count ?? 0 })),
+      sb.from('bookings').select('*', { count: 'exact', head: true }).eq('workspace_id', workspaceId).then(r => ({ count: r.count ?? 0 })),
+    ])
+    trial_usage = { members: memberCount, bookings: bookingCount }
+  }
+
+  return Response.json({ bookingHours, displayHours, bookingVisibility, adminEntryToken: workspace.admin_entry_token, workspaceName: workspace.name, limits, trial_usage })
 }
 
 export async function PATCH(req: NextRequest, { params }: { params: { workspace: string } }) {
@@ -70,22 +83,22 @@ export async function PATCH(req: NextRequest, { params }: { params: { workspace:
   }
 
   if (body.bookingVisibility !== undefined) {
-    const { showTitle, showOrganizer } = body.bookingVisibility ?? {}
-    if (typeof showTitle !== 'boolean' || typeof showOrganizer !== 'boolean') {
+    const { showTitle, showOrganizer, allowEditOthers } = body.bookingVisibility ?? {}
+    if (typeof showTitle !== 'boolean' || typeof showOrganizer !== 'boolean' || typeof allowEditOthers !== 'boolean') {
       return Response.json({ error: 'Invalid visibility settings.' }, { status: 400 })
     }
     if (process.env.MOCK_MODE === 'true') {
       const { getSessionStore, saveSessionStore } = await import('@/lib/mock/store')
       const store = await getSessionStore()
-      store.bookingVisibility = { showTitle, showOrganizer }
+      store.bookingVisibility = { showTitle, showOrganizer, allowEditOthers }
       await saveSessionStore(store)
       return Response.json({ bookingVisibility: store.bookingVisibility })
     }
     const workspaceId = await getWorkspaceId(params.workspace)
     if (!workspaceId) return Response.json({ error: 'Workspace not found' }, { status: 404 })
     const { setBookingVisibility } = await import('@/lib/prod-config')
-    await setBookingVisibility(workspaceId, { showTitle, showOrganizer })
-    return Response.json({ bookingVisibility: { showTitle, showOrganizer } })
+    await setBookingVisibility(workspaceId, { showTitle, showOrganizer, allowEditOthers })
+    return Response.json({ bookingVisibility: { showTitle, showOrganizer, allowEditOthers } })
   }
 
   if (body.workspaceName !== undefined) {

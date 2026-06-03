@@ -25,6 +25,10 @@ export default function PalantirPage() {
   const [deleteError, setDeleteError] = useState('')
   const [pendingDeletes, setPendingDeletes] = useState<any[]>([])
   const [dismissingId, setDismissingId] = useState<string | null>(null)
+  const [limitsTarget, setLimitsTarget] = useState<any>(null)
+  const [limitsDraft, setLimitsDraft] = useState({ is_trial: true, max_rooms: '10', max_members: '3', max_bookings: '50' })
+  const [limitsSaving, setLimitsSaving] = useState(false)
+  const [limitsError, setLimitsError] = useState('')
 
   useEffect(() => {
     fetch('/api/palantir/workspaces')
@@ -61,6 +65,49 @@ export default function PalantirPage() {
       setDeleteError(err.error ?? 'Something went wrong.')
     }
     setDeleting(false)
+  }
+
+  function openLimits(w: any) {
+    const l = w.limits
+    setLimitsTarget(w)
+    setLimitsDraft({
+      is_trial: l?.is_trial ?? false,
+      max_rooms: l?.max_rooms != null ? String(l.max_rooms) : '',
+      max_members: l?.max_members != null ? String(l.max_members) : '',
+      max_bookings: l?.max_bookings != null ? String(l.max_bookings) : '',
+    })
+    setLimitsError('')
+  }
+
+  async function handleSaveLimits() {
+    if (!limitsTarget) return
+    const parseLimit = (v: string) => v.trim() === '' ? null : parseInt(v, 10)
+    const max_rooms = parseLimit(limitsDraft.max_rooms)
+    const max_members = parseLimit(limitsDraft.max_members)
+    const max_bookings = parseLimit(limitsDraft.max_bookings)
+    if ((max_rooms !== null && (isNaN(max_rooms) || max_rooms < 1)) ||
+        (max_members !== null && (isNaN(max_members) || max_members < 1)) ||
+        (max_bookings !== null && (isNaN(max_bookings) || max_bookings < 1))) {
+      setLimitsError('Limits must be positive integers or empty for unlimited.')
+      return
+    }
+    setLimitsSaving(true)
+    const res = await fetch(`/api/palantir/workspaces/${limitsTarget.id}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ is_trial: limitsDraft.is_trial, max_rooms, max_members, max_bookings }),
+    })
+    if (res.ok) {
+      setWorkspaces(prev => prev.map(w => w.id === limitsTarget.id
+        ? { ...w, limits: { is_trial: limitsDraft.is_trial, max_rooms, max_members, max_bookings } }
+        : w
+      ))
+      setLimitsTarget(null)
+    } else {
+      const err = await res.json().catch(() => ({}))
+      setLimitsError(err.error ?? 'Something went wrong.')
+    }
+    setLimitsSaving(false)
   }
 
   async function handleDismissRequest(workspaceId: string) {
@@ -122,7 +169,7 @@ export default function PalantirPage() {
           <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
             <thead>
               <tr style={{ borderBottom: '1px solid rgba(255,255,255,0.08)' }}>
-                {['Workspace', 'Slug', 'Created', 'Rooms', 'Members', 'Bookings', 'Last activity', ''].map(h => (
+                {['Workspace', 'Slug', 'Created', 'Rooms', 'Members', 'Bookings', 'Last activity', 'Limits', ''].map(h => (
                   <th key={h} style={{ padding: '8px 12px', textAlign: 'left', fontSize: 11, color: 'rgba(255,255,255,0.3)', fontWeight: 500, letterSpacing: '0.06em', textTransform: 'uppercase', whiteSpace: 'nowrap' }}>{h}</th>
                 ))}
               </tr>
@@ -143,7 +190,20 @@ export default function PalantirPage() {
                     <td style={{ padding: '12px 12px', whiteSpace: 'nowrap' }}>
                       <span style={{ color, fontSize: 12 }}>{label}</span>
                     </td>
-                    <td style={{ padding: '12px 12px' }}>
+                    <td style={{ padding: '12px 12px', whiteSpace: 'nowrap' }}>
+                      {w.limits ? (
+                        <span style={{ fontSize: 11, color: w.limits.is_trial ? '#f59e0b' : 'rgba(255,255,255,0.5)' }}>
+                          {w.limits.is_trial ? 'Trial' : 'Custom'}
+                        </span>
+                      ) : (
+                        <span style={{ fontSize: 11, color: 'rgba(255,255,255,0.2)' }}>Unlimited</span>
+                      )}
+                    </td>
+                    <td style={{ padding: '12px 12px', display: 'flex', gap: 6 }}>
+                      <button onClick={() => openLimits(w)}
+                        style={{ fontSize: 11, padding: '4px 10px', background: 'none', border: '1px solid rgba(255,255,255,0.2)', color: 'rgba(255,255,255,0.4)', cursor: 'pointer', fontFamily: 'inherit' }}>
+                        Limits
+                      </button>
                       <button onClick={() => { setDeleteTarget(w); setDeleteSlug(''); setDeleteError('') }}
                         style={{ fontSize: 11, padding: '4px 10px', background: 'none', border: '1px solid rgba(255,100,100,0.3)', color: 'rgba(255,100,100,0.6)', cursor: 'pointer', fontFamily: 'inherit' }}>
                         Delete
@@ -195,6 +255,49 @@ export default function PalantirPage() {
                 </div>
               )
             })}
+          </div>
+        </div>
+      )}
+
+      {/* Limits modal */}
+      {limitsTarget && (
+        <div onClick={() => setLimitsTarget(null)} style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.7)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 100 }}>
+          <div onClick={e => e.stopPropagation()} style={{ background: '#111827', border: '1px solid rgba(255,255,255,0.15)', padding: '28px 24px', width: 360, fontFamily: 'system-ui, sans-serif' }}>
+            <div style={{ fontSize: 15, fontWeight: 600, color: '#fff', marginBottom: 4 }}>Workspace limits</div>
+            <div style={{ fontSize: 12, color: 'rgba(255,255,255,0.4)', marginBottom: 20 }}>{limitsTarget.name ?? limitsTarget.slug}</div>
+
+            <label style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 20, cursor: 'pointer' }}>
+              <input type="checkbox" checked={limitsDraft.is_trial} onChange={e => setLimitsDraft(d => ({ ...d, is_trial: e.target.checked }))} />
+              <span style={{ fontSize: 13, color: '#fff' }}>Trial workspace</span>
+            </label>
+
+            {(['max_rooms', 'max_members', 'max_bookings'] as const).map(field => (
+              <div key={field} style={{ marginBottom: 14 }}>
+                <label style={{ display: 'block', fontSize: 11, color: 'rgba(255,255,255,0.4)', marginBottom: 4, textTransform: 'uppercase', letterSpacing: '0.06em' }}>
+                  {field === 'max_rooms' ? 'Max rooms' : field === 'max_members' ? 'Max members' : 'Max bookings (ever)'}
+                </label>
+                <input
+                  type="number"
+                  min="1"
+                  placeholder="unlimited"
+                  value={limitsDraft[field]}
+                  onChange={e => setLimitsDraft(d => ({ ...d, [field]: e.target.value }))}
+                  style={{ width: '100%', padding: '8px 10px', fontSize: 13, background: 'rgba(255,255,255,0.07)', border: '1px solid rgba(255,255,255,0.15)', color: '#fff', outline: 'none', boxSizing: 'border-box', fontFamily: 'inherit' }}
+                />
+              </div>
+            ))}
+
+            {limitsError && <div style={{ fontSize: 12, color: '#f87171', marginBottom: 8 }}>{limitsError}</div>}
+            <div style={{ display: 'flex', gap: 8, marginTop: 8 }}>
+              <button onClick={() => setLimitsTarget(null)}
+                style={{ flex: 1, padding: '9px 0', background: 'none', border: '1px solid rgba(255,255,255,0.15)', color: 'rgba(255,255,255,0.5)', fontSize: 13, cursor: 'pointer', fontFamily: 'inherit' }}>
+                Cancel
+              </button>
+              <button onClick={handleSaveLimits} disabled={limitsSaving}
+                style={{ flex: 1, padding: '9px 0', background: '#1e3a5f', border: 'none', color: '#93c5fd', fontSize: 13, fontWeight: 600, cursor: limitsSaving ? 'default' : 'pointer', fontFamily: 'inherit' }}>
+                {limitsSaving ? 'Saving…' : 'Save limits'}
+              </button>
+            </div>
           </div>
         </div>
       )}

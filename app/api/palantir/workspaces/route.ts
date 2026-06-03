@@ -35,12 +35,18 @@ export async function GET() {
     if (!lastBookingByWs[b.workspace_id]) lastBookingByWs[b.workspace_id] = b.created_at
   }
 
+  const { getLimits } = await import('@/lib/prod-config')
+  const limitsArr = await Promise.all((workspaces ?? []).map(w => getLimits(w.id)))
+  const limitsByWs: Record<string, any> = {}
+  ;(workspaces ?? []).forEach((w, i) => { limitsByWs[w.id] = limitsArr[i] })
+
   const result = (workspaces ?? []).map(w => ({
     ...w,
     room_count: roomsByWs[w.id] ?? 0,
     member_count: membersByWs[w.id] ?? 0,
     booking_count: bookingCountByWs[w.id] ?? 0,
     last_booking_at: lastBookingByWs[w.id] ?? null,
+    limits: limitsByWs[w.id] ?? null,
   }))
 
   return Response.json(result)

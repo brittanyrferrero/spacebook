@@ -107,7 +107,7 @@ export default function AdminPage() {
   const [memberAdding, setMemberAdding] = useState(false)
   const [memberError, setMemberError] = useState('')
   const [removingMemberId, setRemovingMemberId] = useState<string | null>(null)
-  const [memberSortCol, setMemberSortCol] = useState<'name' | 'email' | 'joined' | 'last_used'>('name')
+  const [memberSortCol, setMemberSortCol] = useState<'name' | 'email' | 'role' | 'joined' | 'last_used'>('name')
   const [memberSortDir, setMemberSortDir] = useState<'asc' | 'desc'>('asc')
   const [selectedMembers, setSelectedMembers] = useState<Set<string>>(new Set())
   const [bulkRemovingMembers, setBulkRemovingMembers] = useState(false)
@@ -125,6 +125,20 @@ export default function AdminPage() {
   const [wsName, setWsName] = useState('')
   const [wsNameSaving, setWsNameSaving] = useState(false)
   const [wsNameSaved, setWsNameSaved] = useState(false)
+  const [newSlug, setNewSlug] = useState('')
+  const [slugConfirming, setSlugConfirming] = useState(false)
+  const [slugSaving, setSlugSaving] = useState(false)
+  const [slugError, setSlugError] = useState('')
+
+  function generateSlug() {
+    const adj = ['amber','arctic','ashen','azure','bold','brass','brisk','calm','cedar','chalk','cinder','cobalt','coral','crisp','dappled','dusty','elfin','ember','fern','flint','frosty','garnet','gentle','gilded','golden','granite','hazel','hollow','indigo','ivory','jade','jasper','jolly','keen','kelp','lemon','lunar','maple','misty','mossy','nimble','noble','ochre','olive','opal','pewter','pine','plum','polar','quartz','quiet','raven','russet','sage','sandy','scarlet','silver','slate','stormy','swift','teal','timber','topaz','umber','velvet','vivid','walnut','woven','yarrow','zesty']
+    const noun1 = ['alder','aspen','bay','beech','birch','bracken','briar','broom','cedar','clover','elder','elm','fern','fir','gorse','hazel','heath','heather','holly','ivy','juniper','larch','laurel','lichen','maple','moss','myrtle','oak','pine','reed','rowan','rush','sedge','sorrel','spruce','thistle','thorn','willow','wych','yew']
+    const noun2 = ['bay','bluff','brook','cliff','cove','creek','crest','dale','dell','dune','fen','fjord','ford','glade','glen','gorge','grove','heath','hill','inlet','isle','knoll','lake','lea','ledge','loch','moor','pass','peak','plain','pond','ravine','reef','ridge','shore','spit','spur','tarn','tide','tor','vale','wave','weald','wood']
+    const pick = (arr: string[]) => arr[Math.floor(Math.random() * arr.length)]
+    setNewSlug(`${pick(adj)}-${pick(noun1)}-${pick(noun2)}`)
+    setSlugError('')
+    setSlugConfirming(false)
+  }
 
   // Display hours (calendar grid range)
   const [dispStart, setDispStart] = useState(8)
@@ -139,8 +153,9 @@ export default function AdminPage() {
   const [bhSaved,  setBhSaved]  = useState(false)
 
   // Booking visibility
-  const [visShowTitle,     setVisShowTitle]     = useState(false)
-  const [visShowOrganizer, setVisShowOrganizer] = useState(false)
+  const [visShowTitle,       setVisShowTitle]       = useState(false)
+  const [visShowOrganizer,   setVisShowOrganizer]   = useState(false)
+  const [visAllowEditOthers, setVisAllowEditOthers] = useState(false)
   const [visSaving,        setVisSaving]        = useState(false)
   const [visSaved,         setVisSaved]         = useState(false)
 
@@ -163,6 +178,10 @@ export default function AdminPage() {
   const [amenityAdding, setAmenityAdding] = useState(false)
   const [amenityError, setAmenityError] = useState('')
   const [deletingAmenity, setDeletingAmenity] = useState<string | null>(null)
+
+  // Trial banner
+  const [trialLimits, setTrialLimits] = useState<{ max_rooms: number | null; max_members: number | null; max_bookings: number | null } | null>(null)
+  const [trialUsage, setTrialUsage] = useState<{ members: number; bookings: number } | null>(null)
 
   // Workspace deletion request
   const [deleteReqEmail, setDeleteReqEmail] = useState('')
@@ -202,8 +221,10 @@ export default function AdminPage() {
       setBhEnd(d.bookingHours?.end ?? 22)
       setVisShowTitle(d.bookingVisibility?.showTitle ?? false)
       setVisShowOrganizer(d.bookingVisibility?.showOrganizer ?? false)
+      setVisAllowEditOthers(d.bookingVisibility?.allowEditOthers ?? false)
       if (d.adminEntryToken) setAdminEntryToken(d.adminEntryToken)
       if (d.workspaceName != null) setWsName(d.workspaceName)
+      if (d.limits?.is_trial) { setTrialLimits(d.limits); setTrialUsage(d.trial_usage ?? null) }
     }).catch(() => {})
   }, [])
 
@@ -488,6 +509,10 @@ export default function AdminPage() {
         let av: string, bv: string
         if (memberSortCol === 'name')       { av = a.name;      bv = b.name }
         else if (memberSortCol === 'email') { av = a.email;     bv = b.email }
+        else if (memberSortCol === 'role')  {
+          const roleOrder = (email: string) => { const r = adminList.find((a: any) => a.email.toLowerCase() === email.toLowerCase())?.role; return r === 'super_admin' ? '0' : r === 'admin' ? '1' : '2' }
+          av = roleOrder(a.email); bv = roleOrder(b.email)
+        }
         else if (memberSortCol === 'joined'){ av = a.added_at;  bv = b.added_at }
         else                               { av = a.last_used ?? ''; bv = b.last_used ?? '' }
         return memberSortDir === 'asc' ? av.localeCompare(bv) : bv.localeCompare(av)
@@ -633,12 +658,16 @@ export default function AdminPage() {
         <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
           {showDateRange && (
             <div style={{ display: 'flex', alignItems: 'center', gap: 6, position: 'relative' }}>
-              {PRESETS.map(p => (
-                <button key={p.key} onClick={() => { setPreset(p.key); setShowCustom(false); setCustomFrom(''); setCustomTo('') }}
-                  style={{ fontSize: 12, padding: '5px 10px', borderRadius: 0, border: `1px solid ${preset === p.key && !customFrom ? NAVY : '#cccccc'}`, background: preset === p.key && !customFrom ? NAVY_LIGHT : '#fff', cursor: 'pointer', color: preset === p.key && !customFrom ? NAVY : '#6B7280' }}>
-                  {p.label}
-                </button>
-              ))}
+              {PRESETS.map(p => {
+                const r = getRange(p.key)
+                const tip = `${fmtDate(r.from)} – ${fmtDate(r.to)}`
+                return (
+                  <button key={p.key} title={tip} onClick={() => { setPreset(p.key); setShowCustom(false); setCustomFrom(''); setCustomTo('') }}
+                    style={{ fontSize: 12, padding: '5px 10px', borderRadius: 0, border: `1px solid ${preset === p.key && !customFrom ? NAVY : '#cccccc'}`, background: preset === p.key && !customFrom ? NAVY_LIGHT : '#fff', cursor: 'pointer', color: preset === p.key && !customFrom ? NAVY : '#6B7280' }}>
+                    {p.label}
+                  </button>
+                )
+              })}
               <button onClick={() => setShowCustom(c => !c)}
                 style={{ fontSize: 12, padding: '5px 10px', borderRadius: 0, border: `1px solid ${customFrom ? NAVY : '#cccccc'}`, background: customFrom ? NAVY : showCustom ? NAVY_LIGHT : '#fff', cursor: 'pointer', color: customFrom ? '#fff' : NAVY }}>
                 Custom range
@@ -679,6 +708,25 @@ export default function AdminPage() {
 
         {/* Main content */}
         <div style={{ padding: '16px 18px' }}>
+
+          {/* ── Trial banner ── */}
+          {trialLimits && (
+            <div style={{ background: '#fffbeb', border: '1px solid #f59e0b', padding: '12px 16px', marginBottom: 16, fontSize: 13 }}>
+              <div style={{ fontWeight: 600, color: '#92400e', marginBottom: 6 }}>Trial workspace</div>
+              <div style={{ color: '#78350f', lineHeight: 1.6 }}>
+                {trialUsage && (
+                  <>
+                    <span style={{ marginRight: 16 }}>Members: <strong>{trialUsage.members}</strong>/{trialLimits.max_members ?? '∞'}</span>
+                    <span style={{ marginRight: 16 }}>Rooms: <strong>{trialLimits.max_rooms ?? '∞'}</strong> max</span>
+                    <span>Bookings ever: <strong>{trialUsage.bookings}</strong>/{trialLimits.max_bookings ?? '∞'}</span>
+                  </>
+                )}
+              </div>
+              <div style={{ marginTop: 6, color: '#92400e', fontSize: 12 }}>
+                You&apos;re on a trial plan. Contact <a href="mailto:hello@spacebook.app" style={{ color: '#b45309' }}>hello@spacebook.app</a> to upgrade and remove limits.
+              </div>
+            </div>
+          )}
 
           {/* ── Overview ── */}
           {nav === 'Overview' && (
@@ -1359,6 +1407,10 @@ export default function AdminPage() {
                 </div>
               )}
 
+              <div style={{ fontSize: 11, color: '#9CA3AF', marginBottom: 10 }}>
+                <strong style={{ color: '#6B7280' }}>Admin</strong> — can manage rooms, bookings and settings.&ensp;<strong style={{ color: '#6B7280' }}>Super admin</strong> — can also add and remove other admins.
+              </div>
+
               {membersLoading ? (
                 <div style={{ color: '#9CA3AF', fontSize: 13 }}>Loading…</div>
               ) : members.length === 0 ? (
@@ -1375,7 +1427,7 @@ export default function AdminPage() {
                             onChange={e => setSelectedMembers(e.target.checked ? new Set(members.map((m: any) => m.id)) : new Set())}
                           />
                         </th>
-                        {([['Name', 'name'], ['Email', 'email'], ['Role', null], ['Joined', 'joined'], ['Last active', 'last_used'], ['', null]] as [string, string | null][]).map(([label, col]) => (
+                        {([['Name', 'name'], ['Email', 'email'], ['Role', 'role'], ['Joined', 'joined'], ['Last active', 'last_used'], ['', null]] as [string, string | null][]).map(([label, col]) => (
                           <th key={label} onClick={col ? () => handleMemberSort(col as any) : undefined}
                             style={{ background: '#ffffff', padding: '8px 12px', textAlign: 'left', fontSize: 11, fontWeight: 500, color: col ? NAVY : '#9CA3AF', borderBottom: '1px solid #dddddd', whiteSpace: 'nowrap', cursor: col ? 'pointer' : 'default', userSelect: 'none' }}>
                             {label}{col ? mSortIndicator(col as any) : ''}
@@ -1557,6 +1609,68 @@ export default function AdminPage() {
 
               <EntryLinkCard workspace={workspace} adminEntryToken={adminEntryToken} />
 
+              <div style={{ background: '#fff', border: '1px solid #f5c6c6', borderRadius: 0, padding: 16, marginBottom: 10 }}>
+                <div style={{ fontSize: 12, fontWeight: 500, color: '#374151', marginBottom: 4 }}>Rename workspace URL</div>
+                <div style={{ fontSize: 12, color: '#9CA3AF', marginBottom: 10, lineHeight: 1.6 }}>
+                  Your workspace URL is your access credential — anyone who knows it can enter the workspace. To revoke access for a former team member, rename the URL here and share the new one with your team. This is a significant operation — proceed with caution.
+                </div>
+                <div style={{ background: '#fef9ec', border: '1px solid #fcd34d', borderRadius: 0, padding: '10px 12px', marginBottom: 12, fontSize: 12, color: '#78350f', lineHeight: 1.6 }}>
+                  ⚠️ <strong>Heads up:</strong> renaming your URL is going to be a pain. Every person on your team will need the new link, every tablet will need to be reconfigured, and any saved bookmarks will break. Only do this if you really need to.
+                </div>
+                {!slugConfirming ? (
+                  <div style={{ display: 'flex', gap: 8, alignItems: 'center', marginBottom: 8 }}>
+                    <input
+                      value={newSlug}
+                      onChange={e => { setNewSlug(e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, '')); setSlugError(''); setSlugConfirming(false) }}
+                      placeholder="new-workspace-url"
+                      style={{ fontSize: 12, padding: '6px 8px', border: '1px solid #dddddd', borderRadius: 0, outline: 'none', fontFamily: 'inherit', flex: 1 }}
+                    />
+                    <button
+                      onClick={generateSlug}
+                      style={{ fontSize: 12, padding: '6px 10px', borderRadius: 0, border: '1px solid #dddddd', background: 'none', cursor: 'pointer', color: '#6B7280', whiteSpace: 'nowrap', flexShrink: 0 }}>
+                      ↺ Generate
+                    </button>
+                    <button
+                      disabled={newSlug.length < 3}
+                      onClick={() => { setSlugError(''); setSlugConfirming(true) }}
+                      style={{ fontSize: 12, padding: '6px 14px', borderRadius: 0, border: '1px solid #f5c6c6', background: 'none', cursor: newSlug.length < 3 ? 'default' : 'pointer', color: '#C0392B', whiteSpace: 'nowrap', opacity: newSlug.length < 3 ? 0.4 : 1, flexShrink: 0 }}>
+                      Rename
+                    </button>
+                  </div>
+                ) : (
+                  <div>
+                    <div style={{ fontSize: 12, color: '#374151', marginBottom: 10 }}>
+                      Are you sure? Your workspace will move to <strong>/{newSlug}</strong>. Your current URL <strong>/{workspace}</strong> will stop working immediately.
+                    </div>
+                    <div style={{ display: 'flex', gap: 8 }}>
+                      <button
+                        onClick={() => { setSlugConfirming(false); setSlugError('') }}
+                        style={{ fontSize: 12, padding: '6px 14px', borderRadius: 0, border: '1px solid #dddddd', background: 'none', cursor: 'pointer', color: '#6B7280' }}>
+                        Cancel
+                      </button>
+                      <button
+                        disabled={slugSaving}
+                        onClick={async () => {
+                          setSlugSaving(true)
+                          const res = await fetch(`${api}/rename-slug`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ newSlug }) })
+                          if (res.ok) {
+                            window.location.href = `/${newSlug}/admin`
+                          } else {
+                            const body = await res.json().catch(() => ({}))
+                            setSlugError(body.error ?? 'Something went wrong.')
+                            setSlugSaving(false)
+                            setSlugConfirming(false)
+                          }
+                        }}
+                        style={{ fontSize: 12, padding: '6px 14px', borderRadius: 0, border: 'none', background: '#C0392B', cursor: slugSaving ? 'default' : 'pointer', color: '#fff', whiteSpace: 'nowrap' }}>
+                        {slugSaving ? 'Renaming…' : 'Yes, rename it'}
+                      </button>
+                    </div>
+                  </div>
+                )}
+                {slugError && <div style={{ fontSize: 12, color: '#C0392B', marginTop: 8 }}>{slugError}</div>}
+              </div>
+
               <div style={{ background: '#fff', border: '1px solid #dddddd', borderRadius: 0, padding: 16, marginBottom: 10 }}>
                 <div style={{ fontSize: 12, fontWeight: 500, color: '#374151', marginBottom: 4 }}>Admin password</div>
                 <div style={{ fontSize: 12, color: '#9CA3AF', marginBottom: 12 }}>Set via the <code style={{ background: '#f0f0f0', padding: '1px 4px', borderRadius: 4 }}>ADMIN_PASSWORD</code> environment variable.</div>
@@ -1647,8 +1761,9 @@ export default function AdminPage() {
                 </div>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 10, marginBottom: 14 }}>
                   {([
-                    [visShowTitle,     setVisShowTitle,     'Show meeting title'],
-                    [visShowOrganizer, setVisShowOrganizer, 'Show organizer name'],
+                    [visShowTitle,       setVisShowTitle,       'Show meeting title on calendar'],
+                    [visShowOrganizer,   setVisShowOrganizer,   'Show organizer name'],
+                    [visAllowEditOthers, setVisAllowEditOthers, 'Allow editing others\' bookings'],
                   ] as [boolean, (v: boolean) => void, string][]).map(([val, set, label]) => (
                     <label key={label} style={{ display: 'flex', alignItems: 'center', gap: 10, cursor: 'pointer' }}>
                       <div onClick={() => set(!val)}
@@ -1660,15 +1775,19 @@ export default function AdminPage() {
                   ))}
                 </div>
                 <div style={{ fontSize: 11, color: '#9CA3AF', marginBottom: 12 }}>
-                  {!visShowTitle && !visShowOrganizer && 'Others see: occupied blocks only'}
-                  {!visShowTitle && visShowOrganizer && 'Others see: occupied blocks · name revealed on click'}
-                  {visShowTitle && !visShowOrganizer && 'Others see: meeting title on block'}
-                  {visShowTitle && visShowOrganizer && 'Others see: meeting title on block · name revealed on click'}
+                  {!visShowTitle && !visShowOrganizer && !visAllowEditOthers && 'Others see: occupied blocks only, no editing'}
+                  {!visShowTitle && !visShowOrganizer && visAllowEditOthers && 'Others see: occupied blocks only · can edit'}
+                  {!visShowTitle && visShowOrganizer && !visAllowEditOthers && 'Others see: name revealed on click, no editing'}
+                  {!visShowTitle && visShowOrganizer && visAllowEditOthers && 'Others see: name revealed on click · can edit'}
+                  {visShowTitle && !visShowOrganizer && !visAllowEditOthers && 'Others see: meeting title on block, no editing'}
+                  {visShowTitle && !visShowOrganizer && visAllowEditOthers && 'Others see: meeting title on block · can edit'}
+                  {visShowTitle && visShowOrganizer && !visAllowEditOthers && 'Others see: meeting title · name on click, no editing'}
+                  {visShowTitle && visShowOrganizer && visAllowEditOthers && 'Others see: meeting title · name on click · can edit'}
                 </div>
                 <button
                   onClick={async () => {
                     setVisSaving(true)
-                    await fetch(`${api}/settings`, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ bookingVisibility: { showTitle: visShowTitle, showOrganizer: visShowOrganizer } }) })
+                    await fetch(`${api}/settings`, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ bookingVisibility: { showTitle: visShowTitle, showOrganizer: visShowOrganizer, allowEditOthers: visAllowEditOthers } }) })
                     setVisSaving(false); setVisSaved(true); setTimeout(() => setVisSaved(false), 2000)
                   }}
                   disabled={visSaving}

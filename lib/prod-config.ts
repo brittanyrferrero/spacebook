@@ -16,7 +16,7 @@ const DEFAULTS = {
   amenityOptions:    ['TV', 'Whiteboard', 'Video conferencing', 'Phone', 'Natural light'] as string[],
   bookingHours:      { start: 6, end: 22 },
   displayHours:      { start: 8, end: 20 },
-  bookingVisibility: { showTitle: false, showOrganizer: false },
+  bookingVisibility: { showTitle: false, showOrganizer: false, allowEditOthers: false },
 }
 
 // All KV keys are namespaced by workspaceId
@@ -50,11 +50,36 @@ export async function setDisplayHours(workspaceId: string, v: { start: number; e
   await kv().set(k(workspaceId, 'cfg:displayHours'), v)
 }
 
-export async function getBookingVisibility(workspaceId: string): Promise<{ showTitle: boolean; showOrganizer: boolean }> {
-  return (await kv().get<{ showTitle: boolean; showOrganizer: boolean }>(k(workspaceId, 'cfg:bookingVisibility'))) ?? DEFAULTS.bookingVisibility
+export async function getBookingVisibility(workspaceId: string): Promise<{ showTitle: boolean; showOrganizer: boolean; allowEditOthers: boolean }> {
+  const stored = await kv().get<{ showTitle: boolean; showOrganizer: boolean; allowEditOthers?: boolean }>(k(workspaceId, 'cfg:bookingVisibility'))
+  return { ...DEFAULTS.bookingVisibility, ...(stored ?? {}) }
 }
-export async function setBookingVisibility(workspaceId: string, v: { showTitle: boolean; showOrganizer: boolean }): Promise<void> {
+export async function setBookingVisibility(workspaceId: string, v: { showTitle: boolean; showOrganizer: boolean; allowEditOthers: boolean }): Promise<void> {
   await kv().set(k(workspaceId, 'cfg:bookingVisibility'), v)
+}
+
+// ─── Workspace limits ─────────────────────────────────────────────────────────
+
+export interface WorkspaceLimits {
+  is_trial: boolean
+  max_rooms: number | null     // null = unlimited
+  max_members: number | null   // null = unlimited
+  max_bookings: number | null  // null = unlimited (counts total ever created)
+}
+
+export const TRIAL_LIMITS: WorkspaceLimits = {
+  is_trial: true,
+  max_rooms: 10,
+  max_members: 3,
+  max_bookings: 50,
+}
+
+export async function getLimits(workspaceId: string): Promise<WorkspaceLimits | null> {
+  return kv().get<WorkspaceLimits>(k(workspaceId, 'limits'))
+}
+
+export async function setLimits(workspaceId: string, limits: WorkspaceLimits): Promise<void> {
+  await kv().set(k(workspaceId, 'limits'), limits)
 }
 
 // ─── Workspace entry token ────────────────────────────────────────────────────
