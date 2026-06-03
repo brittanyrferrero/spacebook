@@ -1630,7 +1630,7 @@ export default function AdminPage() {
               <div style={{ background: '#fff', border: '1px solid #f5c6c6', borderRadius: 0, padding: 16, marginBottom: 10 }}>
                 <div style={{ fontSize: 12, fontWeight: 500, color: '#374151', marginBottom: 4 }}>Rename workspace URL</div>
                 <div style={{ fontSize: 12, color: '#9CA3AF', marginBottom: 10, lineHeight: 1.6 }}>
-                  Your workspace URL is your access credential — anyone who knows it can enter the workspace. To revoke access for a former team member, rename the URL here and share the new one with your team. This is a significant operation — proceed with caution.
+                  Your workspace URL is your access credential — anyone who knows it can enter the workspace. Rename it to revoke access for former team members, or for added security if the current URL was shared outside of the team. This is a significant operation — proceed with caution.
                 </div>
                 <div style={{ background: '#fef9ec', border: '1px solid #fcd34d', borderRadius: 0, padding: '10px 12px', marginBottom: 12, fontSize: 12, color: '#78350f', lineHeight: 1.6 }}>
                   ⚠️ <strong>Heads up:</strong> renaming your URL is going to be a pain. Every person on your team will need the new link, every tablet will need to be reconfigured, and any saved bookmarks will break. Only do this if you really need to.
