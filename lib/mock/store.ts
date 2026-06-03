@@ -22,6 +22,7 @@ export interface MockStore {
   displayHours: { start: number; end: number }
   bookingVisibility: { showTitle: boolean; showOrganizer: boolean; allowEditOthers: boolean }
   countWeekends: boolean
+  tzOffset?: number
   gcalTokens: Record<string, GcalTokens>   // room_id → tokens
 }
 

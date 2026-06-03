@@ -8,10 +8,13 @@ export async function GET(req: NextRequest, { params }: { params: { workspace: s
   const from = searchParams.get('from') ?? format(subDays(new Date(), 29), 'yyyy-MM-dd')
   const roomId = searchParams.get('room_id') ?? undefined
   const roomType = searchParams.get('room_type') ?? undefined
+  const tzOffset = Number(searchParams.get('tz') ?? '0')
 
   if (process.env.MOCK_MODE === 'true') {
     const [{ getAdminStats }, { getSessionStore }] = await Promise.all([import('@/lib/mock/api'), import('@/lib/mock/store')])
-    return Response.json(getAdminStats(await getSessionStore(), from, to, roomId, roomType))
+    const store = await getSessionStore()
+    store.tzOffset = tzOffset
+    return Response.json(getAdminStats(store, from, to, roomId, roomType))
   }
 
   const workspaceId = await getWorkspaceId(params.workspace)
@@ -49,6 +52,7 @@ export async function GET(req: NextRequest, { params }: { params: { workspace: s
     bookingHours: bookingHoursRes,
     displayHours: displayHoursRes,
     countWeekends: countWeekendsRes,
+    tzOffset,
     bookingVisibility: { showTitle: false, showOrganizer: false },
     gcalTokens: {},
   }
