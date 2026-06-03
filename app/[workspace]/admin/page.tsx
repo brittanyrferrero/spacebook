@@ -782,7 +782,7 @@ export default function AdminPage() {
                 ))}
               </div>
 
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 8, marginBottom: totals.outside_display_hours > 0 ? 8 : 14, maxWidth: 480 }}>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 8, marginBottom: 14, maxWidth: 480 }}>
                 {[
                   { label: 'Total bookings', value: totals.total_bookings },
                   { label: 'Hours booked', value: totals.total_hours },
@@ -794,6 +794,29 @@ export default function AdminPage() {
                     <div style={{ fontSize: 21, fontWeight: 500, color: NAVY }}>{value}</div>
                   </div>
                 ))}
+                {totals.outside_display_hours > 0 && (() => {
+                  const fmtH = (h: number) => h >= 12 ? `${h === 12 ? 12 : h - 12}pm` : `${h}am`
+                  const outsideHours: { hour: number; total_bookings: number }[] = (hourStats ?? []).filter((h: any) => (h.hour < dispStart || h.hour >= dispEnd) && h.total_bookings > 0)
+                  const before = outsideHours.filter(h => h.hour < dispStart)
+                  const after  = outsideHours.filter(h => h.hour >= dispEnd)
+                  const suggestedStart = before.length > 0 ? before[0].hour : dispStart
+                  const suggestedEnd   = after.length > 0 ? after[after.length - 1].hour + 1 : dispEnd
+                  const windowChanged  = suggestedStart < dispStart || suggestedEnd > dispEnd
+                  return (
+                    <div style={{ background: '#fff', borderRadius: 0, padding: 11, border: '1px solid #dddddd' }}>
+                      <div style={{ fontSize: 11, color: '#9CA3AF', marginBottom: 3 }}>Outside display window</div>
+                      <div style={{ fontSize: 21, fontWeight: 500, color: NAVY, marginBottom: windowChanged ? 6 : 0 }}>
+                        {totals.outside_display_hours}
+                        <span style={{ fontSize: 12, fontWeight: 400, color: '#9CA3AF', marginLeft: 6 }}>{Math.round(totals.outside_display_hours / totals.total_bookings * 100)}%</span>
+                      </div>
+                      {windowChanged && (
+                        <div style={{ fontSize: 10, color: '#9CA3AF' }}>
+                          Consider <span style={{ color: '#374151', fontWeight: 500 }}>{fmtH(suggestedStart)} – {fmtH(suggestedEnd)}</span> in Settings
+                        </div>
+                      )}
+                    </div>
+                  )
+                })()}
               </div>
 
               <div style={{ display: 'flex', gap: 10, marginBottom: 14, alignItems: 'flex-start' }}>
@@ -925,60 +948,6 @@ export default function AdminPage() {
                 </div>
               </div>
 
-              {totals.outside_display_hours > 0 && (() => {
-                const fmtH = (h: number) => h >= 12 ? `${h === 12 ? 12 : h - 12}pm` : `${h}am`
-                const outsideHours: { hour: number; total_bookings: number }[] = (hourStats ?? []).filter((h: any) => (h.hour < dispStart || h.hour >= dispEnd) && h.total_bookings > 0)
-                const maxOutside = Math.max(...outsideHours.map(h => h.total_bookings), 1)
-                const before = outsideHours.filter(h => h.hour < dispStart)
-                const after  = outsideHours.filter(h => h.hour >= dispEnd)
-                const suggestedStart = before.length > 0 ? before[0].hour : dispStart
-                const suggestedEnd   = after.length > 0 ? after[after.length - 1].hour + 1 : dispEnd
-                const windowChanged  = suggestedStart < dispStart || suggestedEnd > dispEnd
-                return (
-                  <div style={{ background: '#fff', border: '1px solid #dddddd', borderRadius: 0, padding: 11, marginBottom: 14 }}>
-                    <div style={{ fontSize: 11, color: '#9CA3AF', marginBottom: 3 }}>Outside display window</div>
-                    <div style={{ fontSize: 21, fontWeight: 500, color: NAVY, marginBottom: 8 }}>
-                      {totals.outside_display_hours}
-                      <span style={{ fontSize: 12, fontWeight: 400, color: '#9CA3AF', marginLeft: 6 }}>{Math.round(totals.outside_display_hours / totals.total_bookings * 100)}% of total</span>
-                    </div>
-                    <div style={{ display: 'flex', gap: 24, marginBottom: windowChanged ? 10 : 0 }}>
-                      {before.length > 0 && (
-                        <div>
-                          <div style={{ fontSize: 10, color: '#C0C8D0', marginBottom: 6 }}>Before {fmtH(dispStart)}</div>
-                          <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
-                            {before.map(h => (
-                              <div key={h.hour} style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                                <div style={{ fontSize: 10, color: '#9CA3AF', width: 28, textAlign: 'right' }}>{fmtH(h.hour)}</div>
-                                <div style={{ height: 8, borderRadius: 2, background: NAVY, opacity: 0.7, width: Math.max(4, Math.round(h.total_bookings / maxOutside * 80)) }} />
-                                <div style={{ fontSize: 10, color: '#6B7280' }}>{h.total_bookings}</div>
-                              </div>
-                            ))}
-                          </div>
-                        </div>
-                      )}
-                      {after.length > 0 && (
-                        <div>
-                          <div style={{ fontSize: 10, color: '#C0C8D0', marginBottom: 6 }}>After {fmtH(dispEnd)}</div>
-                          <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
-                            {after.map(h => (
-                              <div key={h.hour} style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                                <div style={{ fontSize: 10, color: '#9CA3AF', width: 28, textAlign: 'right' }}>{fmtH(h.hour)}</div>
-                                <div style={{ height: 8, borderRadius: 2, background: NAVY, opacity: 0.7, width: Math.max(4, Math.round(h.total_bookings / maxOutside * 80)) }} />
-                                <div style={{ fontSize: 10, color: '#6B7280' }}>{h.total_bookings}</div>
-                              </div>
-                            ))}
-                          </div>
-                        </div>
-                      )}
-                    </div>
-                    {windowChanged && (
-                      <div style={{ fontSize: 10, color: '#9CA3AF', borderTop: '1px solid #f3f4f6', paddingTop: 8 }}>
-                        Consider adjusting display hours to <span style={{ color: '#374151', fontWeight: 500 }}>{fmtH(suggestedStart)} – {fmtH(suggestedEnd)}</span> in Settings to capture all bookings.
-                      </div>
-                    )}
-                  </div>
-                )
-              })()}
 
               {dowHourStats && dowHourStats.length > 0 && (() => {
                 const dhs: { dow: number; hour: number; count: number }[] = dowHourStats
