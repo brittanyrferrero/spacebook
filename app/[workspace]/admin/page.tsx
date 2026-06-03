@@ -931,6 +931,9 @@ export default function AdminPage() {
                 const maxOutside = Math.max(...outsideHours.map(h => h.total_bookings), 1)
                 const before = outsideHours.filter(h => h.hour < dispStart)
                 const after  = outsideHours.filter(h => h.hour >= dispEnd)
+                const suggestedStart = before.length > 0 ? before[0].hour : dispStart
+                const suggestedEnd   = after.length > 0 ? after[after.length - 1].hour + 1 : dispEnd
+                const windowChanged  = suggestedStart < dispStart || suggestedEnd > dispEnd
                 return (
                   <div style={{ background: '#fff', border: '1px solid #dddddd', borderRadius: 0, padding: 11, marginBottom: 14 }}>
                     <div style={{ fontSize: 11, color: '#9CA3AF', marginBottom: 3 }}>Outside display window</div>
@@ -938,7 +941,7 @@ export default function AdminPage() {
                       {totals.outside_display_hours}
                       <span style={{ fontSize: 12, fontWeight: 400, color: '#9CA3AF', marginLeft: 6 }}>{Math.round(totals.outside_display_hours / totals.total_bookings * 100)}% of total</span>
                     </div>
-                    <div style={{ display: 'flex', gap: 24 }}>
+                    <div style={{ display: 'flex', gap: 24, marginBottom: windowChanged ? 10 : 0 }}>
                       {before.length > 0 && (
                         <div>
                           <div style={{ fontSize: 10, color: '#C0C8D0', marginBottom: 6 }}>Before {fmtH(dispStart)}</div>
@@ -968,6 +971,11 @@ export default function AdminPage() {
                         </div>
                       )}
                     </div>
+                    {windowChanged && (
+                      <div style={{ fontSize: 10, color: '#9CA3AF', borderTop: '1px solid #f3f4f6', paddingTop: 8 }}>
+                        Consider adjusting display hours to <span style={{ color: '#374151', fontWeight: 500 }}>{fmtH(suggestedStart)} – {fmtH(suggestedEnd)}</span> in Settings to capture all bookings.
+                      </div>
+                    )}
                   </div>
                 )
               })()}
