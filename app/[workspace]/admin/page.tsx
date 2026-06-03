@@ -845,14 +845,14 @@ export default function AdminPage() {
                           </span>
                         </div>
                       </div>
-                      <div style={{ display: 'flex', alignItems: 'flex-end', gap: 3, height: 64 }}>
+                      <div style={{ display: 'flex', alignItems: 'stretch', gap: 3, height: 64 }}>
                         {cs.distribution.map((d: any) => {
                           const barH = Math.max(2, Math.round(d.slots / maxSlots * 60))
                           const pct = cs.total_slots > 0 ? Math.round(d.slots / cs.total_slots * 100) : 0
                           const fraction = cs.total_rooms > 0 ? d.rooms_in_use / cs.total_rooms : 0
                           const color = fraction >= 1 ? BUSY : fraction >= 0.8 ? '#D97706' : fraction >= 0.5 ? '#7A9A4A' : SAGE
                           return (
-                            <div key={d.rooms_in_use} title={`${d.rooms_in_use} room${d.rooms_in_use !== 1 ? 's' : ''} occupied: ${pct}% of business hours`} style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 3, flex: 1, cursor: 'default' }}>
+                            <div key={d.rooms_in_use} title={`${d.rooms_in_use} room${d.rooms_in_use !== 1 ? 's' : ''} occupied: ${pct}% of business hours`} style={{ display: 'flex', flexDirection: 'column', justifyContent: 'flex-end', alignItems: 'center', gap: 3, flex: 1, cursor: 'default' }}>
                               <div style={{ borderRadius: '2px 2px 0 0', width: '100%', height: barH, background: color, opacity: d.slots === 0 ? 0.15 : 0.82 }} />
                               <div style={{ fontSize: 10, color: '#9CA3AF' }}>{d.rooms_in_use}</div>
                             </div>
