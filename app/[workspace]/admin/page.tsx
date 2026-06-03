@@ -795,11 +795,6 @@ export default function AdminPage() {
                   </div>
                 ))}
               </div>
-              {totals.outside_display_hours > 0 && (
-                <div style={{ fontSize: 11, color: '#9CA3AF', marginBottom: 14 }}>
-                  + {totals.outside_display_hours} booking{totals.outside_display_hours !== 1 ? 's' : ''} outside display window ({Math.round(totals.outside_display_hours / totals.total_bookings * 100)}% of total)
-                </div>
-              )}
 
               <div style={{ display: 'flex', gap: 10, marginBottom: 14, alignItems: 'flex-start' }}>
                 {stats.originStats && totals.total_bookings > 0 && (() => {
@@ -929,6 +924,54 @@ export default function AdminPage() {
                   })()}
                 </div>
               </div>
+
+              {totals.outside_display_hours > 0 && (() => {
+                const fmtH = (h: number) => h >= 12 ? `${h === 12 ? 12 : h - 12}pm` : `${h}am`
+                const outsideHours: { hour: number; total_bookings: number }[] = (hourStats ?? []).filter((h: any) => (h.hour < dispStart || h.hour >= dispEnd) && h.total_bookings > 0)
+                const maxOutside = Math.max(...outsideHours.map(h => h.total_bookings), 1)
+                const before = outsideHours.filter(h => h.hour < dispStart)
+                const after  = outsideHours.filter(h => h.hour >= dispEnd)
+                return (
+                  <div style={{ background: '#fff', border: '1px solid #dddddd', borderRadius: 0, padding: 13, marginBottom: 14 }}>
+                    <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', marginBottom: 12 }}>
+                      <div style={{ fontSize: 12, fontWeight: 500, color: '#374151' }}>Outside display window</div>
+                      <div style={{ fontSize: 11, color: '#9CA3AF' }}>
+                        {totals.outside_display_hours} booking{totals.outside_display_hours !== 1 ? 's' : ''} <span style={{ color: '#C0C8D0' }}>·</span> {Math.round(totals.outside_display_hours / totals.total_bookings * 100)}% of total
+                      </div>
+                    </div>
+                    <div style={{ display: 'flex', gap: 24 }}>
+                      {before.length > 0 && (
+                        <div>
+                          <div style={{ fontSize: 10, color: '#C0C8D0', marginBottom: 6 }}>Before {fmtH(dispStart)}</div>
+                          <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+                            {before.map(h => (
+                              <div key={h.hour} style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                                <div style={{ fontSize: 10, color: '#9CA3AF', width: 28, textAlign: 'right' }}>{fmtH(h.hour)}</div>
+                                <div style={{ height: 8, borderRadius: 2, background: NAVY, opacity: 0.7, width: Math.max(4, Math.round(h.total_bookings / maxOutside * 80)) }} />
+                                <div style={{ fontSize: 10, color: '#6B7280' }}>{h.total_bookings}</div>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+                      {after.length > 0 && (
+                        <div>
+                          <div style={{ fontSize: 10, color: '#C0C8D0', marginBottom: 6 }}>After {fmtH(dispEnd)}</div>
+                          <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+                            {after.map(h => (
+                              <div key={h.hour} style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                                <div style={{ fontSize: 10, color: '#9CA3AF', width: 28, textAlign: 'right' }}>{fmtH(h.hour)}</div>
+                                <div style={{ height: 8, borderRadius: 2, background: NAVY, opacity: 0.7, width: Math.max(4, Math.round(h.total_bookings / maxOutside * 80)) }} />
+                                <div style={{ fontSize: 10, color: '#6B7280' }}>{h.total_bookings}</div>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                )
+              })()}
 
               {dowHourStats && dowHourStats.length > 0 && (() => {
                 const dhs: { dow: number; hour: number; count: number }[] = dowHourStats
