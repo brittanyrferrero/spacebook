@@ -831,7 +831,7 @@ export default function AdminPage() {
                   const maxSlots = Math.max(...cs.distribution.map((d: any) => d.slots), 1)
                   return (
                     <div style={{ background: '#fff', border: '1px solid #dddddd', borderRadius: 0, padding: 13, flex: 1 }}>
-                      <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', marginBottom: 10, flexWrap: 'wrap', gap: 8 }}>
+                      <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', marginBottom: 14, flexWrap: 'wrap', gap: 8 }}>
                         <div style={{ fontSize: 12, fontWeight: 500, color: '#374151' }}>Space pressure</div>
                         <div style={{ display: 'flex', gap: 14, flexWrap: 'wrap' }}>
                           <span style={{ fontSize: 11, color: '#9CA3AF' }}>
@@ -869,13 +869,14 @@ export default function AdminPage() {
                 {!filterRoom && (
                   <div style={{ background: '#fff', border: '1px solid #dddddd', borderRadius: 0, padding: 13 }}>
                     <div style={{ fontSize: 12, fontWeight: 500, color: '#374151', marginBottom: 10 }}>Bookings by room</div>
-                    <div style={{ display: 'flex', alignItems: 'flex-end', gap: 5, height: 80 }}>
+                    <div style={{ display: 'flex', alignItems: 'stretch', gap: 5, height: 80 }}>
                       {roomStats.map((r: any) => {
                         const h = Math.round(r.total_bookings / maxRoomBookings * 75)
                         return (
-                          <div key={r.room.id} style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 3, flex: 1 }}>
-                            <div title={`${r.total_bookings} bookings`} style={{ borderRadius: '3px 3px 0 0', width: '100%', height: h, background: r.room.is_active ? SAGE : '#C8D8CC' }} />
+                          <div key={r.room.id} title={`${r.total_bookings} bookings`} style={{ display: 'flex', flexDirection: 'column', justifyContent: 'flex-end', alignItems: 'center', gap: 2, flex: 1, cursor: 'default' }}>
+                            <div style={{ borderRadius: '3px 3px 0 0', width: '100%', height: h, background: r.room.is_active ? SAGE : '#C8D8CC' }} />
                             <div style={{ fontSize: 10, color: '#9CA3AF', textAlign: 'center' }}>{r.room.name.split(' ').pop()}</div>
+                            <div style={{ fontSize: 10, fontWeight: 500, color: '#374151' }}>{r.total_bookings}</div>
                           </div>
                         )
                       })}
