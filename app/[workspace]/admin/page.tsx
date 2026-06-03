@@ -19,7 +19,7 @@ const PRESETS: { key: Preset; label: string; days: number }[] = [
   { key: '7d', label: '7 days', days: 7 },
   { key: '30d', label: '30 days', days: 30 },
   { key: 'month', label: 'This month', days: 0 },
-  { key: 'quarter', label: 'Current quarter', days: 0 },
+  { key: 'quarter', label: 'This quarter', days: 0 },
 ]
 
 function currentQuarterLabel(): string {
