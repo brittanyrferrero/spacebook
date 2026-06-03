@@ -13,17 +13,19 @@ export async function GET(_req: NextRequest, { params }: { params: { workspace: 
       bookingHours: store.bookingHours ?? DEFAULT_BOOKING_HOURS,
       displayHours: store.displayHours ?? DEFAULT_DISPLAY_HOURS,
       bookingVisibility: store.bookingVisibility ?? DEFAULT_VISIBILITY,
+      countWeekends: store.countWeekends ?? false,
     })
   }
   const { getWorkspaceBySlug } = await import('@/lib/workspace')
   const workspace = await getWorkspaceBySlug(params.workspace)
   if (!workspace) return Response.json({ error: 'Workspace not found' }, { status: 404 })
   const workspaceId = workspace.id
-  const { getBookingHours, getDisplayHours, getBookingVisibility, getLimits } = await import('@/lib/prod-config')
-  const [bookingHours, displayHours, bookingVisibility, limits] = await Promise.all([
+  const { getBookingHours, getDisplayHours, getBookingVisibility, getCountWeekends, getLimits } = await import('@/lib/prod-config')
+  const [bookingHours, displayHours, bookingVisibility, countWeekends, limits] = await Promise.all([
     getBookingHours(workspaceId),
     getDisplayHours(workspaceId),
     getBookingVisibility(workspaceId),
+    getCountWeekends(workspaceId),
     getLimits(workspaceId),
   ])
 
@@ -38,7 +40,7 @@ export async function GET(_req: NextRequest, { params }: { params: { workspace: 
     trial_usage = { members: memberCount, bookings: bookingCount }
   }
 
-  return Response.json({ bookingHours, displayHours, bookingVisibility, adminEntryToken: workspace.admin_entry_token, workspaceName: workspace.name, limits, trial_usage })
+  return Response.json({ bookingHours, displayHours, bookingVisibility, countWeekends, adminEntryToken: workspace.admin_entry_token, workspaceName: workspace.name, limits, trial_usage })
 }
 
 export async function PATCH(req: NextRequest, { params }: { params: { workspace: string } }) {
@@ -99,6 +101,24 @@ export async function PATCH(req: NextRequest, { params }: { params: { workspace:
     const { setBookingVisibility } = await import('@/lib/prod-config')
     await setBookingVisibility(workspaceId, { showTitle, showOrganizer, allowEditOthers })
     return Response.json({ bookingVisibility: { showTitle, showOrganizer, allowEditOthers } })
+  }
+
+  if (body.countWeekends !== undefined) {
+    if (typeof body.countWeekends !== 'boolean') {
+      return Response.json({ error: 'Invalid value.' }, { status: 400 })
+    }
+    if (process.env.MOCK_MODE === 'true') {
+      const { getSessionStore, saveSessionStore } = await import('@/lib/mock/store')
+      const store = await getSessionStore()
+      store.countWeekends = body.countWeekends
+      await saveSessionStore(store)
+      return Response.json({ countWeekends: store.countWeekends })
+    }
+    const workspaceId = await getWorkspaceId(params.workspace)
+    if (!workspaceId) return Response.json({ error: 'Workspace not found' }, { status: 404 })
+    const { setCountWeekends } = await import('@/lib/prod-config')
+    await setCountWeekends(workspaceId, body.countWeekends)
+    return Response.json({ countWeekends: body.countWeekends })
   }
 
   if (body.workspaceName !== undefined) {

@@ -20,7 +20,7 @@ export async function GET(req: NextRequest, { params }: { params: { workspace: s
   const { createClient } = await import('@/lib/supabase/server')
   const supabase = await createClient()
 
-  const [roomsRes, bookingsRes, displayHoursRes, bookingHoursRes] = await Promise.all([
+  const [roomsRes, bookingsRes, displayHoursRes, bookingHoursRes, countWeekendsRes] = await Promise.all([
     supabase.from('rooms').select('*').eq('workspace_id', workspaceId).order('display_order'),
     supabase.from('bookings').select('*')
       .eq('workspace_id', workspaceId)
@@ -29,6 +29,7 @@ export async function GET(req: NextRequest, { params }: { params: { workspace: s
       .is('cancelled_at', null),
     import('@/lib/prod-config').then(m => m.getDisplayHours(workspaceId)),
     import('@/lib/prod-config').then(m => m.getBookingHours(workspaceId)),
+    import('@/lib/prod-config').then(m => m.getCountWeekends(workspaceId)),
   ])
 
   const { getAdminStats } = await import('@/lib/mock/api')
@@ -47,6 +48,7 @@ export async function GET(req: NextRequest, { params }: { params: { workspace: s
     amenityOptions,
     bookingHours: bookingHoursRes,
     displayHours: displayHoursRes,
+    countWeekends: countWeekendsRes,
     bookingVisibility: { showTitle: false, showOrganizer: false },
     gcalTokens: {},
   }
