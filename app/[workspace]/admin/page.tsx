@@ -1712,7 +1712,7 @@ export default function AdminPage() {
                 return (<>
                   <div style={{ background: '#fff', border: '1px solid #dddddd', borderRadius: 0, padding: 16, marginBottom: 10 }}>
                     <div style={{ fontSize: 12, fontWeight: 500, color: '#374151', marginBottom: 4 }}>Display hours</div>
-                    <div style={{ fontSize: 12, color: '#9CA3AF', marginBottom: 12 }}>The time range shown in the calendar grid. Drives utilization and heatmap stats.</div>
+                    <div style={{ fontSize: 12, color: '#9CA3AF', marginBottom: 12 }}>The time range shown in the calendar grid. Drives the heatmap stats.</div>
                     <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 12 }}>
                       <div>
                         <div style={{ fontSize: 11, color: '#6B7280', marginBottom: 4 }}>From</div>
@@ -1738,21 +1738,11 @@ export default function AdminPage() {
                       style={{ fontSize: 12, padding: '7px 14px', borderRadius: 0, border: `1px solid ${dispSaved ? '#a3d9a5' : SAGE}`, background: dispSaved ? '#eef7f0' : 'none', cursor: dispSaving ? 'default' : 'pointer', color: dispSaved ? FREE : SAGE }}>
                       {dispSaved ? 'Saved' : dispSaving ? 'Saving…' : 'Save'}
                     </button>
-                    <label style={{ display: 'flex', alignItems: 'center', gap: 10, marginTop: 14, cursor: 'pointer' }}>
-                      <div onClick={async () => {
-                        const next = !countWeekends
-                        setCountWeekends(next)
-                        await fetch(`${api}/settings`, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ countWeekends: next }) })
-                      }} style={{ width: 30, height: 17, borderRadius: 9, background: countWeekends ? SAGE : '#C8CDD4', position: 'relative', cursor: 'pointer', flexShrink: 0 }}>
-                        <div style={{ position: 'absolute', width: 11, height: 11, borderRadius: '50%', background: '#fff', top: 3, left: countWeekends ? 16 : 3, transition: 'left .2s' }} />
-                      </div>
-                      <span style={{ fontSize: 12, color: '#374151' }}>Count weekends in utilisation</span>
-                    </label>
                   </div>
 
                   <div style={{ background: '#fff', border: '1px solid #dddddd', borderRadius: 0, padding: 16 }}>
-                    <div style={{ fontSize: 12, fontWeight: 500, color: '#374151', marginBottom: 4 }}>Booking hours</div>
-                    <div style={{ fontSize: 12, color: '#9CA3AF', marginBottom: 12 }}>The full range for data collection — early and late bookings outside display hours are counted separately in stats.</div>
+                    <div style={{ fontSize: 12, fontWeight: 500, color: '#374151', marginBottom: 4 }}>Data collection window</div>
+                    <div style={{ fontSize: 12, color: '#9CA3AF', marginBottom: 12 }}>The full range used for utilisation and stats — early and late bookings outside display hours are counted separately.</div>
                     <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 12 }}>
                       <div>
                         <div style={{ fontSize: 11, color: '#6B7280', marginBottom: 4 }}>From</div>
@@ -1778,6 +1768,16 @@ export default function AdminPage() {
                       style={{ fontSize: 12, padding: '7px 14px', borderRadius: 0, border: `1px solid ${bhSaved ? '#a3d9a5' : SAGE}`, background: bhSaved ? '#eef7f0' : 'none', cursor: bhSaving ? 'default' : 'pointer', color: bhSaved ? FREE : SAGE }}>
                       {bhSaved ? 'Saved' : bhSaving ? 'Saving…' : 'Save'}
                     </button>
+                    <label style={{ display: 'flex', alignItems: 'center', gap: 10, marginTop: 14, cursor: 'pointer' }}>
+                      <div onClick={async () => {
+                        const next = !countWeekends
+                        setCountWeekends(next)
+                        await fetch(`${api}/settings`, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ countWeekends: next }) })
+                      }} style={{ width: 30, height: 17, borderRadius: 9, background: countWeekends ? SAGE : '#C8CDD4', position: 'relative', cursor: 'pointer', flexShrink: 0 }}>
+                        <div style={{ position: 'absolute', width: 11, height: 11, borderRadius: '50%', background: '#fff', top: 3, left: countWeekends ? 16 : 3, transition: 'left .2s' }} />
+                      </div>
+                      <span style={{ fontSize: 12, color: '#374151' }}>Count weekends in utilisation</span>
+                    </label>
                   </div>
                 </>)
               })()}

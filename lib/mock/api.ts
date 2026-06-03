@@ -319,12 +319,14 @@ export function getAdminStats(store: MockStore, from: string, to: string, roomId
   const rangeDays = Math.round((toDate.getTime() - fromDate.getTime()) / 86_400_000) + 1
   const dispStart = store.displayHours?.start ?? 8
   const dispEnd   = store.displayHours?.end   ?? 20
+  const bkHrsStart = store.bookingHours?.start ?? 6
+  const bkHrsEnd   = store.bookingHours?.end   ?? 22
   const availableDays = (store.countWeekends ?? false) ? rangeDays : (() => {
     let n = 0; const d = new Date(fromDate)
     while (d <= toDate) { const dow = d.getDay(); if (dow !== 0 && dow !== 6) n++; d.setDate(d.getDate() + 1) }
     return n
   })()
-  const totalAvailableHoursPerRoom = availableDays * (dispEnd - dispStart)
+  const totalAvailableHoursPerRoom = availableDays * (bkHrsEnd - bkHrsStart)
 
   const roomStats = rooms.map(room => {
     const rb = active.filter(b => b.room_id === room.id)
@@ -339,8 +341,6 @@ export function getAdminStats(store: MockStore, from: string, to: string, roomId
 
   const hourCounts: number[] = Array(24).fill(0)
   active.forEach(b => { hourCounts[new Date(b.start_time).getHours()]++ })
-  const bkHrsStart = store.bookingHours?.start ?? 6
-  const bkHrsEnd   = store.bookingHours?.end   ?? 22
   const hourStats = hourCounts.map((total_bookings, hour) => ({ hour, total_bookings })).filter(h => h.hour >= bkHrsStart && h.hour < bkHrsEnd)
 
   const dailyMap: Record<string, number> = {}
