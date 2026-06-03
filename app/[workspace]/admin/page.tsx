@@ -932,12 +932,11 @@ export default function AdminPage() {
                 const before = outsideHours.filter(h => h.hour < dispStart)
                 const after  = outsideHours.filter(h => h.hour >= dispEnd)
                 return (
-                  <div style={{ background: '#fff', border: '1px solid #dddddd', borderRadius: 0, padding: 13, marginBottom: 14 }}>
-                    <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', marginBottom: 12 }}>
-                      <div style={{ fontSize: 12, fontWeight: 500, color: '#374151' }}>Outside display window</div>
-                      <div style={{ fontSize: 11, color: '#9CA3AF' }}>
-                        {totals.outside_display_hours} booking{totals.outside_display_hours !== 1 ? 's' : ''} <span style={{ color: '#C0C8D0' }}>·</span> {Math.round(totals.outside_display_hours / totals.total_bookings * 100)}% of total
-                      </div>
+                  <div style={{ background: '#fff', border: '1px solid #dddddd', borderRadius: 0, padding: 11, marginBottom: 14 }}>
+                    <div style={{ fontSize: 11, color: '#9CA3AF', marginBottom: 3 }}>Outside display window</div>
+                    <div style={{ fontSize: 21, fontWeight: 500, color: NAVY, marginBottom: 8 }}>
+                      {totals.outside_display_hours}
+                      <span style={{ fontSize: 12, fontWeight: 400, color: '#9CA3AF', marginLeft: 6 }}>{Math.round(totals.outside_display_hours / totals.total_bookings * 100)}% of total</span>
                     </div>
                     <div style={{ display: 'flex', gap: 24 }}>
                       {before.length > 0 && (
