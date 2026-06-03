@@ -157,6 +157,8 @@ export default function AdminPage() {
   const [dispSaving, setDispSaving] = useState(false)
   const [dispSaved,  setDispSaved]  = useState(false)
 
+  const [countWeekends, setCountWeekends] = useState(false)
+
   // Booking hours (full data-collection range, wider than display)
   const [bhStart, setBhStart] = useState(6)
   const [bhEnd,   setBhEnd]   = useState(22)
@@ -230,6 +232,7 @@ export default function AdminPage() {
       setDispEnd(d.displayHours?.end ?? 20)
       setBhStart(d.bookingHours?.start ?? 6)
       setBhEnd(d.bookingHours?.end ?? 22)
+      setCountWeekends(d.countWeekends ?? false)
       setVisShowTitle(d.bookingVisibility?.showTitle ?? false)
       setVisShowOrganizer(d.bookingVisibility?.showOrganizer ?? false)
       setVisAllowEditOthers(d.bookingVisibility?.allowEditOthers ?? false)
@@ -1735,6 +1738,16 @@ export default function AdminPage() {
                       style={{ fontSize: 12, padding: '7px 14px', borderRadius: 0, border: `1px solid ${dispSaved ? '#a3d9a5' : SAGE}`, background: dispSaved ? '#eef7f0' : 'none', cursor: dispSaving ? 'default' : 'pointer', color: dispSaved ? FREE : SAGE }}>
                       {dispSaved ? 'Saved' : dispSaving ? 'Saving…' : 'Save'}
                     </button>
+                    <label style={{ display: 'flex', alignItems: 'center', gap: 10, marginTop: 14, cursor: 'pointer' }}>
+                      <div onClick={async () => {
+                        const next = !countWeekends
+                        setCountWeekends(next)
+                        await fetch(`${api}/settings`, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ countWeekends: next }) })
+                      }} style={{ width: 30, height: 17, borderRadius: 9, background: countWeekends ? SAGE : '#C8CDD4', position: 'relative', cursor: 'pointer', flexShrink: 0 }}>
+                        <div style={{ position: 'absolute', width: 11, height: 11, borderRadius: '50%', background: '#fff', top: 3, left: countWeekends ? 16 : 3, transition: 'left .2s' }} />
+                      </div>
+                      <span style={{ fontSize: 12, color: '#374151' }}>Count weekends in utilisation</span>
+                    </label>
                   </div>
 
                   <div style={{ background: '#fff', border: '1px solid #dddddd', borderRadius: 0, padding: 16 }}>

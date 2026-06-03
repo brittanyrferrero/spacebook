@@ -17,6 +17,7 @@ const DEFAULTS = {
   bookingHours:      { start: 6, end: 22 },
   displayHours:      { start: 8, end: 20 },
   bookingVisibility: { showTitle: false, showOrganizer: false, allowEditOthers: false },
+  countWeekends:     false,
 }
 
 // All KV keys are namespaced by workspaceId
@@ -48,6 +49,13 @@ export async function getDisplayHours(workspaceId: string): Promise<{ start: num
 }
 export async function setDisplayHours(workspaceId: string, v: { start: number; end: number }): Promise<void> {
   await kv().set(k(workspaceId, 'cfg:displayHours'), v)
+}
+
+export async function getCountWeekends(workspaceId: string): Promise<boolean> {
+  return (await kv().get<boolean>(k(workspaceId, 'cfg:countWeekends'))) ?? DEFAULTS.countWeekends
+}
+export async function setCountWeekends(workspaceId: string, v: boolean): Promise<void> {
+  await kv().set(k(workspaceId, 'cfg:countWeekends'), v)
 }
 
 export async function getBookingVisibility(workspaceId: string): Promise<{ showTitle: boolean; showOrganizer: boolean; allowEditOthers: boolean }> {

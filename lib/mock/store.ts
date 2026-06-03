@@ -21,6 +21,7 @@ export interface MockStore {
   bookingHours: { start: number; end: number }
   displayHours: { start: number; end: number }
   bookingVisibility: { showTitle: boolean; showOrganizer: boolean; allowEditOthers: boolean }
+  countWeekends: boolean
   gcalTokens: Record<string, GcalTokens>   // room_id → tokens
 }
 
@@ -127,6 +128,7 @@ function createStore(): MockStore {
     bookingHours: { start: 6, end: 22 },
     displayHours: { start: 8, end: 20 },
     bookingVisibility: { showTitle: false, showOrganizer: false, allowEditOthers: false },
+    countWeekends: false,
     gcalTokens: {},
   }
 }
@@ -148,8 +150,9 @@ export async function getSessionStore(): Promise<MockStore> {
     if (!existing.bookingHours)      { existing.bookingHours      = defaults.bookingHours;      dirty = true }
     if (!existing.displayHours)      { existing.displayHours      = existing.bookingHours ?? defaults.displayHours; existing.bookingHours = defaults.bookingHours; dirty = true }
     if (!existing.roomTypes)         { existing.roomTypes         = defaults.roomTypes;         dirty = true }
-    if (!existing.bookingVisibility) { existing.bookingVisibility = defaults.bookingVisibility; dirty = true }
-    if (!existing.gcalTokens)        { existing.gcalTokens        = {};                          dirty = true }
+    if (!existing.bookingVisibility)          { existing.bookingVisibility = defaults.bookingVisibility; dirty = true }
+    if (existing.countWeekends === undefined) { existing.countWeekends     = false;                       dirty = true }
+    if (!existing.gcalTokens)                { existing.gcalTokens        = {};                          dirty = true }
     if (dirty) await kv.set(`mock:${sessionId}`, existing, { ex: SESSION_TTL_S })
     return existing
   }
