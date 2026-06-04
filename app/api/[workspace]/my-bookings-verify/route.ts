@@ -1,6 +1,9 @@
 import { type NextRequest } from 'next/server'
 import { getWorkspaceId } from '@/lib/workspace'
 import { appUrl } from '@/lib/email'
+import { ratelimit, getIP } from '@/lib/ratelimit'
+
+const rl = ratelimit(5, '10 m')
 
 async function kv() {
   const { Redis } = await import('@upstash/redis')
@@ -8,6 +11,9 @@ async function kv() {
 }
 
 export async function POST(req: NextRequest, { params }: { params: { workspace: string } }) {
+  const { success } = await rl.limit(getIP(req))
+  if (!success) return Response.json({ error: 'Too many requests.' }, { status: 429 })
+
   const { email } = await req.json().catch(() => ({}))
   if (!email) return Response.json({ error: 'Email required.' }, { status: 400 })
 

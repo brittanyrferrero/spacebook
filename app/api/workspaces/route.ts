@@ -1,6 +1,12 @@
 import { type NextRequest } from 'next/server'
+import { ratelimit, getIP } from '@/lib/ratelimit'
+
+const rl = ratelimit(5, '1 h')
 
 export async function POST(req: NextRequest) {
+  const { success } = await rl.limit(getIP(req))
+  if (!success) return Response.json({ error: 'Too many requests.' }, { status: 429 })
+
   const { name } = await req.json().catch(() => ({}))
 
   if (process.env.MOCK_MODE === 'true') {
