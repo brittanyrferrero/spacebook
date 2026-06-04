@@ -1,5 +1,6 @@
 import { type NextRequest } from 'next/server'
 import { google } from 'googleapis'
+import { appUrl } from '@/lib/email'
 
 // Vercel cron: runs daily at 2am UTC to renew expiring GCal webhooks
 export async function GET(req: NextRequest) {
@@ -45,7 +46,7 @@ export async function GET(req: NextRequest) {
         requestBody: {
           id: newChannelId,
           type: 'web_hook',
-          address: `${process.env.NEXT_PUBLIC_APP_URL}/api/${watchState.workspace}/gcal/webhook`,
+          address: `${appUrl()}/api/${watchState.workspace}/gcal/webhook`,
         },
       })
 

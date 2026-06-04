@@ -1,5 +1,6 @@
 import { type NextRequest, NextResponse } from 'next/server'
 import { getWorkspaceId } from '@/lib/workspace'
+import { appUrl } from '@/lib/email'
 
 async function kv() {
   const { Redis } = await import('@upstash/redis')
@@ -7,7 +8,7 @@ async function kv() {
 }
 
 export async function GET(req: NextRequest, { params }: { params: { workspace: string; token: string } }) {
-  const base = process.env.NEXT_PUBLIC_BASE_URL ?? 'http://localhost:3000'
+  const base = appUrl()
   const workspaceUrl = new URL(`/${params.workspace}`, base)
 
   if (process.env.MOCK_MODE === 'true') return NextResponse.redirect(workspaceUrl)

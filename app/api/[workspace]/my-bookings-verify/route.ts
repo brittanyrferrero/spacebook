@@ -1,5 +1,6 @@
 import { type NextRequest } from 'next/server'
 import { getWorkspaceId } from '@/lib/workspace'
+import { appUrl } from '@/lib/email'
 
 async function kv() {
   const { Redis } = await import('@upstash/redis')
@@ -20,7 +21,7 @@ export async function POST(req: NextRequest, { params }: { params: { workspace: 
     const r = await kv()
     await r.set(`mb:${workspaceId}:${token}`, email.trim().toLowerCase(), { ex: 60 * 60 * 24 * 7 })
 
-    const base = process.env.NEXT_PUBLIC_BASE_URL ?? 'http://localhost:3000'
+    const base = appUrl()
     const url = `${base}/api/${params.workspace}/my-bookings-enter/${token}`
 
     const { sendMyBookingsMagicLink } = await import('@/lib/email')

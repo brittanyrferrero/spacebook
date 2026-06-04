@@ -1,5 +1,6 @@
 import { type NextRequest, NextResponse } from 'next/server'
 import { getWorkspaceBySlug } from '@/lib/workspace'
+import { appUrl } from '@/lib/email'
 
 export async function POST(req: NextRequest, { params }: { params: { workspace: string } }) {
   const { email } = await req.json().catch(() => ({}))
@@ -15,7 +16,7 @@ export async function POST(req: NextRequest, { params }: { params: { workspace: 
   const role = await getAdminRole(workspace.id, lower)
 
   if (role) {
-    const origin = process.env.NEXT_PUBLIC_APP_URL ?? 'https://www.space-book.net'
+    const origin = appUrl()
     const url = `${origin}/admin-enter/${workspace.slug}/${workspace.admin_entry_token}`
     const { sendAdminRecoveryEmail } = await import('@/lib/email')
     await sendAdminRecoveryEmail({ to: lower, workspace: workspace.name ?? workspace.slug, url })

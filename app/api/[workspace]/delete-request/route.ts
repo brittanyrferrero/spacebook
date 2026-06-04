@@ -1,4 +1,5 @@
 import { type NextRequest } from 'next/server'
+import { appUrl } from '@/lib/email'
 
 async function kv() {
   const { Redis } = await import('@upstash/redis')
@@ -31,7 +32,7 @@ export async function POST(req: NextRequest, { params }: { params: { workspace: 
     requestedAt: new Date().toISOString(),
   }), { ex: 60 * 60 * 24 })
 
-  const base = process.env.NEXT_PUBLIC_BASE_URL ?? 'http://localhost:3000'
+  const base = appUrl()
   const url = `${base}/api/delete-confirm/${token}`
 
   const { sendWorkspaceDeleteRequestEmail } = await import('@/lib/email')

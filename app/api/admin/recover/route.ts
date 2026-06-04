@@ -1,4 +1,5 @@
 import { type NextRequest, NextResponse } from 'next/server'
+import { appUrl } from '@/lib/email'
 
 // Recovery endpoint: generates a fresh admin_entry_token for a workspace.
 // Auth: Bearer token must match ADMIN_ENTRY_TOKEN env var.
@@ -36,7 +37,7 @@ export async function POST(req: NextRequest) {
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })
 
-  const origin = process.env.NEXT_PUBLIC_APP_URL ?? 'https://www.space-book.net'
+  const origin = appUrl()
   return NextResponse.json({
     url: `${origin}/admin-enter/${ws.slug}/${newToken}`,
   })
