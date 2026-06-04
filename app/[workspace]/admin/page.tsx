@@ -739,7 +739,7 @@ export default function AdminPage() {
                 )}
               </div>
               <div style={{ marginTop: 6, color: '#92400e', fontSize: 12 }}>
-                You&apos;re on a trial plan. Contact <a href="mailto:hello@spacebook.app" style={{ color: '#b45309' }}>hello@spacebook.app</a> to upgrade and remove limits.
+                You&apos;re on a trial plan. Upgrade your account to remove limits.
               </div>
             </div>
           )}
