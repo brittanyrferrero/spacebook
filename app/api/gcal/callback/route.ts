@@ -11,12 +11,14 @@ export async function GET(req: NextRequest) {
   let roomId: string | null = null
   try {
     const state = JSON.parse(stateRaw ?? '{}')
-    workspace = state.workspace ?? null
+    const raw = state.workspace ?? null
+    // Validate slug format to prevent open redirect via attacker-controlled state
+    workspace = typeof raw === 'string' && /^[a-z0-9-]{1,64}$/.test(raw) ? raw : null
     roomId = state.roomId ?? null
   } catch { /* ignore */ }
 
-  const adminUrl = new URL(workspace ? `/${workspace}/admin` : '/', req.url)
-  if (workspace) adminUrl.searchParams.set('tab', 'Rooms')
+  const adminUrl = new URL('/', req.url)
+  if (workspace) { adminUrl.pathname = `/${workspace}/admin`; adminUrl.searchParams.set('tab', 'Rooms') }
 
   if (error || !code || !roomId || !workspace) {
     adminUrl.searchParams.set('gcal', 'error')
