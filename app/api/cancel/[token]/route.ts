@@ -15,8 +15,8 @@ export async function POST(req: NextRequest, { params }: { params: { token: stri
 
   const { createClient } = await import('@/lib/supabase/server')
   const supabase = await createClient()
-  const { data: booking } = await supabase.from('bookings').select('*, room:rooms(*)').eq('cancel_token', params.token).single()
-  if (!booking) return Response.json({ error: 'Booking not found.' }, { status: 404 })
+  const { data: booking } = await supabase.from('bookings').select('*, room:rooms(*)').eq('cancel_token', params.token).is('cancelled_at', null).single()
+  if (!booking) return Response.json({ error: 'Booking already cancelled or not found.' }, { status: 410 })
 
   const now = new Date().toISOString()
 

@@ -1,4 +1,5 @@
 import { type NextRequest } from 'next/server'
+import { cookies } from 'next/headers'
 import { getBookingsForDate, getBookingsForRange } from '@/lib/data'
 import { getWorkspaceId } from '@/lib/workspace'
 import type { CreateBookingPayload } from '@/types'
@@ -22,6 +23,13 @@ export async function GET(req: NextRequest, { params }: { params: { workspace: s
   if (!workspaceId) return Response.json({ error: 'Workspace not found' }, { status: 404 })
 
   if (email) {
+    const cookieStore = await cookies()
+    const isAdmin = !!cookieStore.get(`admin_${params.workspace}`)?.value
+    const mbEmail = cookieStore.get(`mb_${params.workspace}`)?.value ?? null
+    const isSelf = mbEmail && mbEmail.toLowerCase() === email.trim().toLowerCase()
+    if (!isAdmin && !isSelf) {
+      return Response.json({ error: 'Forbidden.' }, { status: 403 })
+    }
     const { createClient } = await import('@/lib/supabase/server')
     const supabase = await createClient()
     const { data } = await supabase
