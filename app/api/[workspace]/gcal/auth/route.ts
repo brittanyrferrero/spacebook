@@ -13,7 +13,7 @@ export async function GET(req: NextRequest, { params }: { params: { workspace: s
   const oauth2Client = new google.auth.OAuth2(
     process.env.GOOGLE_CLIENT_ID,
     process.env.GOOGLE_CLIENT_SECRET,
-    `${appUrl}/api/${params.workspace}/gcal/callback`,
+    `${appUrl}/api/gcal/callback`,
   )
 
   const url = oauth2Client.generateAuthUrl({

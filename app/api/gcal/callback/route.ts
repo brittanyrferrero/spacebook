@@ -4,13 +4,21 @@ import { google } from 'googleapis'
 export async function GET(req: NextRequest) {
   const { searchParams } = req.nextUrl
   const code = searchParams.get('code')
-  const roomId = searchParams.get('state')
+  const stateRaw = searchParams.get('state')
   const error = searchParams.get('error')
 
-  const adminUrl = new URL('/admin', req.url)
-  adminUrl.searchParams.set('tab', 'Rooms')
+  let workspace: string | null = null
+  let roomId: string | null = null
+  try {
+    const state = JSON.parse(stateRaw ?? '{}')
+    workspace = state.workspace ?? null
+    roomId = state.roomId ?? null
+  } catch { /* ignore */ }
 
-  if (error || !code || !roomId) {
+  const adminUrl = new URL(workspace ? `/${workspace}/admin` : '/', req.url)
+  if (workspace) adminUrl.searchParams.set('tab', 'Rooms')
+
+  if (error || !code || !roomId || !workspace) {
     adminUrl.searchParams.set('gcal', 'error')
     return NextResponse.redirect(adminUrl)
   }
@@ -36,7 +44,8 @@ export async function GET(req: NextRequest) {
       expiry: tokens.expiry_date ? new Date(tokens.expiry_date).toISOString() : undefined,
     })
 
-    adminUrl.searchParams.set('gcal', 'connected')
+    adminUrl.searchParams.set('gcal', 'pick')
+    adminUrl.searchParams.set('room_id', roomId)
     return NextResponse.redirect(adminUrl)
   } catch {
     adminUrl.searchParams.set('gcal', 'error')
