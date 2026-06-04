@@ -74,8 +74,8 @@ export async function GET(req: NextRequest) {
     adminUrl.searchParams.set('room_id', roomId)
     return NextResponse.redirect(adminUrl)
   } catch (e) {
+    console.error('[gcal callback]', e)
     adminUrl.searchParams.set('gcal', 'error_exception')
-    adminUrl.searchParams.set('gcal_msg', String(e).slice(0, 100))
     return NextResponse.redirect(adminUrl)
   }
 }
