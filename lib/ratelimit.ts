@@ -12,6 +12,13 @@ export function ratelimit(requests: number, window: `${number} ${'s'|'m'|'h'}`) 
 }
 
 export function getIP(req: Request): string {
+  // On Vercel the rightmost X-Forwarded-For value is injected by infrastructure
+  // and cannot be spoofed by the client. Taking the leftmost value ([0]) is
+  // the classic bypass: attacker sets X-Forwarded-For: fake-ip to skip rate limits.
   const forwarded = (req as any).headers?.get?.('x-forwarded-for')
-  return (forwarded ? forwarded.split(',')[0] : '127.0.0.1').trim()
+  if (forwarded) {
+    const ips = forwarded.split(',').map((s: string) => s.trim())
+    return ips[ips.length - 1]
+  }
+  return (req as any).headers?.get?.('x-real-ip') ?? '127.0.0.1'
 }
