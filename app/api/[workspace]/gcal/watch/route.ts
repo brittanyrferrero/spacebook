@@ -28,7 +28,7 @@ export async function POST(req: NextRequest, { params }: { params: { workspace: 
 
   const { createClient } = await import('@/lib/supabase/server')
   const supabase = await createClient()
-  const { data: room } = await supabase.from('rooms').select('google_calendar_id').eq('id', room_id).single()
+  const { data: room } = await supabase.from('rooms').select('google_calendar_id').eq('id', room_id).eq('workspace_id', workspaceId).single()
   if (!room?.google_calendar_id) return Response.json({ error: 'No calendar linked' }, { status: 400 })
 
   const auth = await buildOAuthClient(room_id)
