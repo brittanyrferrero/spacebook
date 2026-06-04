@@ -37,9 +37,9 @@ export async function POST(req: NextRequest, { params }: { params: { workspace: 
 
   const { sendWorkspaceDeleteRequestEmail } = await import('@/lib/email')
   await sendWorkspaceDeleteRequestEmail({
-    to: requesterEmail.trim(),
+    to: match.email,
     workspaceName: workspace.name || workspace.slug,
-    requesterEmail: requesterEmail.trim(),
+    requesterEmail: match.email,
     url,
   })
 
