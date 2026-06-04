@@ -3,7 +3,8 @@ import { getWorkspaceId } from '@/lib/workspace'
 
 export async function PATCH(req: NextRequest, { params }: { params: { workspace: string; id: string } }) {
   const patch = await req.json()
-
+  const adminRole = req.cookies.get(`admin_${params.workspace}`)?.value
+  if (!adminRole) return Response.json({ error: 'Admin required.' }, { status: 403 })
   if (process.env.MOCK_MODE === 'true') {
     const [{ updateRoom }, { getSessionStore, saveSessionStore }] = await Promise.all([import('@/lib/mock/api'), import('@/lib/mock/store')])
     const store = await getSessionStore()
@@ -23,7 +24,9 @@ export async function PATCH(req: NextRequest, { params }: { params: { workspace:
   return Response.json(data)
 }
 
-export async function DELETE(_req: NextRequest, { params }: { params: { workspace: string; id: string } }) {
+export async function DELETE(req: NextRequest, { params }: { params: { workspace: string; id: string } }) {
+  const adminRole = req.cookies.get(`admin_${params.workspace}`)?.value
+  if (!adminRole) return Response.json({ error: 'Admin required.' }, { status: 403 })
   if (process.env.MOCK_MODE === 'true') {
     const [{ deleteRoom }, { getSessionStore, saveSessionStore }] = await Promise.all([import('@/lib/mock/api'), import('@/lib/mock/store')])
     const store = await getSessionStore()
