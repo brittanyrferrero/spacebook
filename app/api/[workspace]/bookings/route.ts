@@ -50,9 +50,6 @@ export async function GET(req: NextRequest, { params }: { params: { workspace: s
 }
 
 export async function POST(req: NextRequest, { params }: { params: { workspace: string } }) {
-  const { success } = await rl.limit(getIP(req))
-  if (!success) return Response.json({ error: 'Too many requests.' }, { status: 429 })
-
   const payload: CreateBookingPayload = await req.json()
   if (!payload.room_id || !payload.booker_name || !payload.booker_email || !payload.start_time || !payload.end_time)
     return Response.json({ error: 'Missing required fields.' }, { status: 400 })
@@ -73,6 +70,9 @@ export async function POST(req: NextRequest, { params }: { params: { workspace: 
     await saveSessionStore(store)
     return Response.json(result, { status: 201 })
   }
+
+  const { success } = await rl.limit(getIP(req))
+  if (!success) return Response.json({ error: 'Too many requests.' }, { status: 429 })
 
   const workspaceId = await getWorkspaceId(params.workspace)
   if (!workspaceId) return Response.json({ error: 'Workspace not found' }, { status: 404 })
