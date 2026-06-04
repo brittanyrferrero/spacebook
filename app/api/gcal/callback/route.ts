@@ -10,25 +10,49 @@ export async function GET(req: NextRequest) {
 
   let workspace: string | null = null
   let roomId: string | null = null
+  let nonce: string | null = null
   try {
     const state = JSON.parse(stateRaw ?? '{}')
     const raw = state.workspace ?? null
     // Validate slug format to prevent open redirect via attacker-controlled state
     workspace = typeof raw === 'string' && /^[a-z0-9-]{1,64}$/.test(raw) ? raw : null
     roomId = state.roomId ?? null
+    nonce = state.nonce ?? null
   } catch { /* ignore */ }
 
   const adminUrl = new URL('/', req.url)
   if (workspace) { adminUrl.pathname = `/${workspace}/admin`; adminUrl.searchParams.set('tab', 'Rooms') }
 
-  if (error || !code || !roomId || !workspace) {
+  if (error || !code || !roomId || !workspace || !nonce) {
     adminUrl.searchParams.set('gcal', 'error')
     return NextResponse.redirect(adminUrl)
   }
 
   try {
-    // Room ownership verification is deferred to the CSRF nonce fix (issue #27).
-    // The slug format check above and the one-time OAuth code provide baseline protection.
+    // Verify the nonce — proves this flow was initiated by an authenticated admin
+    // and binds the callback to the correct workspace/room (closes #27)
+    const { verifyAndConsumeGcalNonce } = await import('@/lib/prod-config')
+    const nonceData = await verifyAndConsumeGcalNonce(nonce)
+    if (!nonceData || nonceData.workspace !== workspace || nonceData.roomId !== roomId) {
+      adminUrl.searchParams.set('gcal', 'error')
+      return NextResponse.redirect(adminUrl)
+    }
+
+    // Verify the room belongs to this workspace
+    const { getWorkspaceId } = await import('@/lib/workspace')
+    const workspaceId = await getWorkspaceId(workspace)
+    if (!workspaceId) {
+      adminUrl.searchParams.set('gcal', 'error')
+      return NextResponse.redirect(adminUrl)
+    }
+    const { createClient } = await import('@/lib/supabase/server')
+    const supabase = await createClient()
+    const { data: room } = await supabase.from('rooms').select('id').eq('id', roomId).eq('workspace_id', workspaceId).maybeSingle()
+    if (!room) {
+      adminUrl.searchParams.set('gcal', 'error')
+      return NextResponse.redirect(adminUrl)
+    }
+
     const oauth2Client = new google.auth.OAuth2(
       process.env.GOOGLE_CLIENT_ID,
       process.env.GOOGLE_CLIENT_SECRET,
