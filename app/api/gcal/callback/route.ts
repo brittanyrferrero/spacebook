@@ -26,13 +26,6 @@ export async function GET(req: NextRequest) {
     return NextResponse.redirect(adminUrl)
   }
 
-  // Verify the caller is an admin of this workspace
-  const adminCookie = req.cookies.get(`admin_${workspace}`)?.value
-  if (!adminCookie) {
-    adminUrl.searchParams.set('gcal', 'error')
-    return NextResponse.redirect(adminUrl)
-  }
-
   try {
     // Verify the room belongs to this workspace before saving tokens
     const { getWorkspaceId } = await import('@/lib/workspace')
