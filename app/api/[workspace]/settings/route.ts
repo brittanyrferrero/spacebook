@@ -5,7 +5,8 @@ const DEFAULT_VISIBILITY = { showTitle: false, showOrganizer: false, allowEditOt
 const DEFAULT_DISPLAY_HOURS = { start: 8, end: 20 }
 const DEFAULT_BOOKING_HOURS = { start: 6, end: 22 }
 
-export async function GET(_req: NextRequest, { params }: { params: { workspace: string } }) {
+export async function GET(req: NextRequest, { params }: { params: { workspace: string } }) {
+  const isAdmin = !!req.cookies.get(`admin_${params.workspace}`)?.value
   if (process.env.MOCK_MODE === 'true') {
     const { getSessionStore } = await import('@/lib/mock/store')
     const store = await getSessionStore()
@@ -40,12 +41,18 @@ export async function GET(_req: NextRequest, { params }: { params: { workspace: 
     trial_usage = { members: memberCount, bookings: bookingCount }
   }
 
-  return Response.json({ bookingHours, displayHours, bookingVisibility, countWeekends, adminEntryToken: workspace.admin_entry_token, workspaceName: workspace.name, limits, trial_usage })
+  return Response.json({
+    bookingHours, displayHours, bookingVisibility, countWeekends,
+    workspaceName: workspace.name,
+    limits, trial_usage,
+    ...(isAdmin && { adminEntryToken: workspace.admin_entry_token }),
+  })
 }
 
 export async function PATCH(req: NextRequest, { params }: { params: { workspace: string } }) {
   const body = await req.json()
-
+  const adminRole = req.cookies.get(`admin_${params.workspace}`)?.value
+  if (!adminRole) return Response.json({ error: 'Admin required.' }, { status: 403 })
   if (body.bookingHours !== undefined) {
     const { start, end } = body.bookingHours ?? {}
     if (typeof start !== 'number' || typeof end !== 'number' || end - start < 2 || start < 0 || end > 24) {
