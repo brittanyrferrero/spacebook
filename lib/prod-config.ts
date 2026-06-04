@@ -118,6 +118,22 @@ export async function getAdminRole(workspaceId: string, email: string): Promise<
   return admins.find(a => a.email.toLowerCase() === lower)?.role ?? null
 }
 
+// ─── GCal OAuth nonces ────────────────────────────────────────────────────────
+// Stored when an admin initiates the OAuth flow; verified and consumed in the
+// callback to prove the flow was legitimately started and bind it to a workspace/room.
+
+export async function setGcalNonce(nonce: string, workspace: string, roomId: string): Promise<void> {
+  await kv().set(`gcal:nonce:${nonce}`, JSON.stringify({ workspace, roomId }), { ex: 600 })
+}
+
+export async function verifyAndConsumeGcalNonce(nonce: string): Promise<{ workspace: string; roomId: string } | null> {
+  const key = `gcal:nonce:${nonce}`
+  const val = await kv().get<string>(key)
+  if (!val) return null
+  await kv().del(key)
+  try { return JSON.parse(val) } catch { return null }
+}
+
 export async function isWorkspaceUnclaimed(workspaceId: string): Promise<boolean> {
   const admins = (await kv().get<AdminEntry[]>(k(workspaceId, 'cfg:admins'))) ?? []
   return admins.length === 0

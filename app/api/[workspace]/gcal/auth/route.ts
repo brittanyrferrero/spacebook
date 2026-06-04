@@ -17,11 +17,15 @@ export async function GET(req: NextRequest, { params }: { params: { workspace: s
     `${base}/api/gcal/callback`,
   )
 
+  const nonce = crypto.randomUUID()
+  const { setGcalNonce } = await import('@/lib/prod-config')
+  await setGcalNonce(nonce, params.workspace, roomId)
+
   const url = oauth2Client.generateAuthUrl({
     access_type: 'offline',
     prompt: 'consent',
     scope: ['https://www.googleapis.com/auth/calendar.events', 'https://www.googleapis.com/auth/calendar.readonly'],
-    state: JSON.stringify({ workspace: params.workspace, roomId }),
+    state: JSON.stringify({ workspace: params.workspace, roomId, nonce }),
   })
 
   return NextResponse.redirect(url)
