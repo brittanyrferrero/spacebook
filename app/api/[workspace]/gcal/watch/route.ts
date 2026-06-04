@@ -1,6 +1,7 @@
 import { type NextRequest } from 'next/server'
 import { google } from 'googleapis'
 import { getWorkspaceId } from '@/lib/workspace'
+import { appUrl } from '@/lib/email'
 
 async function buildOAuthClient(roomId: string) {
   const { getTokens, saveTokens } = await import('@/lib/google-calendar/tokenStore')
@@ -60,7 +61,7 @@ export async function POST(req: NextRequest, { params }: { params: { workspace: 
     requestBody: {
       id: channelId,
       type: 'web_hook',
-      address: `${process.env.NEXT_PUBLIC_APP_URL}/api/${params.workspace}/gcal/webhook`,
+      address: `${appUrl()}/api/${params.workspace}/gcal/webhook`,
     },
   })
 

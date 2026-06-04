@@ -398,6 +398,8 @@ export function getAdminStats(store: MockStore, from: string, to: string, roomId
   let totalSlots = 0
   const dayIter = new Date(fromDate)
   while (dayIter <= toDate) {
+    const dow = dayIter.getDay()
+    if (!store.countWeekends && (dow === 0 || dow === 6)) { dayIter.setDate(dayIter.getDate() + 1); continue }
     const y = dayIter.getFullYear(), mo = dayIter.getMonth(), dy = dayIter.getDate()
     for (let h = bkStart; h < bkEnd; h++) {
       for (const m of [0, 30]) {

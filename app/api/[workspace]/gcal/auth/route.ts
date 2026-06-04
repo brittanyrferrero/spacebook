@@ -1,19 +1,20 @@
 import { type NextRequest, NextResponse } from 'next/server'
 import { google } from 'googleapis'
+import { appUrl } from '@/lib/email'
 
 export async function GET(req: NextRequest, { params }: { params: { workspace: string } }) {
   const roomId = req.nextUrl.searchParams.get('room_id')
   if (!roomId) return Response.json({ error: 'room_id required' }, { status: 400 })
 
-  const appUrl = process.env.NEXT_PUBLIC_APP_URL
-  if (!process.env.GOOGLE_CLIENT_ID || !process.env.GOOGLE_CLIENT_SECRET || !appUrl) {
+  const base = appUrl()
+  if (!process.env.GOOGLE_CLIENT_ID || !process.env.GOOGLE_CLIENT_SECRET) {
     return Response.json({ error: 'Google OAuth not configured.' }, { status: 503 })
   }
 
   const oauth2Client = new google.auth.OAuth2(
     process.env.GOOGLE_CLIENT_ID,
     process.env.GOOGLE_CLIENT_SECRET,
-    `${appUrl}/api/gcal/callback`,
+    `${base}/api/gcal/callback`,
   )
 
   const url = oauth2Client.generateAuthUrl({

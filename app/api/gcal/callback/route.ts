@@ -1,5 +1,6 @@
 import { type NextRequest, NextResponse } from 'next/server'
 import { google } from 'googleapis'
+import { appUrl } from '@/lib/email'
 
 export async function GET(req: NextRequest) {
   const { searchParams } = req.nextUrl
@@ -25,11 +26,33 @@ export async function GET(req: NextRequest) {
     return NextResponse.redirect(adminUrl)
   }
 
+  // Verify the caller is an admin of this workspace
+  const adminCookie = req.cookies.get(`admin_${workspace}`)?.value
+  if (!adminCookie) {
+    adminUrl.searchParams.set('gcal', 'error')
+    return NextResponse.redirect(adminUrl)
+  }
+
   try {
+    // Verify the room belongs to this workspace before saving tokens
+    const { getWorkspaceId } = await import('@/lib/workspace')
+    const workspaceId = await getWorkspaceId(workspace)
+    if (!workspaceId) {
+      adminUrl.searchParams.set('gcal', 'error')
+      return NextResponse.redirect(adminUrl)
+    }
+    const { createClient } = await import('@/lib/supabase/server')
+    const supabase = await createClient()
+    const { data: room } = await supabase.from('rooms').select('id').eq('id', roomId).eq('workspace_id', workspaceId).maybeSingle()
+    if (!room) {
+      adminUrl.searchParams.set('gcal', 'error')
+      return NextResponse.redirect(adminUrl)
+    }
+
     const oauth2Client = new google.auth.OAuth2(
       process.env.GOOGLE_CLIENT_ID,
       process.env.GOOGLE_CLIENT_SECRET,
-      `${process.env.NEXT_PUBLIC_APP_URL}/api/gcal/callback`,
+      `${appUrl()}/api/gcal/callback`,
     )
 
     const { tokens } = await oauth2Client.getToken(code)

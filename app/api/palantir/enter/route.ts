@@ -1,4 +1,5 @@
 import { type NextRequest } from 'next/server'
+import { appUrl } from '@/lib/email'
 
 async function kv() {
   const { Redis } = await import('@upstash/redis')
@@ -21,7 +22,7 @@ export async function POST(req: NextRequest) {
     const r = await kv()
     await r.set(`palantir:token:${token}`, email.trim().toLowerCase(), { ex: 60 * 15 })
 
-    const base = process.env.NEXT_PUBLIC_BASE_URL ?? 'http://localhost:3000'
+    const base = appUrl()
     const url = `${base}/api/palantir/verify/${token}`
 
     const { sendPalantirMagicLink } = await import('@/lib/email')
