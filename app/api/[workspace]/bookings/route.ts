@@ -3,6 +3,9 @@ import { cookies } from 'next/headers'
 import { getBookingsForDate, getBookingsForRange } from '@/lib/data'
 import { getWorkspaceId } from '@/lib/workspace'
 import type { CreateBookingPayload } from '@/types'
+import { ratelimit, getIP } from '@/lib/ratelimit'
+
+const rl = ratelimit(20, '1 m')
 
 export async function GET(req: NextRequest, { params }: { params: { workspace: string } }) {
   const { searchParams } = req.nextUrl
@@ -47,9 +50,20 @@ export async function GET(req: NextRequest, { params }: { params: { workspace: s
 }
 
 export async function POST(req: NextRequest, { params }: { params: { workspace: string } }) {
+  const { success } = await rl.limit(getIP(req))
+  if (!success) return Response.json({ error: 'Too many requests.' }, { status: 429 })
+
   const payload: CreateBookingPayload = await req.json()
   if (!payload.room_id || !payload.booker_name || !payload.booker_email || !payload.start_time || !payload.end_time)
     return Response.json({ error: 'Missing required fields.' }, { status: 400 })
+
+  if (payload.recurrence?.series_end) {
+    const maxEnd = new Date()
+    maxEnd.setFullYear(maxEnd.getFullYear() + 1)
+    if (new Date(payload.recurrence.series_end) > maxEnd) {
+      return Response.json({ error: 'Series end date cannot be more than 1 year from today.' }, { status: 400 })
+    }
+  }
 
   if (process.env.MOCK_MODE === 'true') {
     const [{ createBooking }, { getSessionStore, saveSessionStore }] = await Promise.all([import('@/lib/mock/api'), import('@/lib/mock/store')])
