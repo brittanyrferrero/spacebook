@@ -98,7 +98,7 @@ export async function sendBookingEditedEmail({
   const oldTime = `${fmt(oldStartTime, { hour: '2-digit', minute: '2-digit' })} – ${fmt(oldEndTime, { hour: '2-digit', minute: '2-digit' })}`
   const newTime = `${fmt(newStartTime, { hour: '2-digit', minute: '2-digit' })} – ${fmt(newEndTime, { hour: '2-digit', minute: '2-digit' })}`
 
-  const cancelUrl = `${process.env.NEXT_PUBLIC_BASE_URL ?? 'http://localhost:3000'}/cancel/${cancelToken}`
+  const cancelUrl = `${appUrl()}/cancel/${cancelToken}`
 
   const changes: string[] = []
   if (dateChanged) changes.push(`Date: <s style="color:#999">${oldDate}</s> → <strong>${newDate}</strong>`)
