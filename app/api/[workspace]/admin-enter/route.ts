@@ -24,19 +24,30 @@ export async function POST(req: NextRequest, { params }: { params: { workspace: 
 
   const workspace = await getWorkspaceBySlug(params.workspace)
   if (!workspace) return NextResponse.json({ error: 'Workspace not found.' }, { status: 404 })
-  if (token !== workspace.admin_entry_token) {
+
+  const { isWorkspaceUnclaimed, setAdmins, setWorkspaceToken, getAdminRole, getWorkspaceToken, verifyAndConsumeRecoveryNonce } = await import('@/lib/prod-config')
+
+  // Accept either the permanent admin_entry_token (for initial claims) or a
+  // short-lived recovery nonce (consumed on use so replays are rejected).
+  const isPermanentToken = token === workspace.admin_entry_token
+  const recoveredWorkspaceId = isPermanentToken ? null : await verifyAndConsumeRecoveryNonce(token)
+  if (!isPermanentToken && recoveredWorkspaceId !== workspace.id) {
     return NextResponse.json({ error: 'Invalid entry link.' }, { status: 403 })
   }
 
   const lower = email.trim().toLowerCase()
   const workspaceId = workspace.id
 
-  const { isWorkspaceUnclaimed, setAdmins, setWorkspaceToken, getAdminRole, getWorkspaceToken } = await import('@/lib/prod-config')
-
   if (await isWorkspaceUnclaimed(workspaceId)) {
     await setAdmins(workspaceId, [{ email: lower, role: 'super_admin' }])
     const entryToken = crypto.randomUUID()
     await setWorkspaceToken(workspaceId, entryToken)
+
+    // Rotate the permanent token so the original claim link can't be reused
+    const { createClient } = await import('@/lib/supabase/server')
+    const supabase = await createClient()
+    await supabase.from('workspaces').update({ admin_entry_token: crypto.randomUUID() }).eq('id', workspaceId)
+
     const cookieStore = await cookies()
     const secure = process.env.NODE_ENV === 'production'
     cookieStore.set(`admin_${params.workspace}`, 'super_admin', {
@@ -50,6 +61,13 @@ export async function POST(req: NextRequest, { params }: { params: { workspace: 
 
   const role = await getAdminRole(workspaceId, lower)
   if (!role) return NextResponse.json({ error: "You don't have admin access." }, { status: 403 })
+
+  // Rotate the permanent token after every successful login so old links expire
+  if (isPermanentToken) {
+    const { createClient } = await import('@/lib/supabase/server')
+    const supabase = await createClient()
+    await supabase.from('workspaces').update({ admin_entry_token: crypto.randomUUID() }).eq('id', workspaceId)
+  }
 
   const cookieStore = await cookies()
   const secure = process.env.NODE_ENV === 'production'

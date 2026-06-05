@@ -123,18 +123,34 @@ export async function getAdminRole(workspaceId: string, email: string): Promise<
 // callback to prove the flow was legitimately started and bind it to a workspace/room.
 
 export async function setGcalNonce(nonce: string, workspace: string, roomId: string): Promise<void> {
-  await kv().set(`gcal:nonce:${nonce}`, { workspace, roomId }, { ex: 600 })
+  await kv().set(`gcal:nonce:${nonce}`, JSON.stringify({ workspace, roomId }), { ex: 600 })
 }
 
 export async function verifyAndConsumeGcalNonce(nonce: string): Promise<{ workspace: string; roomId: string } | null> {
   const key = `gcal:nonce:${nonce}`
-  const val = await kv().get<{ workspace: string; roomId: string }>(key)
-  if (!val || typeof val.workspace !== 'string' || typeof val.roomId !== 'string') return null
+  const val = await kv().get<string>(key)
+  if (!val) return null
   await kv().del(key)
-  return val
+  try { return JSON.parse(val) } catch { return null }
 }
 
 export async function isWorkspaceUnclaimed(workspaceId: string): Promise<boolean> {
   const admins = (await kv().get<AdminEntry[]>(k(workspaceId, 'cfg:admins'))) ?? []
   return admins.length === 0
+}
+
+// ─── Recovery nonces ──────────────────────────────────────────────────────────
+// Short-lived one-time tokens used in recovery emails. Each nonce expires after
+// 1 hour and is consumed on first use, preventing replay via email/browser history.
+
+export async function setRecoveryNonce(workspaceId: string, nonce: string): Promise<void> {
+  await kv().set(`recovery:nonce:${nonce}`, workspaceId, { ex: 3600 })
+}
+
+export async function verifyAndConsumeRecoveryNonce(nonce: string): Promise<string | null> {
+  const key = `recovery:nonce:${nonce}`
+  const workspaceId = await kv().get<string>(key)
+  if (!workspaceId) return null
+  await kv().del(key)
+  return workspaceId
 }
