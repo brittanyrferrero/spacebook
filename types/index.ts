@@ -50,6 +50,7 @@ export interface Booking {
   cancelled_at: string | null
   created_at: string
   origin?: 'desktop' | 'tablet' | 'gcal'
+  is_block?: boolean
 }
 
 export interface BookingWithRoom extends Booking {

@@ -238,6 +238,117 @@ export async function sendMyBookingsMagicLink({
   })
 }
 
+export async function sendBlockRebookedEmail({
+  to,
+  bookerName,
+  originalRoomName,
+  newRoomName,
+  startTime,
+  endTime,
+  reason,
+  workspaceSlug,
+}: {
+  to: string
+  bookerName: string
+  originalRoomName: string
+  newRoomName: string
+  startTime: string
+  endTime: string
+  reason?: string
+  workspaceSlug: string
+}) {
+  const key = process.env.RESEND_API_KEY
+  if (!key) return
+  const resend = new Resend(key)
+
+  const firstName = bookerName.split(' ')[0]
+  const date = fmt(startTime, { weekday: 'long', day: 'numeric', month: 'long' })
+  const time = `${fmt(startTime, { hour: '2-digit', minute: '2-digit' })} – ${fmt(endTime, { hour: '2-digit', minute: '2-digit' })}`
+  const workspaceUrl = `${appUrl()}/${workspaceSlug}`
+  const reasonText = reason ?? 'scheduled maintenance'
+
+  await resend.emails.send({
+    from: FROM,
+    to,
+    subject: `Your ${originalRoomName} booking has been moved to ${newRoomName}`,
+    html: `
+<div style="font-family:sans-serif;max-width:480px;margin:0 auto;padding:24px">
+  <div style="font-size:18px;font-weight:600;color:#2C3E6B;margin-bottom:4px">spacebook</div>
+  <div style="font-size:13px;color:#9CA3AF;margin-bottom:24px">Booking moved</div>
+
+  <p style="font-size:14px;color:#374151">Hi ${firstName},</p>
+  <p style="font-size:14px;color:#374151">
+    Your booking for <strong>${originalRoomName}</strong> on ${date} at ${time} has been moved to <strong>${newRoomName}</strong> due to ${reasonText}.
+    Your new booking details are the same — just a different room.
+  </p>
+
+  <div style="background:#F8F8F6;border-radius:8px;padding:14px 16px;margin:20px 0;font-size:13px;color:#374151">
+    <div style="margin-bottom:6px"><span style="color:#9CA3AF">New room</span> &nbsp; ${newRoomName}</div>
+    <div style="margin-bottom:6px"><span style="color:#9CA3AF">Date</span> &nbsp; ${date}</div>
+    <div><span style="color:#9CA3AF">Time</span> &nbsp; ${time}</div>
+  </div>
+
+  <p style="font-size:13px;color:#6B7280">
+    Visit <a href="${workspaceUrl}" style="color:#2C3E6B">${workspaceUrl}</a> to view your bookings.
+  </p>
+</div>`,
+  })
+}
+
+export async function sendBlockCancelledEmail({
+  to,
+  bookerName,
+  roomName,
+  startTime,
+  endTime,
+  reason,
+  workspaceSlug,
+}: {
+  to: string
+  bookerName: string
+  roomName: string
+  startTime: string
+  endTime: string
+  reason?: string
+  workspaceSlug: string
+}) {
+  const key = process.env.RESEND_API_KEY
+  if (!key) return
+  const resend = new Resend(key)
+
+  const firstName = bookerName.split(' ')[0]
+  const date = fmt(startTime, { weekday: 'long', day: 'numeric', month: 'long' })
+  const time = `${fmt(startTime, { hour: '2-digit', minute: '2-digit' })} – ${fmt(endTime, { hour: '2-digit', minute: '2-digit' })}`
+  const workspaceUrl = `${appUrl()}/${workspaceSlug}`
+  const reasonPhrase = reason ? ` due to ${reason}` : ''
+
+  await resend.emails.send({
+    from: FROM,
+    to,
+    subject: `Your ${roomName} booking has been cancelled`,
+    html: `
+<div style="font-family:sans-serif;max-width:480px;margin:0 auto;padding:24px">
+  <div style="font-size:18px;font-weight:600;color:#2C3E6B;margin-bottom:4px">spacebook</div>
+  <div style="font-size:13px;color:#9CA3AF;margin-bottom:24px">Booking cancelled</div>
+
+  <p style="font-size:14px;color:#374151">Hi ${firstName},</p>
+  <p style="font-size:14px;color:#374151">
+    Your booking for <strong>${roomName}</strong> on ${date} at ${time} has been cancelled — the room is unavailable${reasonPhrase} and no equivalent room was free at that time.
+  </p>
+
+  <div style="background:#FEF2F2;border-radius:8px;padding:14px 16px;margin:20px 0;font-size:13px;color:#374151">
+    <div style="margin-bottom:6px"><span style="color:#9CA3AF">Room</span> &nbsp; ${roomName}</div>
+    <div style="margin-bottom:6px"><span style="color:#9CA3AF">Date</span> &nbsp; ${date}</div>
+    <div><span style="color:#9CA3AF">Time</span> &nbsp; ${time}</div>
+  </div>
+
+  <p style="font-size:13px;color:#6B7280">
+    Visit <a href="${workspaceUrl}" style="color:#2C3E6B">${workspaceUrl}</a> to find another time.
+  </p>
+</div>`,
+  })
+}
+
 export async function sendAdminRecoveryEmail({
   to,
   workspace,
