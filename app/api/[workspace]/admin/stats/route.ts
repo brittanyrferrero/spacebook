@@ -23,10 +23,17 @@ export async function GET(req: NextRequest, { params }: { params: { workspace: s
   const { createClient } = await import('@/lib/supabase/server')
   const supabase = await createClient()
 
-  const [roomsRes, bookingsRes, displayHoursRes, bookingHoursRes, countWeekendsRes] = await Promise.all([
+  const [roomsRes, bookingsRes, blocksRes, displayHoursRes, bookingHoursRes, countWeekendsRes] = await Promise.all([
     supabase.from('rooms').select('*').eq('workspace_id', workspaceId).order('display_order'),
     supabase.from('bookings').select('*')
       .eq('workspace_id', workspaceId)
+      .eq('is_block', false)
+      .gte('start_time', `${from}T00:00:00Z`)
+      .lte('start_time', `${to}T23:59:59Z`)
+      .is('cancelled_at', null),
+    supabase.from('bookings').select('*')
+      .eq('workspace_id', workspaceId)
+      .eq('is_block', true)
       .gte('start_time', `${from}T00:00:00Z`)
       .lte('start_time', `${to}T23:59:59Z`)
       .is('cancelled_at', null),
@@ -44,7 +51,7 @@ export async function GET(req: NextRequest, { params }: { params: { workspace: s
 
   const store = {
     rooms: (roomsRes.data ?? []).map((r: any) => ({ ...r, gcal_connected: false })),
-    bookings: bookingsRes.data ?? [],
+    bookings: [...(bookingsRes.data ?? []), ...(blocksRes.data ?? [])],
     series: [],
     members: [],
     roomTypes,
