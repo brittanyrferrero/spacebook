@@ -4,6 +4,7 @@ import { getBookingsForDate, getBookingsForRange } from '@/lib/data'
 import { getWorkspaceId } from '@/lib/workspace'
 import type { CreateBookingPayload } from '@/types'
 import { ratelimit, getIP } from '@/lib/ratelimit'
+import { isValidEmail } from '@/lib/email'
 
 const rl = ratelimit(20, '1 m')
 
@@ -53,6 +54,9 @@ export async function POST(req: NextRequest, { params }: { params: { workspace: 
   const payload: CreateBookingPayload = await req.json()
   if (!payload.room_id || !payload.booker_name || !payload.booker_email || !payload.start_time || !payload.end_time)
     return Response.json({ error: 'Missing required fields.' }, { status: 400 })
+  if (!isValidEmail(payload.booker_email)) return Response.json({ error: 'Invalid email address.' }, { status: 400 })
+  if (typeof payload.booker_name === 'string' && payload.booker_name.length > 200)
+    return Response.json({ error: 'Name must be 200 characters or fewer.' }, { status: 400 })
 
   if (payload.recurrence?.series_end) {
     const maxEnd = new Date()
