@@ -802,13 +802,20 @@ export default function AdminPage() {
                   const suggestedStart = before.length > 0 ? before[0].hour : dispStart
                   const suggestedEnd   = after.length > 0 ? after[after.length - 1].hour + 1 : dispEnd
                   const windowChanged  = suggestedStart < dispStart || suggestedEnd > dispEnd
+                  const hourList = outsideHours.map(h => h.total_bookings === 1 ? fmtH(h.hour) : `${fmtH(h.hour)} ×${h.total_bookings}`)
+                  const hourSummary = hourList.length <= 5
+                    ? hourList.join(' · ')
+                    : hourList.slice(0, 5).join(' · ') + ` · +${hourList.length - 5} more`
                   return (
                     <div style={{ background: '#fff', borderRadius: 0, padding: 11, border: '1px solid #dddddd' }}>
                       <div style={{ fontSize: 11, color: '#9CA3AF', marginBottom: 3 }}>Outside display window</div>
-                      <div style={{ fontSize: 21, fontWeight: 500, color: NAVY, marginBottom: windowChanged ? 6 : 0 }}>
+                      <div style={{ fontSize: 21, fontWeight: 500, color: NAVY, marginBottom: outsideHours.length > 0 ? 3 : windowChanged ? 6 : 0 }}>
                         {totals.outside_display_hours}
                         <span style={{ fontSize: 12, fontWeight: 400, color: '#9CA3AF', marginLeft: 6 }}>{Math.round(totals.outside_display_hours / totals.total_bookings * 100)}%</span>
                       </div>
+                      {outsideHours.length > 0 && (
+                        <div style={{ fontSize: 10, color: '#C0C8D0', marginBottom: windowChanged ? 4 : 0 }}>{hourSummary}</div>
+                      )}
                       {windowChanged && (
                         <div style={{ fontSize: 10, color: '#9CA3AF' }}>
                           Consider <span style={{ color: '#374151', fontWeight: 500 }}>{fmtH(suggestedStart)} – {fmtH(suggestedEnd)}</span> in Settings
