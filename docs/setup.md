@@ -44,7 +44,8 @@ Email is optional locally — if `RESEND_API_KEY` is missing, emails are silentl
 
 | Variable | Description |
 |---|---|
-| `NEXT_PUBLIC_BASE_URL` | Public URL of the app, e.g. `https://spacebook.app` (used in email links) |
+| `NEXT_PUBLIC_APP_URL` | Public URL of the app, e.g. `https://spacebook.app`. Used in email links, GCal OAuth redirect URIs, and webhook addresses. |
+| `NEXT_PUBLIC_BASE_URL` | Legacy fallback for `NEXT_PUBLIC_APP_URL`. The app reads whichever is set: `NEXT_PUBLIC_APP_URL ?? NEXT_PUBLIC_BASE_URL ?? 'http://localhost:3000'`. Set `NEXT_PUBLIC_APP_URL` going forward; both are accepted for backwards compatibility. |
 
 ### Admin
 
@@ -75,9 +76,12 @@ Run the migrations in order against your Supabase project. Open the SQL Editor i
 004_tablet_token_shorten.sql
 005_booking_origin.sql
 006_enable_rls.sql
+007_workspace_name_length.sql
 ```
 
 Migration `006_enable_rls.sql` enables Row Level Security on all tables. This is required — once RLS is on, the anon key (which is public in the browser) cannot directly read or write any table. All access goes through the server using `SUPABASE_SERVICE_ROLE_KEY`.
+
+Migration `007_workspace_name_length.sql` adds a CHECK constraint limiting workspace display names to 200 characters.
 
 ---
 
