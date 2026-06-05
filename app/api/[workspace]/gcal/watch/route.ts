@@ -56,12 +56,14 @@ export async function POST(req: NextRequest, { params }: { params: { workspace: 
   if (!syncToken) return Response.json({ error: 'Could not get sync token' }, { status: 500 })
 
   const channelId = `${params.workspace}-${room_id}-${Date.now()}`
+  const webhookToken = crypto.randomUUID()
   const watchResult = await calendar.events.watch({
     calendarId: room.google_calendar_id,
     requestBody: {
       id: channelId,
       type: 'web_hook',
       address: `${appUrl()}/api/${params.workspace}/gcal/webhook`,
+      token: webhookToken,
     },
   })
 
@@ -74,6 +76,7 @@ export async function POST(req: NextRequest, { params }: { params: { workspace: 
     workspace: params.workspace,
     workspaceId,
     roomId: room_id,
+    webhookToken,
   })
 
   return Response.json({ ok: true })

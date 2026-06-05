@@ -7,6 +7,7 @@ export interface WatchState {
   workspace: string
   workspaceId: string
   roomId: string
+  webhookToken?: string
 }
 
 async function kv() {
