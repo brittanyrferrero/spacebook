@@ -19,6 +19,9 @@ export default function LandingPage() {
       })
       if (!res.ok) { setError('Something went wrong.'); setCreating(false); return }
       const { slug, admin_entry_token } = await res.json()
+      const slugOk = typeof slug === 'string' && /^[a-z0-9-]{1,64}$/.test(slug)
+      const tokenOk = typeof admin_entry_token === 'string' && /^[0-9a-f-]{36}$/.test(admin_entry_token)
+      if (!slugOk || !tokenOk) { setError('Something went wrong. Please try again.'); return }
       window.location.href = `/admin-enter/${slug}/${admin_entry_token}`
     } catch {
       setError('Something went wrong. Please try again.')
@@ -49,6 +52,7 @@ export default function LandingPage() {
             placeholder="Workspace name (optional)"
             value={name}
             onChange={e => setName(e.target.value)}
+            maxLength={200}
             autoFocus
           />
           {error && <p style={{ fontSize: 12, color: '#f87171', margin: 0 }}>{error}</p>}

@@ -6,6 +6,10 @@ const rl = ratelimit(5, '1 h')
 export async function POST(req: NextRequest) {
   const { name } = await req.json().catch(() => ({}))
 
+  if (name && name.trim().length > 200) {
+    return Response.json({ error: 'Workspace name must be 200 characters or fewer.' }, { status: 400 })
+  }
+
   if (process.env.MOCK_MODE === 'true') {
     return Response.json({ slug: 'demo', admin_entry_token: 'mock-token' }, { status: 201 })
   }
@@ -24,7 +28,7 @@ export async function POST(req: NextRequest) {
       admin_entry_token: workspace.admin_entry_token,
     }, { status: 201 })
   } catch (e) {
-    const msg = e instanceof Error ? e.message : String(e)
-    return Response.json({ error: msg }, { status: 500 })
+    console.error('Failed to create workspace:', e)
+    return Response.json({ error: 'Failed to create workspace.' }, { status: 500 })
   }
 }
