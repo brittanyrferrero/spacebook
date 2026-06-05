@@ -99,9 +99,12 @@ Migrations are not run automatically. You must apply them manually via the Supab
 004_tablet_token_shorten.sql
 005_booking_origin.sql
 006_enable_rls.sql
+007_workspace_name_length.sql
 ```
 
 Migration `006_enable_rls.sql` enables Row Level Security on all tables. This is required — once RLS is on, the anon key cannot directly read or write any table. All server-side access uses `SUPABASE_SERVICE_ROLE_KEY`.
+
+Migration `007_workspace_name_length.sql` adds a CHECK constraint limiting workspace display names to 200 characters. Apply this to any existing Supabase projects that are running migration 006 but not 007.
 
 Run new migration files in the same way as they are added to the repo.
 
