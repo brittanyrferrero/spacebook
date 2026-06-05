@@ -1,6 +1,9 @@
 import { type NextRequest, NextResponse } from 'next/server'
 import { cookies } from 'next/headers'
 import { getWorkspaceBySlug } from '@/lib/workspace'
+import { ratelimit, getIP } from '@/lib/ratelimit'
+
+const rl = ratelimit(10, '15 m')
 
 export async function GET(_req: NextRequest, { params }: { params: { workspace: string } }) {
   if (process.env.MOCK_MODE === 'true') return Response.json({ unclaimed: true })
@@ -21,6 +24,9 @@ export async function POST(req: NextRequest, { params }: { params: { workspace: 
     })
     return NextResponse.json({ role: 'super_admin', claimed: true, entryToken: token })
   }
+
+  const { success } = await rl.limit(getIP(req))
+  if (!success) return Response.json({ error: 'Too many requests.' }, { status: 429 })
 
   const workspace = await getWorkspaceBySlug(params.workspace)
   if (!workspace) return NextResponse.json({ error: 'Workspace not found.' }, { status: 404 })
