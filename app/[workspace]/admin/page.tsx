@@ -110,6 +110,19 @@ export default function AdminPage() {
   const [gcalPickSaving, setGcalPickSaving] = useState(false)
   const [copiedTabletRoomId, setCopiedTabletRoomId] = useState<string | null>(null)
 
+  // Room blocks
+  const [blockingRoom,   setBlockingRoom]   = useState<any | null>(null)
+  const [blockStep,      setBlockStep]      = useState<'form' | 'confirm'>('form')
+  const [blockFrom,      setBlockFrom]      = useState('')
+  const [blockTo,        setBlockTo]        = useState('')
+  const [blockReason,    setBlockReason]    = useState('')
+  const [blockPreview,   setBlockPreview]   = useState<{ conflictCount: number; conflicts: { id: string; bookerName: string; date: string; time: string; hasEquivalent: boolean; equivalentRoomName?: string }[] } | null>(null)
+  const [blockSaving,    setBlockSaving]    = useState(false)
+  const [roomBlocks,     setRoomBlocks]     = useState<Record<string, any[]>>({})
+  const [expandedBlocks, setExpandedBlocks] = useState<string | null>(null)
+  const [blockToast,     setBlockToast]     = useState<string | null>(null)
+  const blockToastTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
+
   // Members tab
   const [members, setMembers] = useState<any[]>([])
   const [membersLoading, setMembersLoading] = useState(false)
@@ -327,6 +340,12 @@ export default function AdminPage() {
     gcalToastTimer.current = setTimeout(() => setGcalToast(null), 4000)
   }, [gcalToast])
 
+  useEffect(() => {
+    if (!blockToast) return
+    if (blockToastTimer.current) clearTimeout(blockToastTimer.current)
+    blockToastTimer.current = setTimeout(() => setBlockToast(null), 4000)
+  }, [blockToast])
+
   async function disconnectGcal(roomId: string) {
     setDisconnectingRoomId(roomId)
     await Promise.all([
@@ -473,6 +492,28 @@ export default function AdminPage() {
     }
     setDeletingRoomId(null)
     fetchAllRooms()
+  }
+
+  const loadRoomBlocks = async (roomId: string) => {
+    const today = new Date().toISOString().slice(0, 10)
+    const future = new Date(Date.now() + 365 * 24 * 3600 * 1000).toISOString().slice(0, 10)
+    const data = await fetch(`${api}/bookings?room_id=${roomId}&from=${today}&to=${future}`).then(r => r.json())
+    const blocks = (Array.isArray(data) ? data : []).filter((b: any) => b.is_block && !b.cancelled_at)
+    setRoomBlocks(prev => ({ ...prev, [roomId]: blocks }))
+    setExpandedBlocks(expandedBlocks === roomId ? null : roomId)
+  }
+
+  async function liftBlock(blockId: string, roomId: string) {
+    await fetch(`${api}/bookings/${blockId}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ cancelled_at: new Date().toISOString() }),
+    })
+    const today = new Date().toISOString().slice(0, 10)
+    const future = new Date(Date.now() + 365 * 24 * 3600 * 1000).toISOString().slice(0, 10)
+    const data = await fetch(`${api}/bookings?room_id=${roomId}&from=${today}&to=${future}`).then(r => r.json())
+    const blocks = (Array.isArray(data) ? data : []).filter((b: any) => b.is_block && !b.cancelled_at)
+    setRoomBlocks(prev => ({ ...prev, [roomId]: blocks }))
   }
 
   async function addMemberSubmit(e: React.FormEvent) {
@@ -1210,7 +1251,8 @@ export default function AdminPage() {
               <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
                 {allRooms.map((r: any) => (
                   <SortableRoomItem key={r.id} id={r.id}>{(dragHandleProps) => (
-                  <div style={{ background: '#fff', border: '1px solid #dddddd', borderRadius: 0, padding: '12px 14px', display: 'flex', alignItems: 'center', gap: 12 }}>
+                  <div style={{ border: '1px solid #dddddd', borderRadius: 0, background: '#fff' }}>
+                  <div style={{ padding: '12px 14px', display: 'flex', alignItems: 'center', gap: 12 }}>
                     <div {...dragHandleProps} style={{ cursor: 'grab', color: '#D1D5DB', flexShrink: 0, display: 'flex', alignItems: 'center', touchAction: 'none' }}>
                       <svg width="12" height="16" viewBox="0 0 12 16" fill="currentColor"><circle cx="3" cy="3" r="1.5"/><circle cx="9" cy="3" r="1.5"/><circle cx="3" cy="8" r="1.5"/><circle cx="9" cy="8" r="1.5"/><circle cx="3" cy="13" r="1.5"/><circle cx="9" cy="13" r="1.5"/></svg>
                     </div>
@@ -1268,6 +1310,12 @@ export default function AdminPage() {
                           }
                         </button>
                       )}
+                      <button
+                        onClick={() => { setBlockingRoom(r); setBlockStep('form'); setBlockFrom(''); setBlockTo(''); setBlockReason(''); setBlockPreview(null) }}
+                        title="Block a time period"
+                        style={{ fontSize: 11, padding: '4px 8px', borderRadius: 0, border: '1px solid #dddddd', background: 'none', cursor: 'pointer', color: '#6B7280', fontFamily: 'inherit' }}>
+                        Block
+                      </button>
                       <button onClick={() => { setEditingRoom(r); setEditDraft({ name: r.name, room_type: r.room_type ?? '', capacity: r.capacity, amenities: [...r.amenities] }) }}
                         style={{ fontSize: 11, padding: '4px 9px', borderRadius: 0, border: '1px solid #cccccc', background: 'none', cursor: 'pointer', color: '#6B7280' }}>
                         Edit
@@ -1277,6 +1325,45 @@ export default function AdminPage() {
                         {deletingRoomId === r.id ? '…' : 'Delete'}
                       </button>
                     </div>
+                  </div>
+                  {/* Active blocks toggle */}
+                  <div style={{ borderTop: '1px solid #f3f4f6', paddingTop: 4, marginTop: 2 }}>
+                    <button
+                      onClick={() => loadRoomBlocks(r.id)}
+                      style={{ fontSize: 11, padding: '3px 8px', border: 'none', background: 'none', cursor: 'pointer', color: expandedBlocks === r.id ? NAVY : '#9CA3AF', fontFamily: 'inherit' }}>
+                      {expandedBlocks === r.id ? '▾ Active blocks' : '▸ Active blocks'}
+                      {roomBlocks[r.id] && roomBlocks[r.id].length > 0 && (
+                        <span style={{ marginLeft: 5, background: '#f0f0f0', padding: '1px 5px', borderRadius: 0, fontSize: 10, color: '#374151' }}>{roomBlocks[r.id].length}</span>
+                      )}
+                    </button>
+                    {expandedBlocks === r.id && (
+                      <div style={{ paddingLeft: 8, paddingBottom: 6 }}>
+                        {!roomBlocks[r.id] || roomBlocks[r.id].length === 0 ? (
+                          <div style={{ fontSize: 12, color: '#9CA3AF', padding: '4px 0' }}>No active blocks.</div>
+                        ) : (
+                          <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+                            {roomBlocks[r.id].map((block: any) => (
+                              <div key={block.id} style={{ display: 'flex', alignItems: 'center', gap: 10, fontSize: 12, color: '#374151' }}>
+                                <span style={{ color: '#6B7280' }}>
+                                  {new Date(block.start_time).toLocaleDateString('en-AU', { day: 'numeric', month: 'short' })}
+                                  {' – '}
+                                  {new Date(block.end_time).toLocaleDateString('en-AU', { day: 'numeric', month: 'short', year: 'numeric' })}
+                                </span>
+                                {block.title && block.title !== 'Room unavailable' && (
+                                  <span style={{ color: '#9CA3AF' }}>{block.title}</span>
+                                )}
+                                <button
+                                  onClick={() => liftBlock(block.id, r.id)}
+                                  style={{ fontSize: 11, padding: '2px 7px', borderRadius: 0, border: '1px solid #F0CACA', background: 'none', cursor: 'pointer', color: BUSY, fontFamily: 'inherit' }}>
+                                  Lift
+                                </button>
+                              </div>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                    )}
+                  </div>
                   </div>
                   )}</SortableRoomItem>
                 ))}
@@ -1376,6 +1463,118 @@ export default function AdminPage() {
                       <button onClick={addRoom} disabled={roomSaving || !newDraft.name}
                         style={{ flex: 1, background: SAGE, color: '#fff', border: 'none', borderRadius: 0, padding: '8px 0', fontSize: 13, fontWeight: 500, cursor: 'pointer' }}>
                         {roomSaving ? 'Adding…' : 'Add room'}
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* Block modal — step 1: form */}
+              {blockingRoom && blockStep === 'form' && (
+                <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.3)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 50 }}>
+                  <div style={{ background: '#fff', borderRadius: 0, padding: 24, width: 380, boxShadow: '0 8px 32px rgba(0,0,0,0.15)' }}>
+                    <div style={{ fontSize: 14, fontWeight: 500, color: NAVY, marginBottom: 16 }}>Block {blockingRoom.name}</div>
+                    <div style={{ marginBottom: 12 }}>
+                      <label style={lbl}>From</label>
+                      <input type="datetime-local" style={{ ...inp, width: '100%' }} value={blockFrom} onChange={e => setBlockFrom(e.target.value)} />
+                    </div>
+                    <div style={{ marginBottom: 12 }}>
+                      <label style={lbl}>To</label>
+                      <input type="datetime-local" style={{ ...inp, width: '100%' }} value={blockTo} onChange={e => setBlockTo(e.target.value)} />
+                    </div>
+                    <div style={{ marginBottom: 20 }}>
+                      <label style={lbl}>Reason (optional)</label>
+                      <input style={{ ...inp, width: '100%' }} placeholder="e.g. HVAC maintenance" value={blockReason} onChange={e => setBlockReason(e.target.value)} />
+                    </div>
+                    <div style={{ display: 'flex', gap: 8 }}>
+                      <button onClick={() => setBlockingRoom(null)}
+                        style={{ flex: 1, background: 'none', border: '1px solid #cccccc', borderRadius: 0, padding: '8px 0', fontSize: 13, cursor: 'pointer', color: '#6B7280' }}>
+                        Cancel
+                      </button>
+                      <button
+                        disabled={!blockFrom || !blockTo}
+                        onClick={async () => {
+                          const startIso = new Date(blockFrom).toISOString()
+                          const endIso = new Date(blockTo).toISOString()
+                          const res = await fetch(`${api}/bookings/block?room_id=${blockingRoom.id}&start_time=${encodeURIComponent(startIso)}&end_time=${encodeURIComponent(endIso)}`)
+                          const data = await res.json()
+                          setBlockPreview(data)
+                          setBlockStep('confirm')
+                        }}
+                        style={{ flex: 1, background: NAVY, color: '#fff', border: 'none', borderRadius: 0, padding: '8px 0', fontSize: 13, fontWeight: 500, cursor: !blockFrom || !blockTo ? 'default' : 'pointer', opacity: !blockFrom || !blockTo ? 0.4 : 1 }}>
+                        Check conflicts →
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* Block modal — step 2: confirm */}
+              {blockingRoom && blockStep === 'confirm' && blockPreview && (
+                <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.3)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 50 }}>
+                  <div style={{ background: '#fff', borderRadius: 0, padding: 24, width: 420, boxShadow: '0 8px 32px rgba(0,0,0,0.15)', maxHeight: '80vh', display: 'flex', flexDirection: 'column' }}>
+                    <div style={{ fontSize: 14, fontWeight: 500, color: NAVY, marginBottom: 4 }}>Confirm block — {blockingRoom.name}</div>
+                    <div style={{ fontSize: 12, color: '#6B7280', marginBottom: 14 }}>
+                      {new Date(blockFrom).toLocaleString('en-AU', { day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' })}
+                      {' – '}
+                      {new Date(blockTo).toLocaleString('en-AU', { day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' })}
+                      {blockReason && <span style={{ marginLeft: 8, color: '#9CA3AF' }}>· {blockReason}</span>}
+                    </div>
+                    {blockPreview.conflictCount === 0 ? (
+                      <div style={{ fontSize: 13, color: '#374151', padding: '10px 0', marginBottom: 10 }}>No conflicts — proceed.</div>
+                    ) : (
+                      <div style={{ overflowY: 'auto', flex: 1, marginBottom: 14 }}>
+                        <div style={{ fontSize: 12, fontWeight: 500, color: '#374151', marginBottom: 8 }}>
+                          {blockPreview.conflictCount} conflicting booking{blockPreview.conflictCount !== 1 ? 's' : ''}:
+                        </div>
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                          {blockPreview.conflicts.map(c => (
+                            <div key={c.id} style={{ fontSize: 12, padding: '8px 10px', border: '1px solid #e5e7eb', background: c.hasEquivalent ? '#f0fdf4' : '#fff5f5' }}>
+                              <div style={{ fontWeight: 500, color: '#374151' }}>{c.bookerName}</div>
+                              <div style={{ color: '#6B7280' }}>{c.date} · {c.time}</div>
+                              <div style={{ marginTop: 3, fontSize: 11 }}>
+                                {c.hasEquivalent
+                                  ? <span style={{ color: '#16a34a' }}>→ moves to {c.equivalentRoomName}</span>
+                                  : <span style={{ color: BUSY }}>→ will be cancelled</span>
+                                }
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                    <div style={{ display: 'flex', gap: 8, marginTop: 'auto' }}>
+                      <button onClick={() => setBlockStep('form')}
+                        style={{ flex: 1, background: 'none', border: '1px solid #cccccc', borderRadius: 0, padding: '8px 0', fontSize: 13, cursor: 'pointer', color: '#6B7280' }}>
+                        ← Go back
+                      </button>
+                      <button
+                        disabled={blockSaving}
+                        onClick={async () => {
+                          setBlockSaving(true)
+                          const startIso = new Date(blockFrom).toISOString()
+                          const endIso = new Date(blockTo).toISOString()
+                          const res = await fetch(`${api}/bookings/block`, {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ room_id: blockingRoom.id, start_time: startIso, end_time: endIso, reason: blockReason || undefined }),
+                          })
+                          const data = await res.json()
+                          setBlockSaving(false)
+                          setBlockingRoom(null)
+                          const moved = (data.rebooked ?? []).length
+                          const cancelled = (data.cancelled ?? []).length
+                          if (moved === 0 && cancelled === 0) {
+                            setBlockToast('Room blocked — no conflicts.')
+                          } else {
+                            const parts = []
+                            if (moved > 0) parts.push(`${moved} moved`)
+                            if (cancelled > 0) parts.push(`${cancelled} cancelled`)
+                            setBlockToast(`Room blocked. ${parts.join(', ')}.`)
+                          }
+                        }}
+                        style={{ flex: 1, background: '#e11d48', color: '#fff', border: 'none', borderRadius: 0, padding: '8px 0', fontSize: 13, fontWeight: 500, cursor: blockSaving ? 'default' : 'pointer', opacity: blockSaving ? 0.7 : 1 }}>
+                        {blockSaving ? 'Blocking…' : 'Confirm block'}
                       </button>
                     </div>
                   </div>
@@ -1967,6 +2166,12 @@ export default function AdminPage() {
       {gcalToast && (
         <div style={{ position: 'fixed', bottom: 24, left: '50%', transform: 'translateX(-50%)', background: NAVY, color: '#fff', fontSize: 13, padding: '10px 18px', borderRadius: 0, zIndex: 200, pointerEvents: 'none', whiteSpace: 'nowrap' }}>
           {gcalToast}
+        </div>
+      )}
+
+      {blockToast && (
+        <div style={{ position: 'fixed', bottom: 24, left: '50%', transform: 'translateX(-50%)', background: NAVY, color: '#fff', fontSize: 13, padding: '10px 18px', borderRadius: 0, zIndex: 200, pointerEvents: 'none', whiteSpace: 'nowrap' }}>
+          {blockToast}
         </div>
       )}
     </div>
