@@ -307,6 +307,14 @@ function DayView({ bookings, viewDate, onSlotClick, onBookingClick, pendingSlot,
             const bs = new Date(b.start_time), be = new Date(b.end_time)
             const topPx = Math.max(0, gp(bs.getHours(), bs.getMinutes()) * gridH)
             const heightPx = Math.max(16, (gp(be.getHours(), be.getMinutes()) - gp(bs.getHours(), bs.getMinutes())) * gridH)
+            if (b.is_block) {
+              return (
+                <div key={b.id} onClick={e => e.stopPropagation()}
+                  style={{ position: 'absolute', top: topPx, left: 4, right: 4, height: heightPx, background: 'repeating-linear-gradient(45deg, #374151, #374151 2px, #4B5563 2px, #4B5563 8px)', borderRadius: 3, overflow: 'hidden', cursor: 'default', userSelect: 'none' }}>
+                  {heightPx > 18 && <div style={{ padding: '2px 5px', fontSize: 10, color: 'rgba(255,255,255,0.75)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', fontWeight: 400 }}>🚫 {b.title || 'Unavailable'}</div>}
+                </div>
+              )
+            }
             const isMine = !!myEmail && b.booker_email === myEmail
             const othersClickable = !isMine && (visShowTitle || visShowOrganizer || visAllowEditOthers)
             const isBlockPast = !!now && new Date(b.end_time) < now
@@ -434,6 +442,14 @@ function WeekView({ bookings, weekDays, onSlotClick, onBookingClick, pendingSlot
                     const bs = new Date(b.start_time), be = new Date(b.end_time)
                     const topPx = Math.max(0, gp(bs.getHours(), bs.getMinutes()) * gridH)
                     const heightPx = Math.max(16, (gp(be.getHours(), be.getMinutes()) - gp(bs.getHours(), bs.getMinutes())) * gridH)
+                    if (b.is_block) {
+                      return (
+                        <div key={b.id} onClick={e => e.stopPropagation()}
+                          style={{ position: 'absolute', top: topPx, left: 2, right: 2, height: heightPx, background: 'repeating-linear-gradient(45deg, #374151, #374151 2px, #4B5563 2px, #4B5563 8px)', borderRadius: 3, overflow: 'hidden', cursor: 'default', userSelect: 'none' }}>
+                          {heightPx > 18 && <div style={{ padding: '2px 4px', fontSize: 9, color: 'rgba(255,255,255,0.75)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', fontWeight: 400 }}>🚫 {b.title || 'Unavailable'}</div>}
+                        </div>
+                      )
+                    }
                     const isMine = !!myEmail && b.booker_email === myEmail
                     const othersClickable = !isMine && (visShowTitle || visShowOrganizer || visAllowEditOthers)
                     const isBlockPast = !!now && new Date(b.end_time) < now
