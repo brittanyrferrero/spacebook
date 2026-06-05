@@ -1,5 +1,12 @@
 import { Resend } from 'resend'
 
+// RFC 5321 practical email validation — rejects obviously invalid addresses
+export function isValidEmail(email: unknown): email is string {
+  return typeof email === 'string' &&
+    email.length <= 254 &&
+    /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim())
+}
+
 const FROM = process.env.EMAIL_FROM ?? 'spacebook <noreply@spacebook.app>'
 
 // Single canonical app URL — falls back through both env vars so either works.

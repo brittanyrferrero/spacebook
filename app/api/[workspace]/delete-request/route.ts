@@ -1,5 +1,5 @@
 import { type NextRequest } from 'next/server'
-import { appUrl } from '@/lib/email'
+import { appUrl, isValidEmail } from '@/lib/email'
 
 async function kv() {
   const { Redis } = await import('@upstash/redis')
@@ -9,6 +9,7 @@ async function kv() {
 export async function POST(req: NextRequest, { params }: { params: { workspace: string } }) {
   const { requesterEmail } = await req.json()
   if (!requesterEmail?.trim()) return Response.json({ error: 'Email required.' }, { status: 400 })
+  if (!isValidEmail(requesterEmail)) return Response.json({ error: 'Invalid email address.' }, { status: 400 })
 
   const { getWorkspaceBySlug } = await import('@/lib/workspace')
   const workspace = await getWorkspaceBySlug(params.workspace)

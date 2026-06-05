@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server'
 import type { NextRequest } from 'next/server'
 import { google } from 'googleapis'
 import { ratelimit, getIP } from '@/lib/ratelimit'
+import { isValidEmail } from '@/lib/email'
 
 const rl = ratelimit(5, '1 h')
 
@@ -23,6 +24,7 @@ export async function POST(req: NextRequest) {
 
   const { email, plan } = await req.json()
   if (!email?.trim()) return NextResponse.json({ error: 'Email required.' }, { status: 400 })
+  if (!isValidEmail(email)) return NextResponse.json({ error: 'Invalid email address.' }, { status: 400 })
 
   try {
     const sheets = await getSheets()

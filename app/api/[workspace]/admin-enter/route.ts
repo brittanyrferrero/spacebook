@@ -2,6 +2,7 @@ import { type NextRequest, NextResponse } from 'next/server'
 import { cookies } from 'next/headers'
 import { getWorkspaceBySlug } from '@/lib/workspace'
 import { ratelimit, getIP } from '@/lib/ratelimit'
+import { isValidEmail } from '@/lib/email'
 
 const rl = ratelimit(10, '15 m')
 
@@ -16,6 +17,7 @@ export async function GET(_req: NextRequest, { params }: { params: { workspace: 
 export async function POST(req: NextRequest, { params }: { params: { workspace: string } }) {
   const { email, token } = await req.json()
   if (!email || !token) return NextResponse.json({ error: 'Missing fields.' }, { status: 400 })
+  if (!isValidEmail(email)) return NextResponse.json({ error: 'Invalid email address.' }, { status: 400 })
 
   if (process.env.MOCK_MODE === 'true') {
     const cookieStore = await cookies()

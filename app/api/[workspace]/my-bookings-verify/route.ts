@@ -1,6 +1,6 @@
 import { type NextRequest } from 'next/server'
 import { getWorkspaceId } from '@/lib/workspace'
-import { appUrl } from '@/lib/email'
+import { appUrl, isValidEmail } from '@/lib/email'
 import { ratelimit, getIP } from '@/lib/ratelimit'
 
 const rl = ratelimit(5, '10 m')
@@ -16,6 +16,7 @@ export async function POST(req: NextRequest, { params }: { params: { workspace: 
 
   const { email } = await req.json().catch(() => ({}))
   if (!email) return Response.json({ error: 'Email required.' }, { status: 400 })
+  if (!isValidEmail(email)) return Response.json({ error: 'Invalid email address.' }, { status: 400 })
 
   if (process.env.MOCK_MODE === 'true') return Response.json({ ok: true })
 
