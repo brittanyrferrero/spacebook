@@ -162,16 +162,22 @@ If `NEXT_PUBLIC_APP_URL` changes (e.g. a domain migration), all existing webhook
 1. Update `NEXT_PUBLIC_APP_URL` in Vercel
 2. For each room with GCal connected: disconnect and reconnect Google Calendar from the admin panel to re-register the webhook with the new URL
 
+### Webhook signature fix — migration for existing connected rooms
+
+PR #72 added HMAC signature verification to the GCal webhook handler. Rooms connected **before that deploy** have no `webhookToken` stored in KV, so their webhook POSTs are now silently rejected (the token in the `X-Goog-Channel-Token` header does not match anything on record).
+
+To fix: disconnect and reconnect Google Calendar for any affected room via **Admin → Rooms → the room's GCal settings**. Reconnecting re-registers the webhook and stores a fresh token in KV.
+
 ### Reserved workspace slug segments
 
-The following slug values are used as top-level route segments and must not be used as workspace slugs:
+Workspace slugs cannot collide with any value in the middleware's `PUBLIC_API_SEGMENTS` list (`middleware.ts`). The most collision-prone values to avoid:
 
 - `gcal` — used as a URL path segment in GCal OAuth routes (`/api/gcal/callback`)
 - `gcal-renew` — used for the cron endpoint (`/api/gcal-renew`)
 
-Other segments that are also reserved (handled by the middleware and Next.js routing): `enter`, `admin-enter`, `demo`, `demo-admin`, `landing`, `cancel`, `palantir`, `palantir-enter`, `generate`, `privacy`, `terms`.
+Other reserved segments: `cancel`, `workspaces`, `notify`, `demo-access`, `admin`, `palantir`, `delete-confirm`, plus any top-level Next.js page routes (`enter`, `admin-enter`, `demo`, `demo-admin`, `landing`, `generate`, `privacy`, `terms`).
 
-The slug generator in the admin panel produces three-word slugs (e.g. `amber-oak-vale`) that do not collide with any of these.
+The slug generator in the admin panel produces three-word slugs (e.g. `amber-oak-vale`) that do not collide with any of these. Manual renames should be checked against the full `PUBLIC_API_SEGMENTS` set in `middleware.ts`.
 
 ### Slug renames invalidate all sessions
 
