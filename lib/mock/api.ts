@@ -309,8 +309,17 @@ export function getAdminStats(store: MockStore, from: string, to: string, roomId
 
   const roomIdSet = new Set(rooms.map(r => r.id))
 
+  const blocks = store.bookings.filter(b => {
+    if (b.cancelled_at) return false
+    if (!(b as any).is_block) return false
+    if (!roomIdSet.has(b.room_id)) return false
+    const bs = new Date(b.start_time)
+    return bs >= fromDate && bs <= toDate
+  })
+
   const active = store.bookings.filter(b => {
     if (b.cancelled_at) return false
+    if ((b as any).is_block) return false
     if (!roomIdSet.has(b.room_id)) return false
     const bs = new Date(b.start_time)
     return bs >= fromDate && bs <= toDate
@@ -337,11 +346,15 @@ export function getAdminStats(store: MockStore, from: string, to: string, roomId
   const roomStats = rooms.map(room => {
     const rb = active.filter(b => b.room_id === room.id)
     const hours = rb.reduce((sum, b) => sum + (new Date(b.end_time).getTime() - new Date(b.start_time).getTime()) / 3_600_000, 0)
+    const blockedHoursForRoom = blocks
+      .filter(b => b.room_id === room.id)
+      .reduce((sum, b) => sum + (new Date(b.end_time).getTime() - new Date(b.start_time).getTime()) / 3_600_000, 0)
+    const effectiveAvailable = Math.max(0.01, totalAvailableHoursPerRoom - blockedHoursForRoom)
     return {
       room,
       total_bookings: rb.length,
       total_hours: Math.round(hours * 10) / 10,
-      utilisation_pct: Math.min(100, Math.round(hours / totalAvailableHoursPerRoom * 100)),
+      utilisation_pct: Math.min(100, Math.round(hours / effectiveAvailable * 100)),
     }
   })
 
@@ -390,7 +403,8 @@ export function getAdminStats(store: MockStore, from: string, to: string, roomId
   const totalHours = active.reduce((sum, b) => sum + (new Date(b.end_time).getTime() - new Date(b.start_time).getTime()) / 3_600_000, 0)
   const avgDuration = active.length > 0 ? totalHours / active.length : 0
   const totalAvailableHours = totalAvailableHoursPerRoom * rooms.length
-  const utilisation = rooms.length > 0 ? Math.min(100, Math.round(totalHours / totalAvailableHours * 100)) : 0
+  const totalBlockedHours = blocks.reduce((sum, b) => sum + (new Date(b.end_time).getTime() - new Date(b.start_time).getTime()) / 3_600_000, 0)
+  const utilisation = rooms.length > 0 ? Math.min(100, Math.round(totalHours / Math.max(0.01, totalAvailableHours - totalBlockedHours) * 100)) : 0
 
   // Concurrent occupancy: sample every 30 min during booking hours to build a distribution
   const totalRooms = rooms.length
