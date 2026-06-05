@@ -4,8 +4,23 @@ import { google } from 'googleapis'
 export async function POST(req: NextRequest) {
   const channelId = req.headers.get('x-goog-channel-id')
   const resourceState = req.headers.get('x-goog-resource-state')
+  const incomingToken = req.headers.get('x-goog-channel-token')
 
+  // Always return 200 — Google stops sending if it gets repeated non-2xx responses.
   if (!channelId || resourceState === 'sync') return new Response(null, { status: 200 })
+
+  // Verify the webhook token before processing. Look up the stored token for this
+  // channel and reject (silently, with 200) if it is missing or doesn't match.
+  try {
+    const { getRoomIdByChannel, getWatchState } = await import('@/lib/google-calendar/watchStore')
+    const roomId = await getRoomIdByChannel(channelId)
+    if (roomId) {
+      const watchState = await getWatchState(roomId)
+      if (!watchState?.webhookToken || watchState.webhookToken !== incomingToken) {
+        return new Response(null, { status: 200 })
+      }
+    }
+  } catch { /* non-fatal — fall through and let processWebhook handle any state issues */ }
 
   try { await processWebhook(channelId) } catch { /* non-fatal */ }
 
