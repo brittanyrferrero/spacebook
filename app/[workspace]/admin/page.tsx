@@ -310,8 +310,8 @@ export default function AdminPage() {
           .then(data => { setGcalCalendars(Array.isArray(data) ? data : []); setGcalPickLoading(false) })
           .catch(() => setGcalPickLoading(false))
       }
-    } else if (gcal === 'error') setGcalToast('Google Calendar connection failed. Please try again.')
-    else if (gcal === 'no_refresh_token') setGcalToast('No refresh token returned — try again with prompt=consent.')
+    } else if (gcal === 'no_refresh_token') setGcalToast('No refresh token returned — try again with prompt=consent.')
+    else if (gcal && gcal.startsWith('error')) setGcalToast('Google Calendar connection failed. Please try again.')
     if (gcal) {
       const url = new URL(window.location.href)
       url.searchParams.delete('gcal')

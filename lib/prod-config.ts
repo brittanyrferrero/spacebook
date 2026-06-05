@@ -123,15 +123,15 @@ export async function getAdminRole(workspaceId: string, email: string): Promise<
 // callback to prove the flow was legitimately started and bind it to a workspace/room.
 
 export async function setGcalNonce(nonce: string, workspace: string, roomId: string): Promise<void> {
-  await kv().set(`gcal:nonce:${nonce}`, JSON.stringify({ workspace, roomId }), { ex: 600 })
+  await kv().set(`gcal:nonce:${nonce}`, { workspace, roomId }, { ex: 600 })
 }
 
 export async function verifyAndConsumeGcalNonce(nonce: string): Promise<{ workspace: string; roomId: string } | null> {
   const key = `gcal:nonce:${nonce}`
-  const val = await kv().get<string>(key)
-  if (!val) return null
+  const val = await kv().get<{ workspace: string; roomId: string }>(key)
+  if (!val || typeof val.workspace !== 'string' || typeof val.roomId !== 'string') return null
   await kv().del(key)
-  try { return JSON.parse(val) } catch { return null }
+  return val
 }
 
 export async function isWorkspaceUnclaimed(workspaceId: string): Promise<boolean> {
