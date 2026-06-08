@@ -495,7 +495,7 @@ export default function AdminPage() {
   )
 
   const { totals, roomStats, hourStats, concurrentStats, dowHourStats, busiestDate } = stats
-  const maxRoomBookings = Math.max(...roomStats.map((r: any) => r.total_bookings), 1)
+  const maxRoomHours = Math.max(...roomStats.map((r: any) => r.total_hours), 0.1)
   const maxHour = Math.max(...hourStats.map((h: any) => h.total_bookings), 1)
 
   const inp: React.CSSProperties = { fontSize: 13, padding: '5px 8px', border: '1px solid #cccccc', borderRadius: 0, outline: 'none', fontFamily: 'inherit', background: '#fff' }
@@ -660,14 +660,15 @@ export default function AdminPage() {
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 10, marginBottom: 14 }}>
                 {!filterRoom && (
                   <div style={{ background: '#fff', border: '1px solid #dddddd', borderRadius: 0, padding: 13 }}>
-                    <div style={{ fontSize: 12, fontWeight: 500, color: '#374151', marginBottom: 10 }}>Bookings by room</div>
+                    <div style={{ fontSize: 12, fontWeight: 500, color: '#374151', marginBottom: 10 }}>Room usage</div>
                     <div style={{ display: 'flex', alignItems: 'flex-end', gap: 5, height: 80 }}>
                       {roomStats.map((r: any) => {
-                        const h = Math.round(r.total_bookings / maxRoomBookings * 75)
+                        const h = Math.round(r.total_hours / maxRoomHours * 75)
                         return (
                           <div key={r.room.id} style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 3, flex: 1 }}>
-                            <div title={`${r.total_bookings} bookings`} style={{ borderRadius: '3px 3px 0 0', width: '100%', height: h, background: r.room.is_active ? SAGE : '#C8D8CC' }} />
+                            <div title={`${r.room.name}: ${r.total_bookings} bookings · ${r.total_hours}h · ${r.utilisation_pct}% utilised`} style={{ borderRadius: '3px 3px 0 0', width: '100%', height: h, background: r.room.is_active ? SAGE : '#C8D8CC' }} />
                             <div style={{ fontSize: 10, color: '#9CA3AF', textAlign: 'center' }}>{r.room.name.split(' ').pop()}</div>
+                            <div style={{ fontSize: 10, color: '#9CA3AF', textAlign: 'center' }}>{r.utilisation_pct}%</div>
                           </div>
                         )
                       })}
