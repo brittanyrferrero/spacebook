@@ -409,8 +409,6 @@ export default function LandingPage() {
           <a href="/privacy" style={{ fontSize: 12, color: `${CREAM}66`, textDecoration: 'none', letterSpacing: '0.06em' }}>Privacy</a>
           <a href="/terms" style={{ fontSize: 12, color: `${CREAM}66`, textDecoration: 'none', letterSpacing: '0.06em' }}>Terms</a>
           <Star4 size={5} color={`${CREAM}44`} />
-          <a href="mailto:hello@spacebook.app" style={{ fontSize: 12, color: `${CREAM}66`, textDecoration: 'none', letterSpacing: '0.06em' }}>hello@spacebook.app</a>
-          <Star4 size={5} color={`${CREAM}44`} />
           <span style={{ fontSize: 12, color: `${CREAM}44`, letterSpacing: '0.06em' }}>© {new Date().getFullYear()} spacebook</span>
         </div>
       </div>
