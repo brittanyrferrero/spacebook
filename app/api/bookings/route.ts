@@ -1,6 +1,7 @@
 import { type NextRequest } from 'next/server'
 import { getBookingsForDate } from '@/lib/data'
 import type { CreateBookingPayload } from '@/types'
+import { waitUntil } from '@vercel/functions'
 
 export async function GET(req: NextRequest) {
   const { searchParams } = req.nextUrl
@@ -58,14 +59,16 @@ export async function POST(req: NextRequest) {
     return Response.json({ error: isConflict ? 'That time slot is no longer available.' : error.message }, { status: isConflict ? 409 : 500 })
   }
 
-  try {
-    const { createCalendarEvent } = await import('@/lib/google-calendar/client')
-    const { data: room } = await supabase.from('rooms').select('*').eq('id', payload.room_id).single()
-    if (room) {
-      const eventId = await createCalendarEvent(booking, room)
-      if (eventId) await supabase.from('bookings').update({ google_event_id: eventId }).eq('id', booking.id)
-    }
-  } catch { /* non-fatal */ }
+  waitUntil((async () => {
+    try {
+      const { createCalendarEvent } = await import('@/lib/google-calendar/client')
+      const { data: room } = await supabase.from('rooms').select('*').eq('id', payload.room_id).single()
+      if (room) {
+        const eventId = await createCalendarEvent(booking, room)
+        if (eventId) await supabase.from('bookings').update({ google_event_id: eventId }).eq('id', booking.id)
+      }
+    } catch { /* non-fatal */ }
+  })())
 
   return Response.json({ booking }, { status: 201 })
 }
