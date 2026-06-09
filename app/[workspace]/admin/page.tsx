@@ -256,7 +256,8 @@ export default function AdminPage() {
   }, [])
 
   useEffect(() => {
-    let url = `${api}/admin/stats?from=${from}&to=${to}&tz=${new Date().getTimezoneOffset()}`
+    const tzOffset = process.env.NEXT_PUBLIC_MOCK_MODE === 'true' ? 420 : new Date().getTimezoneOffset()
+    let url = `${api}/admin/stats?from=${from}&to=${to}&tz=${tzOffset}`
     if (filterRoom) url += `&room_id=${filterRoom}`
     else if (filterRoomType) url += `&room_type=${encodeURIComponent(filterRoomType)}`
     fetch(url).then(r => r.json()).then(setStats)
@@ -452,7 +453,7 @@ export default function AdminPage() {
       body: JSON.stringify({ is_active: !room.is_active }),
     })
     fetchAllRooms()
-    if (nav === 'Overview') fetch(`${api}/admin/stats?from=${from}&to=${to}&tz=${new Date().getTimezoneOffset()}`).then(r => r.json()).then(setStats)
+    if (nav === 'Overview') fetch(`${api}/admin/stats?from=${from}&to=${to}&tz=${process.env.NEXT_PUBLIC_MOCK_MODE === 'true' ? 420 : new Date().getTimezoneOffset()}`).then(r => r.json()).then(setStats)
   }
 
   async function saveRoom() {
