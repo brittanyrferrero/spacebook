@@ -1,5 +1,5 @@
 import { type NextRequest, NextResponse } from 'next/server'
-import { getWorkspaceId } from '@/lib/workspace'
+import { getWorkspaceId, RESERVED_SLUGS } from '@/lib/workspace'
 
 const SLUG_RE = /^[a-z0-9][a-z0-9-]{1,48}[a-z0-9]$/
 
@@ -9,6 +9,9 @@ export async function POST(req: NextRequest, { params }: { params: { workspace: 
   if (adminRole !== 'super_admin') return NextResponse.json({ error: 'Super admin required.' }, { status: 403 })
   if (typeof newSlug !== 'string' || !SLUG_RE.test(newSlug)) {
     return NextResponse.json({ error: 'Invalid slug. Use lowercase letters, numbers, and hyphens (3–50 characters).' }, { status: 400 })
+  }
+  if (RESERVED_SLUGS.has(newSlug)) {
+    return NextResponse.json({ error: 'That URL is reserved and cannot be used.' }, { status: 400 })
   }
 
   if (newSlug === params.workspace) {

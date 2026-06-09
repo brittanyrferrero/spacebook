@@ -597,6 +597,22 @@ function RoomDisplayPageInner() {
     return () => clearInterval(id)
   }, [fetchToday, fetchRange])
 
+  // Auto-reload when a new version is deployed
+  useEffect(() => {
+    let deployedVersion: string | null = null
+    async function checkVersion() {
+      try {
+        const res = await fetch('/api/version')
+        const { version } = await res.json()
+        if (deployedVersion === null) { deployedVersion = version; return }
+        if (version !== deployedVersion) window.location.reload()
+      } catch { /* non-fatal */ }
+    }
+    checkVersion()
+    const id = setInterval(checkVersion, 2 * 60 * 1000)
+    return () => clearInterval(id)
+  }, [])
+
   // Global tap sound + haptic for all buttons
   useEffect(() => {
     function onPress(e: PointerEvent) {
