@@ -1,5 +1,19 @@
 import { generateWorkspaceSlug } from './words'
 
+// Slugs that collide with public route segments — a workspace named any of these
+// would bypass middleware auth checks for all its API routes.
+export const RESERVED_SLUGS = new Set([
+  // top-level page segments (PUBLIC_SEGMENTS in middleware)
+  'enter', 'admin-enter', 'demo', 'demo-admin', 'landing', 'landing2',
+  'landing-classic', 'cancel', 'privacy', 'terms', 'generate',
+  'palantir', 'palantir-enter',
+  // top-level API segments (PUBLIC_API_SEGMENTS in middleware)
+  'cancel', 'workspaces', 'notify', 'demo-access', 'admin', 'palantir',
+  'delete-confirm', 'gcal', 'gcal-renew', 'version',
+  // Next.js / infrastructure
+  'api', '_next',
+])
+
 export interface Workspace {
   id: string
   slug: string
