@@ -31,10 +31,9 @@ const SESSION_TTL_S = 2 * 60 * 60 // 2 hours
 // h is in Pacific Daylight Time (UTC-7); convert to UTC so meetings appear at the right time regardless of server timezone
 function t(dayOffset: number, h: number, m = 0): string {
   const utcH = h + 7
-  const d = new Date()
-  d.setUTCDate(d.getUTCDate() + dayOffset + Math.floor(utcH / 24))
-  d.setUTCHours(utcH % 24, m, 0, 0)
-  return d.toISOString()
+  const now = new Date()
+  const todayUTC = Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate())
+  return new Date(todayUTC + (dayOffset * 24 * 60 + utcH * 60 + m) * 60_000).toISOString()
 }
 
 const ROOMS: Room[] = [
