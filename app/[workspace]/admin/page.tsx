@@ -461,7 +461,7 @@ export default function AdminPage() {
     await fetch(`${api}/rooms/${editingRoom.id}`, {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ name: editDraft.name, room_type: editDraft.room_type || null, capacity: Number(editDraft.capacity), amenities: editDraft.amenities }),
+      body: JSON.stringify({ name: editDraft.name, room_type: editDraft.room_type || null, capacity: Number(editDraft.capacity), amenities: editDraft.amenities, gcal_resource_email: editDraft.gcal_resource_email?.trim() || null }),
     })
     setEditingRoom(null)
     setEditDraft(null)
@@ -1317,7 +1317,7 @@ export default function AdminPage() {
                         style={{ fontSize: 11, padding: '4px 8px', borderRadius: 0, border: '1px solid #dddddd', background: 'none', cursor: 'pointer', color: '#6B7280', fontFamily: 'inherit' }}>
                         Block
                       </button>
-                      <button onClick={() => { setEditingRoom(r); setEditDraft({ name: r.name, room_type: r.room_type ?? '', capacity: r.capacity, amenities: [...r.amenities] }) }}
+                      <button onClick={() => { setEditingRoom(r); setEditDraft({ name: r.name, room_type: r.room_type ?? '', capacity: r.capacity, amenities: [...r.amenities], gcal_resource_email: r.gcal_resource_email ?? '' }) }}
                         style={{ fontSize: 11, padding: '4px 9px', borderRadius: 0, border: '1px solid #cccccc', background: 'none', cursor: 'pointer', color: '#6B7280' }}>
                         Edit
                       </button>
@@ -1392,7 +1392,7 @@ export default function AdminPage() {
                       <label style={lbl}>Capacity</label>
                       <input style={{ ...inp, width: '80px' }} type="number" min={1} value={editDraft.capacity} onChange={e => setEditDraft((d: any) => ({ ...d, capacity: e.target.value }))} />
                     </div>
-                    <div style={{ marginBottom: 20 }}>
+                    <div style={{ marginBottom: 12 }}>
                       <label style={lbl}>Amenities</label>
                       <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
                         {amenityOptions.map(a => {
@@ -1406,6 +1406,10 @@ export default function AdminPage() {
                           )
                         })}
                       </div>
+                    </div>
+                    <div style={{ marginBottom: 20 }}>
+                      <label style={lbl}>Cart resource email <span style={{ fontWeight: 400, color: '#9CA3AF' }}>(optional)</span></label>
+                      <input style={{ ...inp, width: '100%' }} type="email" placeholder="cart-1@yourcompany.com" value={editDraft.gcal_resource_email ?? ''} onChange={e => setEditDraft((d: any) => ({ ...d, gcal_resource_email: e.target.value }))} />
                     </div>
                     <div style={{ display: 'flex', gap: 8 }}>
                       <button onClick={() => { setEditingRoom(null); setEditDraft(null) }}

@@ -98,7 +98,7 @@ export async function PATCH(req: NextRequest, { params }: { params: { workspace:
       const bookerEmail = 'booker_email' in patch ? patch.booker_email : before.booker_email
       const title = 'title' in patch ? patch.title : before.title
       Promise.all(updatedBkgs.map(b =>
-        updateCalendarEvent(b.google_event_id, room.google_calendar_id, room.id, { start_time: b.start_time, end_time: b.end_time, title, booker_name: bookerName, booker_email: bookerEmail }, room.name)
+        updateCalendarEvent(b.google_event_id, room.google_calendar_id, room.id, { start_time: b.start_time, end_time: b.end_time, title, booker_name: bookerName, booker_email: bookerEmail }, room.name, room.gcal_resource_email)
       )).catch(() => {})
     }
 
@@ -130,7 +130,7 @@ export async function PATCH(req: NextRequest, { params }: { params: { workspace:
 
   if (data.google_event_id && before.room?.google_calendar_id) {
     const { updateCalendarEvent } = await import('@/lib/google-calendar/client')
-    updateCalendarEvent(data.google_event_id, before.room.google_calendar_id, before.room.id, data, before.room.name).catch(() => {})
+    updateCalendarEvent(data.google_event_id, before.room.google_calendar_id, before.room.id, data, before.room.name, before.room.gcal_resource_email).catch(() => {})
   }
 
   return Response.json(data)

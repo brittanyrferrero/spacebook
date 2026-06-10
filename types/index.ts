@@ -9,6 +9,7 @@ export interface Room {
   capacity: number
   amenities: Amenity[]
   google_calendar_id: string | null
+  gcal_resource_email: string | null
   gcal_connected?: boolean   // computed — true if OAuth tokens are stored for this room
   tablet_token?: string
   display_order: number

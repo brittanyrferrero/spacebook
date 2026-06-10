@@ -89,6 +89,8 @@ async function processWebhook(channelId: string) {
   const now = new Date().toISOString()
   const nowMs = Date.now()
 
+  const { data: room } = await supabase.from('rooms').select('name, gcal_resource_email').eq('id', roomId).single()
+
   for (const event of changed) {
     const googleEventId: string = event.id
 
@@ -146,7 +148,6 @@ async function processWebhook(channelId: string) {
       const organizerEmail = event.organizer?.email
       if (organizerEmail) {
         const { sendGcalConflictEmail } = await import('@/lib/email')
-        const { data: room } = await supabase.from('rooms').select('name').eq('id', roomId).single()
         sendGcalConflictEmail({
           to: organizerEmail,
           organizerName: event.organizer?.displayName ?? organizerEmail,
@@ -180,5 +181,20 @@ async function processWebhook(channelId: string) {
       google_event_id: googleEventId,
       origin: 'gcal',
     })
+
+    // Patch the GCal event to include the cart resource if not already present
+    if (room?.gcal_resource_email) {
+      const alreadyPresent = (event.attendees ?? []).some((a: any) => a.email === room.gcal_resource_email)
+      if (!alreadyPresent) {
+        calendar.events.patch({
+          calendarId: watchState.calendarId,
+          eventId: googleEventId,
+          sendUpdates: 'none',
+          requestBody: {
+            attendees: [...(event.attendees ?? []), { email: room.gcal_resource_email, resource: true }],
+          },
+        }).catch(() => {})
+      }
+    }
   }
 }
