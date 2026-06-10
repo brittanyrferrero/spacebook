@@ -173,14 +173,16 @@ To fix: disconnect and reconnect Google Calendar for any affected room via **Adm
 
 ### Reserved workspace slug segments
 
-Workspace slugs cannot collide with any value in the middleware's `PUBLIC_API_SEGMENTS` list (`middleware.ts`). The most collision-prone values to avoid:
+Workspace slugs are validated against `RESERVED_SLUGS` in `lib/workspace.ts` at rename time. A workspace named after a public route segment would cause the middleware to skip authentication for all that workspace's API routes.
 
-- `gcal` — used as a URL path segment in GCal OAuth routes (`/api/gcal/callback`)
-- `gcal-renew` — used for the cron endpoint (`/api/gcal-renew`)
+The full reserved list covers all values in `PUBLIC_API_SEGMENTS` and `PUBLIC_SEGMENTS` in `middleware.ts`, plus `api` and `_next`. Notable entries:
 
-Other reserved segments: `cancel`, `workspaces`, `notify`, `demo-access`, `admin`, `palantir`, `delete-confirm`, plus any top-level Next.js page routes (`enter`, `admin-enter`, `demo`, `demo-admin`, `landing`, `generate`, `privacy`, `terms`).
+- `version` — the deployment version polling endpoint (`/api/version`)
+- `gcal` / `gcal-renew` — GCal OAuth and cron endpoints
+- `admin`, `cancel`, `workspaces` — top-level API routes
+- `enter`, `demo`, `generate`, `privacy`, `terms` — top-level page routes
 
-The slug generator in the admin panel produces three-word slugs (e.g. `amber-oak-vale`) that do not collide with any of these. Manual renames should be checked against the full `PUBLIC_API_SEGMENTS` set in `middleware.ts`.
+The slug generator produces three-word slugs (e.g. `amber-oak-vale`) that never collide with reserved names. If you add a new public route segment to `middleware.ts`, add it to `RESERVED_SLUGS` in `lib/workspace.ts` at the same time.
 
 ### Slug renames invalidate all sessions
 
