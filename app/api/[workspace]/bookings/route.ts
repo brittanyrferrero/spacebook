@@ -6,6 +6,7 @@ import type { CreateBookingPayload } from '@/types'
 import { ratelimit, getIP } from '@/lib/ratelimit'
 import { isValidEmail } from '@/lib/email'
 import { waitUntil } from '@vercel/functions'
+import { getLimits } from '@/lib/prod-config'
 
 const rl = ratelimit(20, '1 m')
 
@@ -76,16 +77,18 @@ export async function POST(req: NextRequest, { params }: { params: { workspace: 
     return Response.json(result, { status: 201 })
   }
 
-  const { success } = await rl.limit(getIP(req))
+  const [{ success }, workspaceId, { createClient }] = await Promise.all([
+    rl.limit(getIP(req)),
+    getWorkspaceId(params.workspace),
+    import('@/lib/supabase/server'),
+  ])
   if (!success) return Response.json({ error: 'Too many requests.' }, { status: 429 })
-
-  const workspaceId = await getWorkspaceId(params.workspace)
   if (!workspaceId) return Response.json({ error: 'Workspace not found' }, { status: 404 })
-  const { createClient } = await import('@/lib/supabase/server')
-  const supabase = await createClient()
 
-  const { getLimits } = await import('@/lib/prod-config')
-  const limits = await getLimits(workspaceId)
+  const [supabase, limits] = await Promise.all([
+    createClient(),
+    getLimits(workspaceId),
+  ])
   if (limits?.max_bookings != null) {
     const { count } = await supabase.from('bookings').select('*', { count: 'exact', head: true }).eq('workspace_id', workspaceId).then(r => ({ count: r.count ?? 0 }))
     if (count >= limits.max_bookings) {
@@ -159,7 +162,7 @@ export async function POST(req: NextRequest, { params }: { params: { workspace: 
       if (!firstBooking) firstBooking = b
     }
 
-    await upsertMember()
+    waitUntil(upsertMember())
     return Response.json({ booking: firstBooking, series, conflictDates }, { status: 201 })
   }
 
