@@ -2,6 +2,8 @@
 
 ## Multi-tenancy
 
+> See [ADR-002](decisions/002-path-based-multi-tenancy.md) — why path-based workspaces instead of subdomains.
+
 Spacebook uses **path-based multi-tenancy** — every workspace lives at `/[workspace]/`. The slug in the URL is the workspace identifier and doubles as the access credential (see [Auth model](#auth-model) below).
 
 Workspace isolation is enforced at the application layer: every Supabase query filters by `workspace_id`, and every Redis key is namespaced as `ws:{workspaceId}:...`. There are no cross-workspace queries.
@@ -11,6 +13,8 @@ There are two deployed instances:
 - **Production** — real Supabase + Redis
 
 ## Auth model
+
+> See [ADR-001](decisions/001-slug-as-secret-auth.md) — why there are no user accounts and how the slug-as-secret model works. See [ADR-007](decisions/007-token-rotation.md) — why `admin_entry_token` rotates on every use and how recovery nonces work.
 
 Spacebook has no user accounts. Access works through tokens and cookies:
 
@@ -55,7 +59,15 @@ Limits are stored in Redis (`ws:{workspaceId}:limits`) and enforced at each crea
 
 The `WorkspaceLimits` interface and `TRIAL_LIMITS` constant live in `lib/prod-config.ts`.
 
+## Analytics
+
+> See [ADR-003](decisions/003-in-memory-stats.md) — why utilisation stats are computed in JavaScript rather than in SQL.
+
+The admin dashboard computes booking stats (total hours, utilisation %, concurrent occupancy, day-of-week heatmap) by fetching raw bookings for a date range and aggregating them in-memory in the API route (`app/api/[workspace]/admin/stats/route.ts`). There is no materialised view or stored aggregation.
+
 ## Google Calendar sync
+
+> See [ADR-004](decisions/004-gcal-oauth-callback-global.md) — why the GCal OAuth callback is a global route rather than workspace-scoped.
 
 Each room can be linked to a Google Calendar ID. Sync uses a Google service account — no OAuth per user.
 
