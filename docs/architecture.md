@@ -64,6 +64,20 @@ Each room can be linked to a Google Calendar ID. Sync uses a Google service acco
 - If an external event conflicts with an existing Spacebook booking, the event organiser is emailed and the conflict is rejected
 - **Spacebook is always the source of truth** — external events that conflict are not accepted
 
+## Tablet display lifecycle
+
+The room display page (`/[workspace]/room/[roomId]`) is designed to run as a permanently-open browser session on a wall-mounted tablet. Several behaviours exist specifically for this use case:
+
+**Session persistence** — tablets authenticate once via a tablet token (`/api/[workspace]/tablet-enter?room=...&t=...`), which sets a long-lived `ws_{slug}` cookie (10-year expiry). The token is stored on the room record in Supabase. Tablets do not need to re-authenticate unless the room's tablet token is regenerated.
+
+**Data refresh** — bookings are re-fetched from the API every 60 seconds so the calendar stays current without a page reload.
+
+**Inactivity reset** — after 2 minutes of no interaction, the view resets to today's day view and closes any open modals. This keeps the display tidy between uses.
+
+**Walk-in bookings** — the "BOOK NOW" path (duration buttons) creates a booking under the name `Walk-in` with a placeholder email (`walkin@tablet.spacebook.app`). No name or email is required from the user. The confirmation screen auto-dismisses after 2.8 seconds.
+
+**Deployment auto-reload** — the page polls `/api/version` every 2 minutes. On mount it captures the current `VERCEL_GIT_COMMIT_SHA`; if a subsequent poll returns a different value, it calls `window.location.reload()`. This means tablets pick up new deployments within 2 minutes automatically. See [ADR-006](decisions/006-tablet-auto-reload.md) for the decision rationale.
+
 ## Routing and middleware
 
 The Next.js middleware (`middleware.ts`) runs on every request to `/{workspace}/...`:
@@ -73,4 +87,4 @@ The Next.js middleware (`middleware.ts`) runs on every request to `/{workspace}/
 
 Admin routes additionally check for the `admin_{slug}` cookie.
 
-Tablet kiosk routes (`/[workspace]/room/[roomId]`) use a separate tablet token stored in the room record, entered once during setup.
+**Reserved slugs** — workspace slugs cannot match any segment in `PUBLIC_API_SEGMENTS` or `PUBLIC_SEGMENTS` (the middleware's public bypass lists). If they did, the middleware would skip auth for all that workspace's API routes. The full blocklist lives in `RESERVED_SLUGS` in `lib/workspace.ts` and is enforced at rename time. The slug generator produces three-word slugs (e.g. `amber-oak-vale`) that never collide with reserved names.
