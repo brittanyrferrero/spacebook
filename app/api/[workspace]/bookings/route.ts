@@ -162,7 +162,7 @@ export async function POST(req: NextRequest, { params }: { params: { workspace: 
       if (!firstBooking) firstBooking = b
     }
 
-    await upsertMember()
+    waitUntil(upsertMember())
     return Response.json({ booking: firstBooking, series, conflictDates }, { status: 201 })
   }
 
