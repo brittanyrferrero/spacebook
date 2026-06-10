@@ -35,6 +35,10 @@ export async function createCalendarEvent(booking: Booking, room: Room): Promise
   if (!auth) return null
 
   const calendar = google.calendar({ version: 'v3', auth })
+  const attendees: { email: string; displayName?: string; resource?: boolean }[] = [
+    { email: booking.booker_email, displayName: booking.booker_name },
+    ...(room.gcal_resource_email ? [{ email: room.gcal_resource_email, resource: true }] : []),
+  ]
   const event = await calendar.events.insert({
     calendarId: room.google_calendar_id,
     sendUpdates: 'none',
@@ -43,7 +47,7 @@ export async function createCalendarEvent(booking: Booking, room: Room): Promise
       description: `Booked by ${booking.booker_name} (${booking.booker_email})`,
       start: { dateTime: booking.start_time },
       end:   { dateTime: booking.end_time },
-      attendees: [{ email: booking.booker_email, displayName: booking.booker_name }],
+      attendees,
     },
   })
   return event.data.id ?? null
@@ -55,10 +59,15 @@ export async function updateCalendarEvent(
   roomId: string,
   booking: { start_time: string; end_time: string; title?: string | null; booker_name: string; booker_email: string },
   roomName: string,
+  gcalResourceEmail?: string | null,
 ): Promise<void> {
   const auth = await getAuthClient(roomId)
   if (!auth) return
 
+  const attendees: { email: string; displayName?: string; resource?: boolean }[] = [
+    { email: booking.booker_email, displayName: booking.booker_name },
+    ...(gcalResourceEmail ? [{ email: gcalResourceEmail, resource: true }] : []),
+  ]
   const calendar = google.calendar({ version: 'v3', auth })
   await calendar.events.patch({
     calendarId,
@@ -69,7 +78,7 @@ export async function updateCalendarEvent(
       description: `Booked by ${booking.booker_name} (${booking.booker_email})`,
       start: { dateTime: booking.start_time },
       end:   { dateTime: booking.end_time },
-      attendees: [{ email: booking.booker_email, displayName: booking.booker_name }],
+      attendees,
     },
   })
 }
