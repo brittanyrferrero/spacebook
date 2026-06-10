@@ -51,6 +51,7 @@ export function createRoom(store: MockStore, data: { name: string; room_type?: s
     capacity: data.capacity,
     amenities: data.amenities,
     google_calendar_id: null,
+    gcal_resource_email: null,
     tablet_token: crypto.randomUUID().replace(/-/g, '').slice(0, 8),
     display_order: Math.max(...store.rooms.map(r => r.display_order), 0) + 1,
     is_active: true,
