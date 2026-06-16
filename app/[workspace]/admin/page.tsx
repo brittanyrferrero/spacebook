@@ -214,6 +214,7 @@ export default function AdminPage() {
   const [deleteReqSending, setDeleteReqSending] = useState(false)
   const [deleteReqSent, setDeleteReqSent] = useState(false)
   const [deleteReqError, setDeleteReqError] = useState('')
+  const [outsideExpanded, setOutsideExpanded] = useState(false)
 
   const { from, to } = (customFrom && customTo) ? { from: customFrom, to: customTo } : getRange(preset)
 
@@ -847,9 +848,10 @@ export default function AdminPage() {
                     const h12 = h % 12 || 12
                     return m === 0 ? `${h12}${suffix}` : `${h12}:${m.toString().padStart(2, '0')}${suffix}`
                   }
-                  const timeSummary = outsideTimes.length <= 6
-                    ? outsideTimes.map(fmtT).join(' · ')
-                    : outsideTimes.slice(0, 6).map(fmtT).join(' · ') + ` · +${outsideTimes.length - 6} more`
+                  const PREVIEW = 6
+                  const formatted = outsideTimes.map(fmtT)
+                  const hasMore = formatted.length > PREVIEW
+                  const visible = outsideExpanded ? formatted : formatted.slice(0, PREVIEW)
                   const outsideHours = outsideTimes.map(iso => new Date(new Date(iso).getTime() - tz * 60_000).getUTCHours())
                   const suggestedStart = outsideHours.filter(h => h < dispStart).reduce((min, h) => Math.min(min, h), dispStart)
                   const suggestedEnd   = outsideHours.filter(h => h >= dispEnd).reduce((max, h) => Math.max(max, h + 1), dispEnd)
@@ -862,7 +864,14 @@ export default function AdminPage() {
                         <span style={{ fontSize: 12, fontWeight: 400, color: '#9CA3AF', marginLeft: 6 }}>{Math.round(totals.outside_display_hours / totals.total_bookings * 100)}%</span>
                       </div>
                       {outsideTimes.length > 0 && (
-                        <div style={{ fontSize: 10, color: '#C0C8D0', marginBottom: windowChanged ? 4 : 0 }}>{timeSummary}</div>
+                        <div style={{ fontSize: 10, color: '#C0C8D0', marginBottom: windowChanged ? 4 : 0 }}>
+                          {visible.join(' · ')}
+                          {hasMore && (
+                            <button onClick={() => setOutsideExpanded(e => !e)} style={{ background: 'none', border: 'none', padding: 0, marginLeft: 4, fontSize: 10, color: '#9CA3AF', cursor: 'pointer', fontFamily: 'inherit' }}>
+                              {outsideExpanded ? '· show less' : `· +${formatted.length - PREVIEW} more`}
+                            </button>
+                          )}
+                        </div>
                       )}
                       {windowChanged && (
                         <div style={{ fontSize: 10, color: '#9CA3AF' }}>
