@@ -256,13 +256,15 @@ export default function AdminPage() {
     }).catch(() => {})
   }, [])
 
-  useEffect(() => {
+  const fetchStats = useCallback(() => {
     const tzOffset = process.env.NEXT_PUBLIC_MOCK_MODE === 'true' ? 420 : new Date().getTimezoneOffset()
     let url = `${api}/admin/stats?from=${from}&to=${to}&tz=${tzOffset}`
     if (filterRoom) url += `&room_id=${filterRoom}`
     else if (filterRoomType) url += `&room_type=${encodeURIComponent(filterRoomType)}`
     fetch(url).then(r => r.json()).then(setStats)
-  }, [from, to, filterRoom, filterRoomType])
+  }, [api, from, to, filterRoom, filterRoomType])
+
+  useEffect(() => { fetchStats() }, [fetchStats])
 
   const fetchBookings = useCallback(async () => {
     setBookingsLoading(true)
@@ -875,7 +877,7 @@ export default function AdminPage() {
                       )}
                       {windowChanged && (
                         <div style={{ fontSize: 10, color: '#9CA3AF' }}>
-                          Consider <span style={{ color: '#374151', fontWeight: 500 }}>{fmtH(suggestedStart)} – {fmtH(suggestedEnd)}</span> in Settings
+                          Consider <span style={{ color: '#374151', fontWeight: 500 }}>{fmtH(suggestedStart)} – {fmtH(suggestedEnd)}</span> for Display hours in Settings
                         </div>
                       )}
                     </div>
@@ -1980,6 +1982,7 @@ export default function AdminPage() {
                         setDispSaving(true)
                         await fetch(`${api}/settings`, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ displayHours: { start: dispStart, end: dispEnd } }) })
                         setDispSaving(false); setDispSaved(true); setTimeout(() => setDispSaved(false), 2000)
+                        fetchStats()
                       }}
                       disabled={dispSaving}
                       style={{ fontSize: 12, padding: '7px 14px', borderRadius: 0, border: `1px solid ${dispSaved ? '#a3d9a5' : SAGE}`, background: dispSaved ? '#eef7f0' : 'none', cursor: dispSaving ? 'default' : 'pointer', color: dispSaved ? FREE : SAGE }}>
