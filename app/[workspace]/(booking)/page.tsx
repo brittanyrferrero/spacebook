@@ -1458,7 +1458,9 @@ export default function BookingPage() {
               <>
                 {showModal === 'later' && (
                   <div style={{ marginBottom: 12 }}>
-                    <label style={lbl}>Date</label>
+                    <label style={lbl}>
+                      Date{mDate ? <span style={{ fontWeight: 400, textTransform: 'none', letterSpacing: 0 }}> · {new Date(mDate + 'T12:00:00').toLocaleDateString('en-AU', { weekday: 'long' })}</span> : null}
+                    </label>
                     <input style={inp} type="date" value={mDate} min={todayStr} onChange={e => { setMDate(e.target.value); setSingleConflict(null) }} />
                   </div>
                 )}
