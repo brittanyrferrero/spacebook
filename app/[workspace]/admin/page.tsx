@@ -838,25 +838,31 @@ export default function AdminPage() {
                 ))}
                 {totals.outside_display_hours > 0 && (() => {
                   const fmtH = (h: number) => h >= 12 ? `${h === 12 ? 12 : h - 12}pm` : `${h}am`
-                  const outsideHours: { hour: number; total_bookings: number }[] = (hourStats ?? []).filter((h: any) => (h.hour < dispStart || h.hour >= dispEnd) && h.total_bookings > 0)
-                  const before = outsideHours.filter(h => h.hour < dispStart)
-                  const after  = outsideHours.filter(h => h.hour >= dispEnd)
-                  const suggestedStart = before.length > 0 ? before[0].hour : dispStart
-                  const suggestedEnd   = after.length > 0 ? after[after.length - 1].hour + 1 : dispEnd
+                  const tz = process.env.NEXT_PUBLIC_MOCK_MODE === 'true' ? 420 : new Date().getTimezoneOffset()
+                  const outsideTimes: string[] = (totals as any).outside_display_times ?? []
+                  const fmtT = (iso: string) => {
+                    const d = new Date(new Date(iso).getTime() - tz * 60_000)
+                    const h = d.getUTCHours(), m = d.getUTCMinutes()
+                    const suffix = h >= 12 ? 'pm' : 'am'
+                    const h12 = h % 12 || 12
+                    return m === 0 ? `${h12}${suffix}` : `${h12}:${m.toString().padStart(2, '0')}${suffix}`
+                  }
+                  const timeSummary = outsideTimes.length <= 6
+                    ? outsideTimes.map(fmtT).join(' · ')
+                    : outsideTimes.slice(0, 6).map(fmtT).join(' · ') + ` · +${outsideTimes.length - 6} more`
+                  const outsideHours = outsideTimes.map(iso => new Date(new Date(iso).getTime() - tz * 60_000).getUTCHours())
+                  const suggestedStart = outsideHours.filter(h => h < dispStart).reduce((min, h) => Math.min(min, h), dispStart)
+                  const suggestedEnd   = outsideHours.filter(h => h >= dispEnd).reduce((max, h) => Math.max(max, h + 1), dispEnd)
                   const windowChanged  = suggestedStart < dispStart || suggestedEnd > dispEnd
-                  const hourList = outsideHours.map(h => h.total_bookings === 1 ? fmtH(h.hour) : `${fmtH(h.hour)} ×${h.total_bookings}`)
-                  const hourSummary = hourList.length <= 5
-                    ? hourList.join(' · ')
-                    : hourList.slice(0, 5).join(' · ') + ` · +${hourList.length - 5} more`
                   return (
                     <div style={{ background: '#fff', borderRadius: 0, padding: 11, border: '1px solid #dddddd' }}>
                       <div style={{ fontSize: 11, color: '#9CA3AF', marginBottom: 3 }}>Outside display window</div>
-                      <div style={{ fontSize: 21, fontWeight: 500, color: NAVY, marginBottom: outsideHours.length > 0 ? 3 : windowChanged ? 6 : 0 }}>
+                      <div style={{ fontSize: 21, fontWeight: 500, color: NAVY, marginBottom: outsideTimes.length > 0 ? 3 : windowChanged ? 6 : 0 }}>
                         {totals.outside_display_hours}
                         <span style={{ fontSize: 12, fontWeight: 400, color: '#9CA3AF', marginLeft: 6 }}>{Math.round(totals.outside_display_hours / totals.total_bookings * 100)}%</span>
                       </div>
-                      {outsideHours.length > 0 && (
-                        <div style={{ fontSize: 10, color: '#C0C8D0', marginBottom: windowChanged ? 4 : 0 }}>{hourSummary}</div>
+                      {outsideTimes.length > 0 && (
+                        <div style={{ fontSize: 10, color: '#C0C8D0', marginBottom: windowChanged ? 4 : 0 }}>{timeSummary}</div>
                       )}
                       {windowChanged && (
                         <div style={{ fontSize: 10, color: '#9CA3AF' }}>

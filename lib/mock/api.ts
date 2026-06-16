@@ -378,10 +378,12 @@ export function getAdminStats(store: MockStore, from: string, to: string, roomId
   const bkStart = dispStart
   const bkEnd   = dispEnd
 
-  const outsideDisplayHours = active.filter(b => {
+  const outsideBookings = active.filter(b => {
     const h = localDate(b.start_time).getUTCHours()
     return h < bkStart || h >= bkEnd
-  }).length
+  })
+  const outsideDisplayHours = outsideBookings.length
+  const outsideDisplayTimes: string[] = outsideBookings.map(b => b.start_time).sort()
 
   // Day-of-week × hour heatmap
   const dowHourMap: number[][] = Array.from({ length: 7 }, () => Array(24).fill(0))
@@ -465,6 +467,7 @@ export function getAdminStats(store: MockStore, from: string, to: string, roomId
       avg_duration: Math.round(avgDuration * 10) / 10,
       utilisation_pct: utilisation,
       outside_display_hours: outsideDisplayHours,
+      outside_display_times: outsideDisplayTimes,
     },
     roomStats,
     hourStats,
