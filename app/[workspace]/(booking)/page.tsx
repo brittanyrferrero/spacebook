@@ -944,6 +944,25 @@ export default function BookingPage() {
     openEdit(lastCreatedBooking)
   }
 
+  async function handleInstantBook(minutes: number) {
+    if (!selectedRoom) return
+    setMSubmitting(true)
+    const start = new Date()
+    const end = new Date(start.getTime() + minutes * 60 * 1000)
+    const res = await fetch(`${api}/bookings`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ room_id: selectedRoom.id, booker_name: 'Walk-in', booker_email: 'walkin@tablet.spacebook.app', start_time: start.toISOString(), end_time: end.toISOString(), title: 'Occupied', origin: 'desktop' }),
+    })
+    if (res.ok) {
+      setMError(''); setShowModal(null); fetchSidebar(); fetchRange()
+    } else {
+      const body = await res.json().catch(() => ({}))
+      setMError(body.error ?? 'Something went wrong. Please try again.')
+    }
+    setMSubmitting(false)
+  }
+
   async function handleConflictBook(date: string, type: 'next' | 'alt') {
     const res = conflictResolutions.find(r => r.date === date)
     if (!res || res.status !== 'idle') return
@@ -1027,7 +1046,7 @@ export default function BookingPage() {
     const startTime = new Date(`${mDate}T${mTime}`).toISOString()
     const endTime   = new Date(`${mDate}T${mEndTime}`).toISOString()
     if (endTime <= startTime) { setMSubmitting(false); return }
-    if (new Date(startTime) < now) { setMError('Start time is in the past.'); setMSubmitting(false); return }
+    if (showModal === 'later' && new Date(startTime) < now) { setMError('Start time is in the past.'); setMSubmitting(false); return }
     const jsDay = new Date(`${mDate}T00:00:00`).getDay()
     const isoDay = jsDay === 0 ? 7 : jsDay
     const recurrence = (showModal === 'later' && recurFreq !== 'none') ? {
@@ -1272,11 +1291,6 @@ export default function BookingPage() {
               <button
                 onClick={() => {
                   if (!isFree) { setBusyFlash(true); setTimeout(() => setBusyFlash(false), 2200); return }
-                  const t = toHHMMExact(new Date())
-                  const [h, m] = t.split(':').map(Number)
-                  const et = Math.min(h * 60 + m + 60, 23 * 60)
-                  setMDate(todayStr); setMTime(t)
-                  setMEndTime(`${String(Math.floor(et / 60)).padStart(2, '0')}:${String(et % 60).padStart(2, '0')}`)
                   setMError(''); setShowModal('now'); setMDone(false)
                 }}
                 style={{ background: isFree ? roseGrad : 'transparent', color: isFree ? '#fff' : T.textMuted, border: isFree ? 'none' : `1px solid ${T.inputBorder}`, borderRadius: 0, padding: '12px 28px', fontSize: 14, fontWeight: 600, cursor: 'pointer', whiteSpace: 'nowrap', letterSpacing: '0.02em', textDecoration: isFree ? 'none' : 'line-through' }}>
@@ -1420,13 +1434,28 @@ export default function BookingPage() {
                   </button>
                 </div>
               </div>
+            ) : showModal === 'now' ? (
+              <>
+                <div style={{ fontSize: 17, fontWeight: 700, marginBottom: 6, color: dark ? T.text : NAVY, letterSpacing: '-0.02em' }}>
+                  {txt.bookNow} <span style={{ color: ROSE }}>·</span> {selectedRoom?.name}
+                </div>
+                <div style={{ fontSize: 13, color: T.textMuted, marginBottom: 20 }}>How long do you need?</div>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                  {[15, 30, 45, 60, 120].map(mins => (
+                    <button key={mins} onClick={() => handleInstantBook(mins)} disabled={mSubmitting}
+                      style={{ width: '100%', padding: '14px', fontSize: 15, fontWeight: 500, background: T.modalBg, border: `1px solid ${T.inputBorder}`, borderRadius: 0, cursor: mSubmitting ? 'default' : 'pointer', color: T.text, fontFamily: 'inherit', opacity: mSubmitting ? 0.6 : 1 }}>
+                      {mins < 60 ? `${mins} min` : mins === 60 ? '1 hour' : `${mins / 60} hours`}
+                    </button>
+                  ))}
+                </div>
+                {mError && <div style={{ marginTop: 12, fontSize: 13, color: '#b91c1c', textAlign: 'center' }}>{mError}</div>}
+                <button onClick={() => { setShowModal(null); setMError('') }}
+                  style={{ width: '100%', marginTop: 14, background: 'none', border: 'none', fontSize: 13, color: T.textMuted, cursor: 'pointer', padding: '6px 0' }}>
+                  Cancel
+                </button>
+              </>
             ) : (
               <>
-                {showModal === 'now' && (
-                  <div style={{ fontSize: 17, fontWeight: 700, marginBottom: 20, color: dark ? T.text : NAVY, letterSpacing: '-0.02em' }}>
-                    {txt.bookNow} <span style={{ color: ROSE }}>·</span> {selectedRoom?.name}
-                  </div>
-                )}
                 {showModal === 'later' && (
                   <div style={{ marginBottom: 12 }}>
                     <label style={lbl}>Date</label>

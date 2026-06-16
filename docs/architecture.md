@@ -86,9 +86,22 @@ The room display page (`/[workspace]/room/[roomId]`) is designed to run as a per
 
 **Inactivity reset** — after 2 minutes of no interaction, the view resets to today's day view and closes any open modals. This keeps the display tidy between uses.
 
-**Walk-in bookings** — the "BOOK NOW" path (duration buttons) creates a booking under the name `Walk-in` with a placeholder email (`walkin@tablet.spacebook.app`). No name or email is required from the user. The confirmation screen auto-dismisses after 2.8 seconds.
+**Walk-in bookings** — the "BOOK NOW" path (duration buttons) creates a booking under the name `Walk-in` with a placeholder email (`walkin@tablet.spacebook.app`). No name or email is required from the user. The confirmation screen auto-dismisses after 2.8 seconds. This path calls `handleWalkIn`, which sends `new Date()` directly — no 15-minute snapping, no past-time guard. See below for how the desktop "Book Now" differs.
 
 **Deployment auto-reload** — the page polls `/api/version` every 2 minutes. On mount it captures the current `VERCEL_GIT_COMMIT_SHA`; if a subsequent poll returns a different value, it calls `window.location.reload()`. This means tablets pick up new deployments within 2 minutes automatically. See [ADR-006](decisions/006-tablet-auto-reload.md) for the decision rationale.
+
+## Desktop "Book Now" and "Schedule for later"
+
+> See [ADR-008](decisions/008-book-now-time-semantics.md) — why "Book Now" uses retroactive slot timing and why past-time validation must not apply to it.
+
+The main booking page (`app/[workspace]/(booking)/page.tsx`) has two booking paths that share a single submit function, `handleQuickBook`:
+
+- **"Book Now"** (`showModal === 'now'`): the user is already in the room. Start time is floored to the most recent 15-minute slot (e.g. at 5:13 → "05:00"); end time defaults to nearest 15-minute increment to now + 60 min (e.g. "06:15"). The booking retroactively claims the slot from its start.
+- **"Schedule for later"** (`showModal === 'later'`): the user picks a future date and time. A past-time guard rejects start times earlier than the current moment.
+
+**Critical invariant:** any validation in `handleQuickBook` that checks whether a time is in the past must be guarded by `showModal === 'later'`. "Book Now" start times are intentionally in the recent past.
+
+This is different from the tablet walk-in path, which uses `handleWalkIn` and sends `new Date()` directly.
 
 ## Routing and middleware
 
