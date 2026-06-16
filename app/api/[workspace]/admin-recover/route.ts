@@ -18,7 +18,7 @@ export async function POST(req: NextRequest, { params }: { params: { workspace: 
   if (role) {
     const { setRecoveryNonce } = await import('@/lib/prod-config')
     const nonce = crypto.randomUUID()
-    await setRecoveryNonce(workspace.id, nonce)
+    await setRecoveryNonce(workspace.id, nonce, lower)
     const origin = appUrl()
     const url = `${origin}/admin-enter/${workspace.slug}/${nonce}`
     const { sendAdminRecoveryEmail } = await import('@/lib/email')

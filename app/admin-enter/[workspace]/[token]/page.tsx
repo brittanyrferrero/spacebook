@@ -16,13 +16,18 @@ export default function AdminEnterPage() {
   useEffect(() => {
     fetch(`${api}/admin-enter`).then(r => r.json()).then(({ unclaimed }) => {
       if (!unclaimed) {
+        // For non-unclaimed workspaces: try auto-verify. Recovery nonces carry the
+        // admin's email server-side so no re-entry is needed. Fall back to form if
+        // the token is a permanent token (email required) or localStorage has it.
         try {
           const saved = localStorage.getItem('spacebook_user')
-          if (saved) {
-            const savedEmail = JSON.parse(saved).email ?? ''
-            if (savedEmail) { verify(savedEmail); return }
-          }
-        } catch {}
+          const savedEmail = saved ? (JSON.parse(saved).email ?? '') : ''
+          verify(savedEmail)
+          return
+        } catch {
+          verify('')
+          return
+        }
       }
       setUnclaimed(unclaimed)
     })
@@ -44,6 +49,13 @@ export default function AdminEnterPage() {
       }
     } else {
       const body = await res.json().catch(() => ({}))
+      // "Email is required" means this is a permanent token with no stored email —
+      // fall back to showing the form rather than displaying an error.
+      if (body.error === 'Email is required.' && !emailToVerify) {
+        setUnclaimed(false)
+        setSubmitting(false)
+        return
+      }
       setError(body.error ?? 'Access denied.')
       setUnclaimed(false)
       setSubmitting(false)
