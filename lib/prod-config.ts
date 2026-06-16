@@ -143,14 +143,20 @@ export async function isWorkspaceUnclaimed(workspaceId: string): Promise<boolean
 // Short-lived one-time tokens used in recovery emails. Each nonce expires after
 // 1 hour and is consumed on first use, preventing replay via email/browser history.
 
-export async function setRecoveryNonce(workspaceId: string, nonce: string): Promise<void> {
-  await kv().set(`recovery:nonce:${nonce}`, workspaceId, { ex: 3600 })
+export async function setRecoveryNonce(workspaceId: string, nonce: string, email: string): Promise<void> {
+  await kv().set(`recovery:nonce:${nonce}`, JSON.stringify({ workspaceId, email }), { ex: 3600 })
 }
 
-export async function verifyAndConsumeRecoveryNonce(nonce: string): Promise<string | null> {
+export async function verifyAndConsumeRecoveryNonce(nonce: string): Promise<{ workspaceId: string; email: string } | null> {
   const key = `recovery:nonce:${nonce}`
-  const workspaceId = await kv().get<string>(key)
-  if (!workspaceId) return null
+  const raw = await kv().get<string>(key)
+  if (!raw) return null
   await kv().del(key)
-  return workspaceId
+  try {
+    const parsed = typeof raw === 'object' ? raw : JSON.parse(raw as string)
+    if (typeof parsed === 'string') return { workspaceId: parsed, email: '' } // legacy format
+    return parsed as { workspaceId: string; email: string }
+  } catch {
+    return null
+  }
 }

@@ -15,9 +15,8 @@ export async function GET(_req: NextRequest, { params }: { params: { workspace: 
 }
 
 export async function POST(req: NextRequest, { params }: { params: { workspace: string } }) {
-  const { email, token } = await req.json()
-  if (!email || !token) return NextResponse.json({ error: 'Missing fields.' }, { status: 400 })
-  if (!isValidEmail(email)) return NextResponse.json({ error: 'Invalid email address.' }, { status: 400 })
+  const { email: emailFromBody, token } = await req.json()
+  if (!token) return NextResponse.json({ error: 'Missing fields.' }, { status: 400 })
 
   if (process.env.MOCK_MODE === 'true') {
     const cookieStore = await cookies()
@@ -38,12 +37,21 @@ export async function POST(req: NextRequest, { params }: { params: { workspace: 
   // Accept either the permanent admin_entry_token (for initial claims) or a
   // short-lived recovery nonce (consumed on use so replays are rejected).
   const isPermanentToken = token === workspace.admin_entry_token
-  const recoveredWorkspaceId = isPermanentToken ? null : await verifyAndConsumeRecoveryNonce(token)
-  if (!isPermanentToken && recoveredWorkspaceId !== workspace.id) {
-    return NextResponse.json({ error: 'Invalid entry link.' }, { status: 403 })
+  let emailFromNonce = ''
+  if (!isPermanentToken) {
+    const nonce = await verifyAndConsumeRecoveryNonce(token)
+    if (!nonce || nonce.workspaceId !== workspace.id) {
+      return NextResponse.json({ error: 'Invalid entry link.' }, { status: 403 })
+    }
+    emailFromNonce = nonce.email
   }
 
-  const lower = email.trim().toLowerCase()
+  // Body email takes precedence (explicit re-entry); fall back to nonce-stored email.
+  const rawEmail = ((emailFromBody as string | undefined)?.trim() || emailFromNonce).toLowerCase()
+  if (!rawEmail) return NextResponse.json({ error: 'Email is required.' }, { status: 400 })
+  if (!isValidEmail(rawEmail)) return NextResponse.json({ error: 'Invalid email address.' }, { status: 400 })
+
+  const lower = rawEmail
   const workspaceId = workspace.id
 
   if (await isWorkspaceUnclaimed(workspaceId)) {
