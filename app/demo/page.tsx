@@ -1,4 +1,4 @@
-import LandingPage from '../landing-classic/page'
+import LandingPage from '../home/page'
 
 export default function DemoPage() {
   return (

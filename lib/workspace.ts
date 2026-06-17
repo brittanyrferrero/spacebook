@@ -5,7 +5,7 @@ import { generateWorkspaceSlug } from './words'
 export const RESERVED_SLUGS = new Set([
   // top-level page segments (PUBLIC_SEGMENTS in middleware)
   'enter', 'admin-enter', 'demo', 'demo-admin', 'landing', 'landing2',
-  'landing-classic', 'cancel', 'privacy', 'terms', 'generate',
+  'home', 'cancel', 'privacy', 'terms', 'generate',
   'palantir', 'palantir-enter',
   // top-level API segments (PUBLIC_API_SEGMENTS in middleware)
   'cancel', 'workspaces', 'notify', 'demo-access', 'admin', 'palantir',
@@ -35,14 +35,16 @@ export async function getWorkspaceBySlug(slug: string): Promise<Workspace | null
   return data ?? null
 }
 
-export async function createWorkspace(name?: string): Promise<Workspace> {
+export async function createWorkspace(name?: string, preferredSlug?: string): Promise<Workspace> {
   const supabase = await getSupabase()
-  let slug = generateWorkspaceSlug()
-  // Retry if slug already taken (very unlikely but safe)
-  for (let i = 0; i < 5; i++) {
-    const { data } = await supabase.from('workspaces').select('id').eq('slug', slug).single()
-    if (!data) break
-    slug = generateWorkspaceSlug()
+  let slug = preferredSlug ?? generateWorkspaceSlug()
+  if (!preferredSlug) {
+    // Retry if slug already taken (very unlikely but safe)
+    for (let i = 0; i < 5; i++) {
+      const { data } = await supabase.from('workspaces').select('id').eq('slug', slug).single()
+      if (!data) break
+      slug = generateWorkspaceSlug()
+    }
   }
   const adminEntryToken = crypto.randomUUID()
   const { data, error } = await supabase
