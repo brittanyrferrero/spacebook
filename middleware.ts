@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server'
 import type { NextRequest } from 'next/server'
 
 // Non-workspace top-level path segments
-const PUBLIC_SEGMENTS = new Set(['enter', 'admin-enter', 'demo', 'demo-admin', 'landing', 'landing2', 'landing-classic', 'cancel', 'privacy', 'terms', 'generate', 'palantir', 'palantir-enter'])
+const PUBLIC_SEGMENTS = new Set(['enter', 'admin-enter', 'demo', 'demo-admin', 'landing', 'landing2', 'home', 'cancel', 'privacy', 'terms', 'generate', 'palantir', 'palantir-enter'])
 // Non-workspace API sub-paths (second segment after /api/)
 const PUBLIC_API_SEGMENTS = new Set(['cancel', 'workspaces', 'notify', 'demo-access', 'admin', 'palantir', 'delete-confirm', 'gcal', 'gcal-renew', 'version'])
 // Public workspace-scoped API routes (third segment after /api/[workspace]/)
