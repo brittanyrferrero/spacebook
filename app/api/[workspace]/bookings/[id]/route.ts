@@ -62,6 +62,11 @@ export async function PATCH(req: NextRequest, { params }: { params: { workspace:
   const { data: before } = await supabase.from('bookings').select('*, room:rooms(*)').eq('id', params.id).eq('workspace_id', workspaceId).single()
   if (!before) return Response.json({ error: 'Booking not found' }, { status: 404 })
 
+  const isAdmin = !!req.cookies.get(`admin_${params.workspace}`)?.value
+  const mbEmail = req.cookies.get(`mb_${params.workspace}`)?.value
+  const isOwner = mbEmail && mbEmail.toLowerCase() === before.booker_email.toLowerCase()
+  if (!isAdmin && !isOwner) return Response.json({ error: 'Forbidden.' }, { status: 403 })
+
   if (_scope === 'future' && before.recurring_series_id && patch.start_time && patch.end_time) {
     const newS = new Date(patch.start_time), newE = new Date(patch.end_time)
     const durMs = newE.getTime() - newS.getTime()
@@ -136,7 +141,7 @@ export async function PATCH(req: NextRequest, { params }: { params: { workspace:
   return Response.json(data)
 }
 
-export async function DELETE(_req: NextRequest, { params }: { params: { workspace: string; id: string } }) {
+export async function DELETE(req: NextRequest, { params }: { params: { workspace: string; id: string } }) {
   if (process.env.MOCK_MODE === 'true') {
     const [{ cancelBooking, getBookingById }, { getSessionStore, saveSessionStore }] = await Promise.all([import('@/lib/mock/api'), import('@/lib/mock/store')])
     const store = await getSessionStore()
@@ -155,6 +160,11 @@ export async function DELETE(_req: NextRequest, { params }: { params: { workspac
 
   const { data: booking } = await supabase.from('bookings').select('*, room:rooms(*)').eq('id', params.id).eq('workspace_id', workspaceId).single()
   if (!booking) return Response.json({ error: 'Not found' }, { status: 404 })
+
+  const isAdmin = !!req.cookies.get(`admin_${params.workspace}`)?.value
+  const mbEmail = req.cookies.get(`mb_${params.workspace}`)?.value
+  const isOwner = mbEmail && mbEmail.toLowerCase() === booking.booker_email.toLowerCase()
+  if (!isAdmin && !isOwner) return Response.json({ error: 'Forbidden.' }, { status: 403 })
 
   const { error } = await supabase.from('bookings').update({ cancelled_at: new Date().toISOString() }).eq('id', params.id).eq('workspace_id', workspaceId)
   if (error) return Response.json({ error: error.message }, { status: 500 })

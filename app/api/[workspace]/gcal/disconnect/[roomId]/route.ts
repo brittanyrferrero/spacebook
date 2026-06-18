@@ -1,6 +1,24 @@
 import { type NextRequest } from 'next/server'
+import { getWorkspaceId } from '@/lib/workspace'
 
-export async function DELETE(_req: NextRequest, { params }: { params: { roomId: string } }) {
+export async function DELETE(req: NextRequest, { params }: { params: { workspace: string; roomId: string } }) {
+  const adminRole = req.cookies.get(`admin_${params.workspace}`)?.value
+  if (!adminRole) return Response.json({ error: 'Admin required.' }, { status: 403 })
+
+  if (process.env.MOCK_MODE === 'true') {
+    const { removeTokens } = await import('@/lib/google-calendar/tokenStore')
+    await removeTokens(params.roomId)
+    return Response.json({ disconnected: true })
+  }
+
+  // Verify the room belongs to this workspace before touching KV/GCal
+  const workspaceId = await getWorkspaceId(params.workspace)
+  if (!workspaceId) return Response.json({ error: 'Workspace not found.' }, { status: 404 })
+  const { createClient } = await import('@/lib/supabase/server')
+  const supabase = await createClient()
+  const { data: room } = await supabase.from('rooms').select('id').eq('id', params.roomId).eq('workspace_id', workspaceId).single()
+  if (!room) return Response.json({ error: 'Room not found.' }, { status: 404 })
+
   const [{ removeTokens }, { getWatchState, removeWatchState }] = await Promise.all([
     import('@/lib/google-calendar/tokenStore'),
     import('@/lib/google-calendar/watchStore'),
