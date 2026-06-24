@@ -12,6 +12,11 @@ const SAGE = '#5C7A6B'; const SAGE_LIGHT = '#eef7f1'
 const NAVY = '#111111'; const NAVY_LIGHT = '#f0f0f0'
 const FREE = '#3B7A4A'; const BUSY = '#B94040'
 
+const canonicalOrigin = () =>
+  process.env.NEXT_PUBLIC_APP_URL ||
+  process.env.NEXT_PUBLIC_BASE_URL ||
+  (typeof window !== 'undefined' ? window.location.origin : '')
+
 type Preset = '7d' | '30d' | 'month' | 'quarter'
 type Nav = 'Overview' | 'Bookings' | 'Rooms' | 'Members' | 'Settings'
 
@@ -692,7 +697,7 @@ export default function AdminPage() {
   const maxRoomHours = Math.max(...roomStats.map((r: any) => r.total_hours), 0.1)
   const maxHour = Math.max(...hourStats.map((h: any) => h.total_bookings), 1)
 
-  const inp: React.CSSProperties = { fontSize: 13, padding: '5px 8px', border: '1px solid #cccccc', borderRadius: 0, outline: 'none', fontFamily: 'inherit', background: '#fff' }
+  const inp: React.CSSProperties = { fontSize: 13, padding: '5px 8px', border: '1px solid #cccccc', borderRadius: 0, outline: 'none', fontFamily: 'inherit', background: '#fff', color: '#111111' }
   const lbl: React.CSSProperties = { fontSize: 11, color: '#6B7280', fontWeight: 500, display: 'block', marginBottom: 3 }
   const showDateRange = nav === 'Overview' || nav === 'Bookings'
   const fmtJoined = (iso: string) => new Date(iso).toLocaleDateString('en-AU', { day: 'numeric', month: 'short', year: 'numeric' })
@@ -1312,7 +1317,7 @@ export default function AdminPage() {
                       {r.tablet_token && (
                         <button
                           onClick={() => {
-                            const url = `${window.location.origin}/api/${workspace}/t/${r.tablet_token}`
+                            const url = `${canonicalOrigin()}/api/${workspace}/t/${r.tablet_token}`
                             navigator.clipboard.writeText(url).then(() => {
                               setCopiedTabletRoomId(r.id)
                               setTimeout(() => setCopiedTabletRoomId(null), 2000)
@@ -1954,7 +1959,7 @@ export default function AdminPage() {
 
               {(() => {
                 const fmtH = (h: number) => h === 0 ? '12 AM' : h < 12 ? `${h} AM` : h === 12 ? '12 PM' : `${h - 12} PM`
-                const selStyle = { fontSize: 12, padding: '6px 8px', border: '1px solid #dddddd', borderRadius: 0, outline: 'none', fontFamily: 'inherit', background: '#fff', cursor: 'pointer' }
+                const selStyle = { fontSize: 12, padding: '6px 8px', border: '1px solid #dddddd', borderRadius: 0, outline: 'none', fontFamily: 'inherit', background: '#fff', cursor: 'pointer', color: '#111111' }
                 return (<>
                   <div style={{ background: '#fff', border: '1px solid #dddddd', borderRadius: 0, padding: 16, marginBottom: 10 }}>
                     <div style={{ fontSize: 12, fontWeight: 500, color: '#374151', marginBottom: 4 }}>Display hours</div>
@@ -2201,7 +2206,7 @@ export default function AdminPage() {
 function EntryLinkCard({ workspace, adminEntryToken }: { workspace: string; adminEntryToken: string | null }) {
   const [copiedTeam, setCopiedTeam] = useState(false)
   const [copiedAdmin, setCopiedAdmin] = useState(false)
-  const origin = typeof window !== 'undefined' ? window.location.origin : ''
+  const origin = canonicalOrigin()
   const teamLink = `${origin}/enter/${workspace}`
   const adminLink = adminEntryToken ? `${origin}/admin-enter/${workspace}/${adminEntryToken}` : null
 
