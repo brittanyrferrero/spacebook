@@ -698,7 +698,7 @@ export default function AdminPage() {
   const maxHour = Math.max(...hourStats.map((h: any) => h.total_bookings), 1)
 
   const inp: React.CSSProperties = { fontSize: 13, padding: '5px 8px', border: '1px solid #cccccc', borderRadius: 0, outline: 'none', fontFamily: 'inherit', background: '#fff', color: '#111111' }
-  const lbl: React.CSSProperties = { fontSize: 11, color: '#6B7280', fontWeight: 500, display: 'block', marginBottom: 3 }
+  const lbl: React.CSSProperties = { fontSize: 11, color: '#374151', fontWeight: 500, display: 'block', marginBottom: 3 }
   const showDateRange = nav === 'Overview' || nav === 'Bookings'
   const fmtJoined = (iso: string) => new Date(iso).toLocaleDateString('en-AU', { day: 'numeric', month: 'short', year: 'numeric' })
 
@@ -1963,17 +1963,17 @@ export default function AdminPage() {
                 return (<>
                   <div style={{ background: '#fff', border: '1px solid #dddddd', borderRadius: 0, padding: 16, marginBottom: 10 }}>
                     <div style={{ fontSize: 12, fontWeight: 500, color: '#374151', marginBottom: 4 }}>Display hours</div>
-                    <div style={{ fontSize: 12, color: '#9CA3AF', marginBottom: 12 }}>The time range shown in the calendar grid. Drives the heatmap stats.</div>
+                    <div style={{ fontSize: 12, color: '#4B5563', marginBottom: 12 }}>The time range shown in the calendar grid. Drives the heatmap stats.</div>
                     <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 12 }}>
                       <div>
-                        <div style={{ fontSize: 11, color: '#6B7280', marginBottom: 4 }}>From</div>
+                        <div style={{ fontSize: 11, color: '#374151', marginBottom: 4 }}>From</div>
                         <select value={dispStart} onChange={e => setDispStart(Number(e.target.value))} style={selStyle}>
                           {Array.from({ length: 24 }, (_, h) => <option key={h} value={h} disabled={h >= dispEnd - 1}>{fmtH(h)}</option>)}
                         </select>
                       </div>
-                      <div style={{ fontSize: 12, color: '#9CA3AF', paddingTop: 18 }}>to</div>
+                      <div style={{ fontSize: 12, color: '#4B5563', paddingTop: 18 }}>to</div>
                       <div>
-                        <div style={{ fontSize: 11, color: '#6B7280', marginBottom: 4 }}>To</div>
+                        <div style={{ fontSize: 11, color: '#374151', marginBottom: 4 }}>To</div>
                         <select value={dispEnd} onChange={e => setDispEnd(Number(e.target.value))} style={selStyle}>
                           {Array.from({ length: 24 }, (_, h) => <option key={h} value={h} disabled={h <= dispStart + 1}>{fmtH(h)}</option>)}
                         </select>
@@ -1994,17 +1994,17 @@ export default function AdminPage() {
 
                   <div style={{ background: '#fff', border: '1px solid #dddddd', borderRadius: 0, padding: 16 }}>
                     <div style={{ fontSize: 12, fontWeight: 500, color: '#374151', marginBottom: 4 }}>Data collection window</div>
-                    <div style={{ fontSize: 12, color: '#9CA3AF', marginBottom: 12 }}>The full range used for utilisation and stats — early and late bookings outside display hours are counted separately.</div>
+                    <div style={{ fontSize: 12, color: '#4B5563', marginBottom: 12 }}>The full range used for utilisation and stats — early and late bookings outside display hours are counted separately.</div>
                     <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 12 }}>
                       <div>
-                        <div style={{ fontSize: 11, color: '#6B7280', marginBottom: 4 }}>From</div>
+                        <div style={{ fontSize: 11, color: '#374151', marginBottom: 4 }}>From</div>
                         <select value={bhStart} onChange={e => setBhStart(Number(e.target.value))} style={selStyle}>
                           {Array.from({ length: 24 }, (_, h) => <option key={h} value={h} disabled={h >= bhEnd - 1}>{fmtH(h)}</option>)}
                         </select>
                       </div>
-                      <div style={{ fontSize: 12, color: '#9CA3AF', paddingTop: 18 }}>to</div>
+                      <div style={{ fontSize: 12, color: '#4B5563', paddingTop: 18 }}>to</div>
                       <div>
-                        <div style={{ fontSize: 11, color: '#6B7280', marginBottom: 4 }}>To</div>
+                        <div style={{ fontSize: 11, color: '#374151', marginBottom: 4 }}>To</div>
                         <select value={bhEnd} onChange={e => setBhEnd(Number(e.target.value))} style={selStyle}>
                           {Array.from({ length: 24 }, (_, h) => <option key={h} value={h} disabled={h <= bhStart + 1}>{fmtH(h)}</option>)}
                         </select>

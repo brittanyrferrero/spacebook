@@ -87,7 +87,7 @@ function mkT(dark: boolean) {
     textFaint:       dark ? '#464646'                   : '#aaaaaa',
     navBg:           dark ? '#0e0e0e'                   : '#ffffff',
     navText:         dark ? '#ffffff'                   : '#111111',
-    navSub:          dark ? 'rgba(255,255,255,0.42)'    : 'rgba(0,0,0,0.42)',
+    navSub:          dark ? 'rgba(255,255,255,0.55)'    : 'rgba(0,0,0,0.55)',
     navBorder:       dark ? '1px solid #222222'         : '1px solid #e4e4e4',
     activeRoom:      dark ? 'rgba(59,122,74,0.18)'      : 'rgba(59,122,74,0.10)',
     activeBorder:    FREE_BAR,
@@ -706,7 +706,7 @@ function AllRoomsDayView({ bookings, rooms, viewDate, onRoomSlotClick, onBooking
                       zIndex: 2, cursor: 'pointer', overflow: 'hidden',
                       display: 'flex', alignItems: 'center', padding: '0 10px 0 12px', gap: 6,
                     }}>
-                    <span style={{ fontSize: 11, fontWeight: 600, color: isPast ? 'rgba(200,200,200,0.8)' : '#ffffff', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', flex: 1, minWidth: 0 }}>
+                    <span style={{ fontSize: 11, fontWeight: 600, color: '#ffffff', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', flex: 1, minWidth: 0 }}>
                       {b.booker_name}
                     </span>
                   </div>
