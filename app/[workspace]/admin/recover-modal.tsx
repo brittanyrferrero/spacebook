@@ -60,7 +60,7 @@ export default function AdminRecoverModal({ workspace }: { workspace: string }) 
                 style={{
                   width: '100%', padding: '10px 12px', fontSize: 14,
                   border: '1px solid #E5E7EB', borderRadius: 8,
-                  marginBottom: 12, boxSizing: 'border-box', outline: 'none',
+                  marginBottom: 12, boxSizing: 'border-box', outline: 'none', color: '#111827',
                 }}
               />
               {error && <div style={{ fontSize: 13, color: '#C0392B', marginBottom: 10 }}>{error}</div>}
