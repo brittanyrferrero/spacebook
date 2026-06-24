@@ -3,11 +3,15 @@ import type { NextRequest } from 'next/server'
 import { getWorkspaceId } from '@/lib/workspace'
 import { isValidEmail } from '@/lib/email'
 
-export async function GET(_req: NextRequest, { params }: { params: { workspace: string } }) {
+export async function GET(req: NextRequest, { params }: { params: { workspace: string } }) {
   if (process.env.MOCK_MODE === 'true') {
     const [{ getMembers }, { getSessionStore }] = await Promise.all([import('@/lib/mock/api'), import('@/lib/mock/store')])
     return NextResponse.json(getMembers(await getSessionStore()))
   }
+
+  const adminRole = req.cookies.get(`admin_${params.workspace}`)?.value
+  if (!adminRole) return NextResponse.json({ error: 'Admin required.' }, { status: 403 })
+
   const workspaceId = await getWorkspaceId(params.workspace)
   if (!workspaceId) return NextResponse.json({ error: 'Workspace not found' }, { status: 404 })
   const { createClient } = await import('@/lib/supabase/server')

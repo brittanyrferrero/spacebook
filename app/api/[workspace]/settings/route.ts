@@ -15,6 +15,7 @@ export async function GET(req: NextRequest, { params }: { params: { workspace: s
       displayHours: store.displayHours ?? DEFAULT_DISPLAY_HOURS,
       bookingVisibility: store.bookingVisibility ?? DEFAULT_VISIBILITY,
       countWeekends: store.countWeekends ?? false,
+      workspaceName: store.workspaceName ?? 'Intelligence',
       ...(isAdmin && { adminEntryToken: 'mock-token' }),
     })
   }

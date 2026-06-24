@@ -24,10 +24,51 @@ Spacebook has no user accounts. Access works through tokens and cookies:
 | **Workspace admin** | Visits `/{workspace}/admin` and enters the admin password; gets an `admin_{slug}` cookie valid for 7 days |
 | **New workspace** | Creator visits `/generate`, is redirected to `/admin-enter/{slug}/{token}` to claim it; first claimer becomes `super_admin` |
 | **Palantir super-admin** | Requests a magic link via email at `/palantir/enter` |
+| **Booking owner** | Follows a magic link to `/{workspace}/my-bookings` — a single-use KV token verifies their email and sets an `mb_{slug}` httpOnly cookie scoped to that workspace |
 
 Session cookies are validated against tokens stored in Redis — a slug rename immediately invalidates all existing sessions because the token changes.
 
 Admin roles (`admin`, `super_admin`) are stored per-workspace in Redis under `ws:{workspaceId}:cfg:admins`.
+
+The `mb_{workspace}` cookie is the only proof-of-identity Spacebook issues to non-admin users. It is set server-side (`httpOnly`, `secure`, `SameSite=lax`) after a verified magic-link flow and cannot be forged by clients. API routes use it for booking ownership checks — a booker can edit or cancel their own bookings without being an admin. The ownership check always fetches the booking from Supabase first (workspace-scoped), then compares `booking.booker_email` against the cookie value.
+
+### Admin guard placement in API routes
+
+> See [ADR-009](decisions/009-mock-mode-admin-guard-placement.md) — the MOCK_MODE footgun and the rule for placing admin guards.
+
+API routes that gate on admin access **must** place the admin cookie check **after** any `MOCK_MODE` early return:
+
+```ts
+// ✅ CORRECT
+export async function GET(req, { params }) {
+  if (process.env.MOCK_MODE === 'true') {
+    return Response.json(getMockData())   // demo path — no admin cookie exists
+  }
+  const adminRole = req.cookies.get(`admin_${params.workspace}`)?.value
+  if (!adminRole) return Response.json({ error: 'Admin required.' }, { status: 403 })
+  // ... production path
+}
+
+// ❌ WRONG — breaks the demo admin panel
+export async function GET(req, { params }) {
+  const adminRole = req.cookies.get(`admin_${params.workspace}`)?.value
+  if (!adminRole) return Response.json({ error: 'Admin required.' }, { status: 403 })
+  if (process.env.MOCK_MODE === 'true') { ... }
+}
+```
+
+The demo admin panel (reachable via `/demo-admin`) sets a session cookie but never sets an `admin_{slug}` cookie — it bypasses the normal admin password flow. Placing the guard first silently breaks the demo.
+
+This rule applies to **READ routes only** (GET). Write routes that already had admin guards before MOCK_MODE branches pre-date this pattern; don't move those without testing the demo write flows.
+
+### Legacy flat routes (pre-multi-tenancy)
+
+`/api/rooms` and `/api/bookings` are flat routes from before workspace scoping was introduced. They are now **mock-only**: in non-MOCK_MODE they return `410 Gone` with `{"error":"Use workspace-scoped endpoint"}`. Do not add production logic to these routes — use `/api/[workspace]/rooms` and `/api/[workspace]/bookings` instead.
+
+### Known gaps (filed, not yet fixed)
+
+- `GET /api/[workspace]/gcal/calendars` — no admin guard ([#129](https://github.com/brittanyrferrero/spacebook/issues/129))
+- `POST /api/[workspace]/gcal/watch` — no admin guard ([#129](https://github.com/brittanyrferrero/spacebook/issues/129))
 
 ## Data model
 
@@ -102,6 +143,18 @@ The main booking page (`app/[workspace]/(booking)/page.tsx`) has two booking pat
 **Critical invariant:** any validation in `handleQuickBook` that checks whether a time is in the past must be guarded by `showModal === 'later'`. "Book Now" start times are intentionally in the recent past.
 
 This is different from the tablet walk-in path, which uses `handleWalkIn` and sends `new Date()` directly.
+
+## Design token system
+
+> See [ADR-010](decisions/010-design-token-system.md) — why tokens are a typed JS object instead of CSS variables or Tailwind, and how the preset system sets up future workspace colour customisation.
+
+The booking page uses **inline styles exclusively**. Visual constants (event colour, accent, now-line, past-time treatment) live in a `workspaceTheme` object at the top of `app/[workspace]/(booking)/page.tsx`, initialised from a `PALETTE_PRESETS` array.
+
+The existing `ROSE` and `NAVY` constants reference `workspaceTheme` — downstream code is unchanged. Dark mode colours live separately in `mkT(dark)` and are not affected by `workspaceTheme`.
+
+**Adding a new theme token:** add the key to `workspaceTheme`, consume it in the relevant inline style. Don't add new hardcoded colour hex values to the render tree — put them in a preset or in `workspaceTheme` directly.
+
+**Future workspace colour picker:** load the active preset `id` from Redis (`ws:{workspaceId}:cfg:theme`), look it up in `PALETTE_PRESETS`, and pass it as a prop or server-loaded value. The structure is already in place.
 
 ## Routing and middleware
 
