@@ -11,7 +11,11 @@ const FROM = process.env.EMAIL_FROM ?? 'spacebook <noreply@spacebook.app>'
 
 // Single canonical app URL — falls back through both env vars so either works.
 // Set NEXT_PUBLIC_APP_URL (or NEXT_PUBLIC_BASE_URL) in Vercel; keep them in sync.
-export const appUrl = () => process.env.NEXT_PUBLIC_APP_URL ?? process.env.NEXT_PUBLIC_BASE_URL ?? 'http://localhost:3000'
+// Uses || not ?? so empty-string values don't silently produce broken URLs.
+export const appUrl = () =>
+  process.env.NEXT_PUBLIC_APP_URL ||
+  process.env.NEXT_PUBLIC_BASE_URL ||
+  (process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : 'http://localhost:3000')
 
 export async function sendGcalConflictEmail({
   to,
