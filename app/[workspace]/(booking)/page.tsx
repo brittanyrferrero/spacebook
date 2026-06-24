@@ -5,10 +5,31 @@ import { useParams } from 'next/navigation'
 import type { Room, Booking } from '@/types'
 import { NameAutocomplete } from '@/components/NameAutocomplete'
 
+// ─── Design token presets ─────────────────────────────────────────────────────
+// Future: load activePresetId from workspace settings in DB
+const PALETTE_PRESETS = [
+  { id: 'ink',    label: 'Ink',    eventColor: '#2e2e2e', myEventColor: '#c98a9a', accentColor: '#1a4030' },
+  { id: 'slate',  label: 'Slate',  eventColor: '#3a4a5c', myEventColor: '#c98a9a', accentColor: '#2a3a4c' },
+  { id: 'forest', label: 'Forest', eventColor: '#2d4a38', myEventColor: '#c98a9a', accentColor: '#1a3a28' },
+  { id: 'warm',   label: 'Warm',   eventColor: '#4a3828', myEventColor: '#c98a9a', accentColor: '#6b4c30' },
+]
+const _activePreset = PALETTE_PRESETS[0]
+const workspaceTheme = {
+  eventColor:        _activePreset.eventColor,
+  myEventColor:      _activePreset.myEventColor,
+  accentColor:       _activePreset.accentColor,
+  nowLineColor:      _activePreset.accentColor,
+  nowLineWidth:      '3px',
+  pastHatching:      'repeating-linear-gradient(-45deg, rgba(0,0,0,0.052) 0, rgba(0,0,0,0.052) 1px, transparent 1px, transparent 9px)',
+  roomNameTransform: 'uppercase' as const,
+  roomNameSpacing:   '1.5px',
+  calendarRadius:    '12px',
+}
+
 // ─── Constants ────────────────────────────────────────────────────────────────
 const SAGE = '#5C7A6B'
-const NAVY = '#111111'
-const ROSE = '#db95ab'
+const NAVY = workspaceTheme.eventColor
+const ROSE = workspaceTheme.myEventColor
 const BOOK_GREEN = '#1db954'
 const FREE_BG = '#e0f0e8'; const FREE_TEXT = '#2d7a42'; const FREE_BAR = '#4d8f5c'
 const BUSY_BG = '#f0f0f0'; const BUSY_TEXT = '#333333'; const BUSY_BAR = '#555555'
@@ -64,17 +85,18 @@ function mkT(dark: boolean) {
     text:            dark ? '#e4e4e4'                   : '#111111',
     textMuted:       dark ? '#888888'                   : '#666666',
     textFaint:       dark ? '#464646'                   : '#aaaaaa',
-    navBg:           dark ? '#0e0e0e'                   : '#f0ece4',
-    navText:         dark ? '#ffffff'                   : '#1c1510',
-    navSub:          dark ? 'rgba(255,255,255,0.42)'    : 'rgba(28,21,16,0.42)',
-    navBorder:       dark ? '1px solid #222222'         : '1px solid #d8d4cc',
+    navBg:           dark ? '#0e0e0e'                   : '#ffffff',
+    navText:         dark ? '#ffffff'                   : '#111111',
+    navSub:          dark ? 'rgba(255,255,255,0.42)'    : 'rgba(0,0,0,0.42)',
+    navBorder:       dark ? '1px solid #222222'         : '1px solid #e4e4e4',
     activeRoom:      dark ? 'rgba(59,122,74,0.18)'      : 'rgba(59,122,74,0.10)',
     activeBorder:    FREE_BAR,
     bandOdd:         dark ? 'rgba(255,255,255,0.055)'   : 'rgba(0,0,0,0.015)',
     gridLine:        dark ? 'rgba(255,255,255,0.06)'    : '#e4e4e4',
     colSep:          dark ? 'rgba(255,255,255,0.06)'    : '#eeeeee',
     weekendBg:       dark ? 'rgba(0,0,0,0.09)'           : WEEKEND_BG,
-    pastBg:          dark ? 'rgba(0,0,0,0.50)'          : PAST_BG,
+    pastBg:          dark ? 'rgba(0,0,0,0.50)'          : 'transparent',
+    pastHatch:       dark ? undefined                    : workspaceTheme.pastHatching,
     pastText:        dark ? '#424242'                   : PAST_TEXT,
     blockBg:         dark ? '#303a4a'                   : '#dce0e6',
     blockBorder:     dark ? '#4c607a'                   : '#5a6e84',
@@ -85,7 +107,7 @@ function mkT(dark: boolean) {
     inputBorder:     dark ? '#2e2e2e'                   : '#cccccc',
     modalBg:         dark ? '#1a1a1a'                   : '#ffffff',
     modalBorder:     dark ? '#2e2e2e'                   : '#cccccc',
-    inpText:         dark ? '#e4e4e4'                   : 'inherit',
+    inpText:         dark ? '#e4e4e4'                   : '#111111',
   }
 }
 
@@ -196,8 +218,7 @@ function NowLine({ now, gridH, gridStart = GRID_START, gridHours = GRID_HOURS }:
   const top = pct * gridH
   return (
     <div style={{ position: 'absolute', top, left: 0, right: 0, zIndex: 3, pointerEvents: 'none' }}>
-      <div style={{ position: 'absolute', left: -5, top: -5, width: 10, height: 10, borderRadius: '50%', background: ROSE }} />
-      <div style={{ height: 2, background: ROSE, opacity: 0.85 }} />
+      <div style={{ height: 3, background: workspaceTheme.nowLineColor }} />
     </div>
   )
 }
@@ -274,7 +295,7 @@ function DayView({ bookings, viewDate, onSlotClick, onBookingClick, pendingSlot,
       </div>
       <div style={{ flex: 1, borderLeft: `0.5px solid ${T.borderFaint}` }}>
         <div
-          style={{ position: 'relative', height: gridH, overflow: 'hidden', cursor: onSlotClick && !isPast ? 'pointer' : 'default', background: isPast ? T.pastBg : T.calDayBg }}
+          style={{ position: 'relative', height: gridH, overflow: 'hidden', cursor: onSlotClick && !isPast ? 'pointer' : 'default', background: isPast ? T.pastBg : T.calDayBg, backgroundImage: isPast && !dark ? workspaceTheme.pastHatching : undefined }}
           onClick={onSlotClick && !isPast ? (e) => { const rect = e.currentTarget.getBoundingClientRect(); const t = snapY(e.clientY - rect.top); if (isPastSlot(t)) { flashChrono(); return } onSlotClick(viewDate, t) } : undefined}
           onMouseMove={onSlotClick && !isPast ? (e) => { const rect = e.currentTarget.getBoundingClientRect(); const t = snapY(e.clientY - rect.top); if (isPastSlot(t)) setHoverTime(null); else setHoverTime(t) } : undefined}
           onMouseLeave={() => setHoverTime(null)}>
@@ -295,7 +316,7 @@ function DayView({ bookings, viewDate, onSlotClick, onBookingClick, pendingSlot,
           })()}
           {now && isToday && (() => {
             const pastH = Math.max(0, gp(now.getHours(), now.getMinutes()) * gridH)
-            return pastH > 0 ? <div style={{ position: 'absolute', top: 0, left: 0, right: 0, height: pastH, background: dark ? 'rgba(0,0,0,0.50)' : 'rgba(0,0,0,0.30)', pointerEvents: 'none', zIndex: 2 }} /> : null
+            return pastH > 0 ? <div style={{ position: 'absolute', top: 0, left: 0, right: 0, height: pastH, background: dark ? 'rgba(0,0,0,0.50)' : 'transparent', backgroundImage: dark ? undefined : workspaceTheme.pastHatching, pointerEvents: 'none', zIndex: 2 }} /> : null
           })()}
           {chronoFlash && (
             <div style={{ position: 'absolute', top: '38%', left: 0, right: 0, display: 'flex', justifyContent: 'center', pointerEvents: 'none', zIndex: 10 }}>
@@ -318,10 +339,11 @@ function DayView({ bookings, viewDate, onSlotClick, onBookingClick, pendingSlot,
             const isMine = !!myEmail && b.booker_email === myEmail
             const othersClickable = !isMine && (visShowTitle || visShowOrganizer || visAllowEditOthers)
             const isBlockPast = !!now && new Date(b.end_time) < now
-            const bg     = isBlockPast ? (isMine ? (dark ? '#2e2030' : '#e0c8d0') : (dark ? '#1e222a' : '#c8cdd4')) : isMine ? (dark ? '#5c3747' : '#f5e0e7') : T.blockBg
-            const border = isBlockPast ? (isMine ? (dark ? '#3e3048' : '#c0a0b4') : (dark ? '#2a303a' : '#a8b0bc')) : isMine ? ROSE : T.blockBorder
+            const isInProgress = !!now && new Date(b.start_time) <= now && new Date(b.end_time) > now
+            const bg     = (isBlockPast || isInProgress) ? (dark ? '#1e222a' : '#c8cdd4') : isMine ? (dark ? '#5c3747' : '#f5e0e7') : T.blockBg
+            const border = (isBlockPast || isInProgress) ? (dark ? '#2a303a' : '#a8b0bc') : isMine ? ROSE : T.blockBorder
             const label  = isMine ? (b.title || b.booker_name) : visShowTitle ? (b.title || 'Occupied') : visShowOrganizer ? b.booker_name : 'Occupied'
-            const textColor = isBlockPast ? T.textFaint : isMine ? (dark ? '#e8b4c4' : '#8a3d58') : (dark ? '#a0b4c8' : '#3d5068')
+            const textColor = (isBlockPast || isInProgress) ? T.textFaint : isMine ? (dark ? '#e8b4c4' : '#8a3d58') : (dark ? '#a0b4c8' : '#3d5068')
             return (
               <div key={b.id} onClick={e => { e.stopPropagation(); if (isMine || othersClickable) onBookingClick?.(b) }}
                 style={{ position: 'absolute', top: topPx, left: 4, right: 4, height: heightPx, background: bg, borderRadius: 0, cursor: (isMine || othersClickable) && onBookingClick ? 'pointer' : 'default', overflow: 'hidden' }}>
@@ -410,7 +432,7 @@ function WeekView({ bookings, weekDays, onSlotClick, onBookingClick, pendingSlot
             return (
               <div key={ds} style={{ borderRight: colIdx < 6 ? `0.5px solid ${T.colSep}` : 'none' }}>
                 <div
-                  style={{ position: 'relative', height: gridH, overflow: 'hidden', background: colBg, cursor: onSlotClick && !isPast ? 'pointer' : 'default' }}
+                  style={{ position: 'relative', height: gridH, overflow: 'hidden', background: colBg, backgroundImage: isPast && !dark ? workspaceTheme.pastHatching : undefined, cursor: onSlotClick && !isPast ? 'pointer' : 'default' }}
                   onClick={onSlotClick && !isPast ? (e) => { const rect = e.currentTarget.getBoundingClientRect(); const t = snapY(e.clientY - rect.top); if (isToday && now) { const [h,m] = t.split(':').map(Number); const s = new Date(day); s.setHours(h,m,0,0); if (s < now) { flashChrono(); return } } onSlotClick(day, t) } : undefined}
                   onMouseMove={onSlotClick && !isPast ? (e) => { const rect = e.currentTarget.getBoundingClientRect(); const t = snapY(e.clientY - rect.top); if (isToday && now) { const [h,m] = t.split(':').map(Number); const s = new Date(day); s.setHours(h,m,0,0); if (s < now) { setHoverSlot(null); return } } setHoverSlot({ ds, time: t }) } : undefined}
                   onMouseLeave={() => setHoverSlot(null)}>
@@ -430,7 +452,7 @@ function WeekView({ bookings, weekDays, onSlotClick, onBookingClick, pendingSlot
                   })()}
                   {now && isToday && (() => {
                     const pastH = Math.max(0, gp(now.getHours(), now.getMinutes()) * gridH)
-                    return pastH > 0 ? <div style={{ position: 'absolute', top: 0, left: 0, right: 0, height: pastH, background: dark ? 'rgba(0,0,0,0.50)' : 'rgba(0,0,0,0.30)', pointerEvents: 'none', zIndex: 2 }} /> : null
+                    return pastH > 0 ? <div style={{ position: 'absolute', top: 0, left: 0, right: 0, height: pastH, background: dark ? 'rgba(0,0,0,0.50)' : 'transparent', backgroundImage: !dark ? workspaceTheme.pastHatching : undefined, pointerEvents: 'none', zIndex: 2 }} /> : null
                   })()}
                   {chronoFlash && isToday && (
                     <div style={{ position: 'absolute', top: '35%', left: '50%', transform: 'translateX(-50%)', pointerEvents: 'none', zIndex: 10, whiteSpace: 'nowrap' }}>
@@ -453,14 +475,14 @@ function WeekView({ bookings, weekDays, onSlotClick, onBookingClick, pendingSlot
                     const isMine = !!myEmail && b.booker_email === myEmail
                     const othersClickable = !isMine && (visShowTitle || visShowOrganizer || visAllowEditOthers)
                     const isBlockPast = !!now && new Date(b.end_time) < now
-                    const bg     = isBlockPast ? (isMine ? (dark ? '#2e2030' : '#e0c8d0') : (dark ? '#1e222a' : '#c8cdd4')) : isMine ? (dark ? '#5c3747' : '#f5e0e7') : T.blockBg
-                    const border = isBlockPast ? (isMine ? (dark ? '#3e3048' : '#c0a0b4') : (dark ? '#2a303a' : '#a8b0bc')) : isMine ? ROSE : T.blockBorder
+                    const isInProgress = !!now && new Date(b.start_time) <= now && new Date(b.end_time) > now
+                    const grayBg = dark ? 'rgba(255,255,255,0.18)' : '#b8b8b8'
+                    const bg = (isBlockPast || isInProgress) ? grayBg : isMine ? workspaceTheme.myEventColor : (dark ? T.blockBg : workspaceTheme.eventColor)
                     const label  = isMine ? (b.title || b.booker_name) : visShowTitle ? (b.title || 'Occupied') : visShowOrganizer ? b.booker_name : 'Occupied'
-                    const textColor = isBlockPast ? T.textFaint : isMine ? (dark ? '#e8b4c4' : '#8a3d58') : (dark ? '#a0b4c8' : '#3d5068')
                     return (
                       <div key={b.id} onClick={e => { e.stopPropagation(); if (isMine || othersClickable) onBookingClick?.(b) }}
-                        style={{ position: 'absolute', top: topPx, left: 2, right: 2, height: heightPx, background: bg, borderRadius: 0, cursor: (isMine || othersClickable) && onBookingClick ? 'pointer' : 'default', overflow: 'hidden' }}>
-                        {heightPx > 18 && <div style={{ padding: '2px 4px', fontSize: 9, color: textColor, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', fontWeight: 500 }}>{b.recurring_series_id ? `↻ ${label}` : label}</div>}
+                        style={{ position: 'absolute', top: topPx, left: 2, right: 2, height: heightPx, background: bg, borderRadius: 0, cursor: (isMine || othersClickable) && onBookingClick ? 'pointer' : 'default', overflow: 'hidden', opacity: isBlockPast ? 0.55 : 1 }}>
+                        {heightPx > 18 && <div style={{ padding: '2px 4px', fontSize: 9, color: '#ffffff', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', fontWeight: 500 }}>{b.recurring_series_id ? `↻ ${label}` : label}</div>}
                       </div>
                     )
                   })}
@@ -507,7 +529,7 @@ function MonthView({ bookings, viewDate, onDayClick, dark }: { bookings: Booking
             const numColor  = isToday ? '#fff' : isPast ? T.pastText : isWeekend && inMonth ? '#8a7a60' : inMonth ? T.text : T.borderFaint
             return (
               <div key={ds} onClick={() => { if (!isPast) onDayClick(day) }}
-                style={{ padding: '6px 4px 8px', minHeight: 64, cursor: isPast ? 'default' : 'pointer', borderRight: di < 6 ? `0.5px solid ${T.colSep}` : 'none', background: isPast ? T.pastBg : cellBg }}>
+                style={{ padding: '6px 4px 8px', minHeight: 64, cursor: isPast ? 'default' : 'pointer', borderRight: di < 6 ? `0.5px solid ${T.colSep}` : 'none', background: isPast ? T.pastBg : cellBg, backgroundImage: isPast && !dark ? workspaceTheme.pastHatching : undefined }}>
                 <div style={{ display: 'flex', justifyContent: 'center' }}>
                   <div style={{ width: 22, height: 22, borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', background: isToday ? ROSE : 'transparent', color: numColor, fontSize: 11, fontWeight: isToday ? 600 : 400 }}>
                     {day.getDate()}
@@ -516,7 +538,7 @@ function MonthView({ bookings, viewDate, onDayClick, dark }: { bookings: Booking
                 {count > 0 && (
                   <div style={{ display: 'flex', justifyContent: 'center', gap: 2, marginTop: 3, flexWrap: 'wrap' }}>
                     {Array.from({ length: Math.min(count, 3) }).map((_, i) => (
-                      <div key={i} style={{ width: 5, height: 5, borderRadius: '50%', background: isPast ? T.pastText : ROSE }} />
+                      <div key={i} style={{ width: 5, height: 5, borderRadius: '50%', background: isPast ? T.pastText : workspaceTheme.eventColor }} />
                     ))}
                     {count > 3 && <div style={{ fontSize: 8, color: T.textMuted, lineHeight: '5px' }}>+{count - 3}</div>}
                   </div>
@@ -530,6 +552,174 @@ function MonthView({ bookings, viewDate, onDayClick, dark }: { bookings: Booking
   )
 }
 
+// ─── Floorplan icons ─────────────────────────────────────────────────────────
+const FP_STROKE = 'rgba(0,0,0,0.2)'
+function FloorplanIcon({ type }: { type?: string | null }) {
+  const s = { fill: 'none', stroke: FP_STROKE, strokeWidth: 1.2 } as const
+  if (type?.toLowerCase().includes('focus') || type?.toLowerCase().includes('phone') || type?.toLowerCase().includes('booth')) {
+    return (
+      <svg width="36" height="24" viewBox="0 0 36 24" {...s}>
+        <rect x="13" y="8" width="10" height="8" rx="0.5" />
+        <circle cx="10" cy="12" r="1.5" /><circle cx="26" cy="12" r="1.5" />
+      </svg>
+    )
+  }
+  if (type?.toLowerCase().includes('workshop') || type?.toLowerCase().includes('event') || type?.toLowerCase().includes('training')) {
+    return (
+      <svg width="36" height="24" viewBox="0 0 36 24" {...s}>
+        <rect x="5" y="5" width="26" height="15" rx="0.5" />
+        <line x1="5" y1="12.5" x2="31" y2="12.5" strokeDasharray="2 2" />
+        <circle cx="9" cy="8.5" r="1.2" /><circle cx="18" cy="8.5" r="1.2" /><circle cx="27" cy="8.5" r="1.2" />
+        <circle cx="9" cy="16.5" r="1.2" /><circle cx="18" cy="16.5" r="1.2" /><circle cx="27" cy="16.5" r="1.2" />
+      </svg>
+    )
+  }
+  // default: board / meeting / conference
+  return (
+    <svg width="36" height="24" viewBox="0 0 36 24" {...s}>
+      <rect x="6" y="8" width="24" height="9" rx="0.5" />
+      <circle cx="10" cy="5.5" r="1.5" /><circle cx="18" cy="5.5" r="1.5" /><circle cx="26" cy="5.5" r="1.5" />
+      <circle cx="10" cy="20.5" r="1.5" /><circle cx="18" cy="20.5" r="1.5" /><circle cx="26" cy="20.5" r="1.5" />
+      <circle cx="3.5" cy="12.5" r="1.5" /><circle cx="32.5" cy="12.5" r="1.5" />
+    </svg>
+  )
+}
+
+// ─── All-Rooms Day View ───────────────────────────────────────────────────────
+const ROOM_COL_W = 180
+const TRACK_H    = 88
+
+function AllRoomsDayView({ bookings, rooms, viewDate, onRoomSlotClick, onBookingClick, now, dark, myEmail, gridStart = GRID_START, gridEnd = GRID_END }: {
+  bookings: Booking[]; rooms: Room[]; viewDate: Date
+  onRoomSlotClick: (roomId: string, date: Date, time: string) => void
+  onBookingClick: (b: Booking) => void
+  now: Date; dark?: boolean; myEmail?: string
+  gridStart?: number; gridEnd?: number
+}) {
+  const T = mkT(dark ?? false)
+  const gridHours = gridEnd - gridStart
+  const gp = (h: number, m: number) => (h + m / 60 - gridStart) / gridHours
+  const viewDateStr = dateStr(viewDate)
+  const nowDateStr  = dateStr(now)
+  const isToday     = viewDateStr === nowDateStr
+  const isFullPast  = viewDateStr < nowDateStr
+  const nowPct      = gp(now.getHours(), now.getMinutes())
+
+  const byRoom: Record<string, Booking[]> = {}
+  bookings.forEach(b => {
+    if (dateStr(new Date(b.start_time)) !== viewDateStr) return
+    if (!byRoom[b.room_id]) byRoom[b.room_id] = []
+    byRoom[b.room_id].push(b)
+  })
+
+  function snapToSlot(clientX: number, rect: DOMRect): string {
+    const pct = Math.max(0, Math.min(1, (clientX - rect.left) / rect.width))
+    const totalMins = Math.floor(pct * gridHours * 60 / 15) * 15
+    const h = Math.floor(totalMins / 60) + gridStart
+    const m = totalMins % 60
+    return `${String(Math.min(h, gridEnd - 1)).padStart(2, '0')}:${String(m).padStart(2, '0')}`
+  }
+
+  const hourTicks = Array.from({ length: gridHours + 1 }, (_, i) => gridStart + i)
+
+  return (
+    <div style={{ overflowX: 'auto', userSelect: 'none' }}>
+      {/* Time axis header */}
+      <div style={{ display: 'flex', marginLeft: ROOM_COL_W, borderBottom: `1px solid ${T.border}` }}>
+        {hourTicks.slice(0, -1).map(h => (
+          <div key={h} style={{ flex: 1, fontSize: 9, color: T.textMuted, padding: '5px 0 5px 4px', letterSpacing: '0.05em' }}>
+            {fmtHour(h)}
+          </div>
+        ))}
+      </div>
+
+      {/* Room rows */}
+      {rooms.map((room, ri) => {
+        const roomBkgs = (byRoom[room.id] ?? []).filter(b => !b.cancelled_at)
+        const pastWidth = isFullPast ? 100 : isToday ? Math.min(100, Math.max(0, nowPct * 100)) : 0
+
+        return (
+          <div key={room.id} style={{ display: 'flex', borderBottom: `1px solid ${T.borderFaint}` }}>
+            {/* Room label */}
+            <div style={{ width: ROOM_COL_W, flexShrink: 0, display: 'flex', alignItems: 'center', height: TRACK_H, borderRight: `1px solid ${T.border}`, background: T.cardBg }}>
+              {/* Floorplan icon zone */}
+              <div style={{ width: 52, flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', borderRight: `1px solid ${T.borderFaint}`, height: '100%' }}>
+                <FloorplanIcon type={room.room_type} />
+              </div>
+              {/* Room text */}
+              <div style={{ flex: 1, padding: '0 12px', display: 'flex', flexDirection: 'column', justifyContent: 'center' }}>
+                <div style={{ fontSize: 10, fontWeight: 700, letterSpacing: workspaceTheme.roomNameSpacing, textTransform: workspaceTheme.roomNameTransform, color: T.text, marginBottom: 2 }}>
+                  {room.name}
+                </div>
+                {room.room_type && <div style={{ fontSize: 9, color: T.textMuted }}>{room.room_type}</div>}
+                <div style={{ fontSize: 9, color: T.textFaint }}>{room.capacity} people</div>
+              </div>
+            </div>
+
+            {/* Track */}
+            <div
+              style={{ flex: 1, position: 'relative', height: TRACK_H, background: T.calDayBg, cursor: 'pointer', overflow: 'hidden' }}
+              onClick={e => {
+                if (isFullPast) return
+                const time = snapToSlot(e.clientX, e.currentTarget.getBoundingClientRect())
+                onRoomSlotClick(room.id, viewDate, time)
+              }}
+            >
+              {/* Hour grid lines */}
+              {hourTicks.map((h, i) => (
+                <div key={h} style={{ position: 'absolute', top: 0, bottom: 0, left: `${i / gridHours * 100}%`, width: '0.5px', background: i === 0 ? 'transparent' : (i % 2 === 0 ? T.border : T.borderFaint), pointerEvents: 'none' }} />
+              ))}
+
+              {/* Alternating hour bands */}
+              {Array.from({ length: gridHours }, (_, i) => i % 2 === 0 ? (
+                <div key={i} style={{ position: 'absolute', top: 0, bottom: 0, left: `${i / gridHours * 100}%`, width: `${1 / gridHours * 100}%`, background: T.bandOdd, pointerEvents: 'none' }} />
+              ) : null)}
+
+              {/* Past hatching overlay */}
+              {pastWidth > 0 && (
+                <div style={{ position: 'absolute', top: 0, bottom: 0, left: 0, width: `${pastWidth}%`, background: dark ? 'rgba(0,0,0,0.45)' : 'transparent', backgroundImage: !dark ? workspaceTheme.pastHatching : undefined, pointerEvents: 'none', zIndex: 1 }} />
+              )}
+
+              {/* Now-line */}
+              {isToday && nowPct >= 0 && nowPct <= 1 && (
+                <div style={{ position: 'absolute', top: 0, bottom: 0, left: `${nowPct * 100}%`, width: workspaceTheme.nowLineWidth, background: workspaceTheme.nowLineColor, pointerEvents: 'none', zIndex: 4 }} />
+              )}
+
+              {/* Booking blocks */}
+              {roomBkgs.map(b => {
+                const bs = new Date(b.start_time), be = new Date(b.end_time)
+                const startPct = gp(bs.getHours(), bs.getMinutes())
+                const endPct   = gp(be.getHours(), be.getMinutes())
+                if (endPct <= 0 || startPct >= 1) return null
+                const l = Math.max(0, startPct), r = Math.min(1, endPct)
+                const isMine  = b.booker_email?.toLowerCase() === myEmail?.toLowerCase()
+                const isPast  = be <= now
+                return (
+                  <div key={b.id}
+                    onClick={e => { e.stopPropagation(); onBookingClick(b) }}
+                    style={{
+                      position: 'absolute', height: 32, top: '50%', transform: 'translateY(-50%)',
+                      left: `calc(${l * 100}% + 2px)`,
+                      width: `calc(${(r - l) * 100}% - 4px)`,
+                      background: isMine ? workspaceTheme.myEventColor : workspaceTheme.eventColor,
+                      opacity: isPast ? 0.55 : 1,
+                      zIndex: 2, cursor: 'pointer', overflow: 'hidden',
+                      display: 'flex', alignItems: 'center', padding: '0 10px 0 12px', gap: 6,
+                    }}>
+                    <span style={{ fontSize: 11, fontWeight: 600, color: isPast ? 'rgba(200,200,200,0.8)' : '#ffffff', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', flex: 1, minWidth: 0 }}>
+                      {b.booker_name}
+                    </span>
+                  </div>
+                )
+              })}
+            </div>
+          </div>
+        )
+      })}
+    </div>
+  )
+}
+
 // ─── Main Page ────────────────────────────────────────────────────────────────
 export default function BookingPage() {
   const { workspace } = useParams<{ workspace: string }>()
@@ -539,13 +729,15 @@ export default function BookingPage() {
   const [filterRoomType, setFilterRoomType] = useState('')
   const [sidebarBkgs,   setSidebarBkgs]   = useState<Booking[]>([])
   const [rangeBkgs,     setRangeBkgs]     = useState<Booking[]>([])
+  const [allRoomsDayBkgs, setAllRoomsDayBkgs] = useState<Booking[]>([])
   const [selectedRoomId, setSelectedRoomId] = useState('')
   const [busyFlash,     setBusyFlash]     = useState(false)
   const [now,           setNow]           = useState(new Date())
-  const [calView,       setCalView]       = useState<CalView>('week')
+  const [calView,       setCalView]       = useState<CalView>('day')
   const [viewDate,      setViewDate]      = useState(new Date())
   const [theme,         setTheme]         = useState<'light' | 'dark'>('light')
   const [lotr,          setLotr]          = useState(false)
+  const [workspaceName, setWorkspaceName] = useState('')
   const lotrQuote = useMemo(() => {
     const quotes = [
       'Courage is found in unlikely places.',
@@ -579,14 +771,16 @@ export default function BookingPage() {
   async function submitFeedback() {
     if (!fbMessage.trim()) return
     setFbSubmitting(true)
-    await fetch(`/api/${workspace}/feedback`, {
+    const res = await fetch(`/api/${workspace}/feedback`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ name: mName, email: mEmail, message: fbMessage }),
-    })
+    }).catch(() => null)
     setFbSubmitting(false)
-    setFbDone(true)
-    setTimeout(() => { setShowFeedback(false); setFbMessage(''); setFbDone(false) }, 2000)
+    if (res?.ok) {
+      setFbDone(true)
+      setTimeout(() => { setShowFeedback(false); setFbMessage(''); setFbDone(false) }, 2000)
+    }
   }
   const [recurUntil,  setRecurUntil]  = useState(() => { const d = new Date(); d.setMonth(d.getMonth() + 3); return dateStr(d) })
 
@@ -643,8 +837,9 @@ export default function BookingPage() {
 
   const todayStr     = dateStr(now)
   const viewDateStr  = dateStr(viewDate)
-  const weekDays     = getWeekDays(viewDate)
-  const selectedRoom = rooms.find(r => r.id === selectedRoomId) ?? null
+  const weekDays      = getWeekDays(viewDate)
+  const selectedRoom  = rooms.find(r => r.id === selectedRoomId) ?? null
+  const filteredRooms = rooms.filter(r => !filterRoomType || r.room_type === filterRoomType)
 
   // LOTR text overrides
   const txt = {
@@ -682,6 +877,12 @@ export default function BookingPage() {
     fetch(`${api}/bookings?date=${todayStr}`).then(r => r.json()).then(setSidebarBkgs)
   }, [todayStr])
 
+  const fetchAllRoomsDay = useCallback(() => {
+    fetch(`${api}/bookings?from=${viewDateStr}&to=${viewDateStr}`)
+      .then(r => r.json()).then(setAllRoomsDayBkgs)
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [viewDateStr])
+
   const fetchRange = useCallback(() => {
     if (!selectedRoomId) return
     const { from, to } = getRange()
@@ -706,6 +907,7 @@ export default function BookingPage() {
       setVisShowTitle(d.bookingVisibility?.showTitle ?? false)
       setVisShowOrganizer(d.bookingVisibility?.showOrganizer ?? false)
       setVisAllowEditOthers(d.bookingVisibility?.allowEditOthers ?? false)
+      if (d.workspaceName) setWorkspaceName(d.workspaceName)
     }).catch(() => {})
   }, [])
 
@@ -718,6 +920,7 @@ export default function BookingPage() {
   }, [filterRoomType, rooms])
   useEffect(() => { fetchSidebar() }, [fetchSidebar])
   useEffect(() => { fetchRange() }, [fetchRange])
+  useEffect(() => { fetchAllRoomsDay() }, [fetchAllRoomsDay])
 
   useEffect(() => {
     if (showModal !== 'later' || !mDate) return
@@ -792,12 +995,12 @@ export default function BookingPage() {
     return `${MONTHS_LONG[viewDate.getMonth()]} ${viewDate.getFullYear()}`
   }
 
-  function openScheduleLater(date: Date, time: string) {
+  function openScheduleLater(date: Date, time: string, roomId?: string) {
     const ds = dateStr(date)
     const [h, m] = time.split(':').map(Number)
     const endTotal = Math.min(h * 60 + m + 60, 23 * 60)
     const endHHMM = `${String(Math.floor(endTotal / 60)).padStart(2, '0')}:${String(endTotal % 60).padStart(2, '0')}`
-    setMDate(ds); setMTime(time); setMEndTime(endHHMM); setMTitle('Occupied'); setRecurFreq('none'); setMError(''); setMDone(false); setMRoomId(selectedRoomId); setShowModal('later')
+    setMDate(ds); setMTime(time); setMEndTime(endHHMM); setMTitle(''); setRecurFreq('none'); setMError(''); setMDone(false); setSingleConflict(null); setMRoomId(roomId ?? selectedRoomId); setShowModal('later')
   }
 
   async function fetchMyBkgs(email: string) {
@@ -831,7 +1034,7 @@ export default function BookingPage() {
     )
     setMyBkCancelling(false)
     fetchMyBkgs(myBkEmail)
-    fetchSidebar(); fetchRange()
+    fetchSidebar(); fetchRange(); fetchAllRoomsDay()
   }
 
   async function cancelOneMyBk(b: any) {
@@ -840,14 +1043,14 @@ export default function BookingPage() {
         setConfirmCancel(null)
         await fetch(`/api/cancel/${b.cancel_token}`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ scope }) })
         fetchMyBkgs(myBkEmail)
-        fetchSidebar(); fetchRange()
+        fetchSidebar(); fetchRange(); fetchAllRoomsDay()
       }})
     } else {
       setConfirmCancel({ message: 'This will cancel the booking.', onConfirm: async () => {
         setConfirmCancel(null)
         await fetch(`/api/cancel/${b.cancel_token}`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ scope: 'this' }) })
         fetchMyBkgs(myBkEmail)
-        fetchSidebar(); fetchRange()
+        fetchSidebar(); fetchRange(); fetchAllRoomsDay()
       }})
     }
   }
@@ -945,7 +1148,7 @@ export default function BookingPage() {
   }
 
   async function handleInstantBook(minutes: number) {
-    if (!selectedRoom) return
+    if (!selectedRoom) { setMError('Please select a room first.'); return }
     setMSubmitting(true)
     const start = new Date()
     const end = new Date(start.getTime() + minutes * 60 * 1000)
@@ -955,7 +1158,7 @@ export default function BookingPage() {
       body: JSON.stringify({ room_id: selectedRoom.id, booker_name: 'Walk-in', booker_email: 'walkin@tablet.spacebook.app', start_time: start.toISOString(), end_time: end.toISOString(), title: 'Occupied', origin: 'desktop' }),
     })
     if (res.ok) {
-      setMError(''); setShowModal(null); fetchSidebar(); fetchRange()
+      setMError(''); setShowModal(null); fetchSidebar(); fetchRange(); fetchAllRoomsDay()
     } else {
       const body = await res.json().catch(() => ({}))
       setMError(body.error ?? 'Something went wrong. Please try again.')
@@ -977,7 +1180,7 @@ export default function BookingPage() {
     })
     if (bookRes.ok) {
       setConflictResolutions(prev => prev.map(r => r.date === date ? { ...r, status: type === 'next' ? 'done-next' : 'done-alt' } : r))
-      fetchSidebar(); fetchRange()
+      fetchSidebar(); fetchRange(); fetchAllRoomsDay()
     } else {
       const body = await bookRes.json().catch(() => ({}))
       setConflictResolutions(prev => prev.map(r => r.date === date ? { ...r, status: 'error', error: body.error ?? 'Failed to book' } : r))
@@ -1040,7 +1243,7 @@ export default function BookingPage() {
 
   async function handleQuickBook() {
     const bookRoomId = showModal === 'later' ? mRoomId : selectedRoom?.id
-    if (!bookRoomId || !mName || !mEmail || !mTime || !mEndTime) return
+    if (!bookRoomId || !mName || !mEmail || !mTime || !mEndTime) { setMError('Please fill in all required fields.'); return }
     setSingleConflict(null)
     setMSubmitting(true)
     const startTime = new Date(`${mDate}T${mTime}`).toISOString()
@@ -1136,82 +1339,75 @@ export default function BookingPage() {
   const inp: React.CSSProperties = { fontSize: 14, padding: '9px 12px', border: `1px solid ${T.inputBorder}`, borderRadius: 0, outline: 'none', fontFamily: 'inherit', width: '100%', background: T.inputBg, color: T.inpText, colorScheme: dark ? 'dark' : 'light' }
   const lbl: React.CSSProperties = { fontSize: 10, color: T.textMuted, fontWeight: 600, display: 'block', marginBottom: 5, letterSpacing: '0.08em', textTransform: 'uppercase' as const }
   const timeInvalid = !!(mTime && mEndTime && mEndTime <= mTime)
+  const submitDisabled = mSubmitting || !mName || !mEmail || !mTime || !mEndTime || !mRoomId || timeInvalid || (showModal === 'later' && recurFreq !== 'none' && !recurUntil) || (showModal === 'later' && mDate < todayStr)
   const roseGrad = ROSE
 
   const toggleBtn: React.CSSProperties = { background: 'rgba(255,255,255,0.1)', border: '0.5px solid rgba(255,255,255,0.18)', borderRadius: 0, padding: '5px 11px', cursor: 'pointer', fontSize: 13, color: 'rgba(255,255,255,0.85)', lineHeight: 1 }
 
   return (
-    <div style={{ background: T.pageBg, height: '100vh', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
+    <div style={{ background: dark ? '#0d0d0d' : '#eeece8', height: '100vh', display: 'flex', flexDirection: 'column', overflow: 'hidden', padding: '24px' }}>
       <style dangerouslySetInnerHTML={{ __html: `@import url('https://fonts.googleapis.com/css2?family=Spectral:ital,wght@0,400;0,500;0,600;1,400&display=swap');@import url('https://fonts.googleapis.com/css2?family=Uncial+Antiqua&display=block');*{transition:background-color 0.25s ease,color 0.2s ease,border-color 0.2s ease,box-shadow 0.2s ease}@keyframes tabShine{0%,100%{border-bottom-color:rgba(219,149,171,0.6)}50%{border-bottom-color:rgba(219,149,171,1)}}@keyframes chronoFlash{0%{opacity:0;transform:translateY(3px)}12%{opacity:1;transform:translateY(0)}70%{opacity:1}100%{opacity:0}}` }} />
 
+      {/* Calendar card */}
+      <div style={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column', background: T.pageBg, borderRadius: '12px', overflow: 'hidden', border: dark ? '1px solid rgba(255,255,255,0.08)' : '1px solid rgba(0,0,0,0.13)' }}>
+
       {/* Top bar */}
-      <div style={{ background: T.navBg, padding: '14px 24px', display: 'flex', alignItems: 'center', borderBottom: T.navBorder }}>
+      <div style={{ background: T.navBg, padding: '20px 20px 12px', borderBottom: T.navBorder, position: 'relative' }}>
 
-        {/* Logo */}
-        <div style={{ fontSize: 17, fontWeight: 500, color: T.navText, flexShrink: 0, letterSpacing: '0.02em', fontFamily: "'Spectral', Georgia, serif" }}>
-          space<span style={{ fontStyle: 'italic', fontWeight: 400 }}>book</span>
-          {lotr && <span style={{ fontSize: 13, marginLeft: 5 }}>🧙</span>}
-        </div>
+        {/* Row 1: workspace name | date + arrows | right controls */}
+        <div style={{ display: 'flex', alignItems: 'center' }}>
 
-        {/* LOTR quote */}
-        {lotr && (
-          <div style={{ position: 'absolute', left: 160, right: 'calc(50% - 30px)', textAlign: 'center', fontFamily: "'Uncial Antiqua', cursive", fontSize: 14, color: T.textFaint, pointerEvents: 'none', userSelect: 'none', overflow: 'hidden', whiteSpace: 'nowrap', textOverflow: 'ellipsis', animation: 'none' }}>
-            {lotrQuote}
+          {/* Left: workspace name */}
+          <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: '2px', color: T.navText, flexShrink: 0, userSelect: 'none' as const }}>
+            {lotr ? '🧙 THE FELLOWSHIP' : (workspaceName || workspace).toUpperCase().replace(/-/g, ' ')}
           </div>
-        )}
 
-        {/* View tabs — centered over the calendar column (offset by half sidebar width) */}
-        <div style={{ position: 'absolute', left: 'calc(50% + 100px)', transform: 'translateX(-50%)', display: 'flex', gap: 22, zIndex: 1 }}>
-          {(['day', 'week', 'month'] as CalView[]).map(v => (
-            <button key={v} onClick={() => { setCalView(v); setViewDate(new Date()) }}
-              style={{ fontSize: 12, padding: '0 0 5px', border: 'none', borderBottom: calView === v ? '1.5px solid rgba(219,149,171,0.35)' : '1.5px solid transparent', animation: calView === v ? 'tabShine 6s ease-in-out infinite' : undefined, cursor: 'pointer', fontFamily: 'inherit', fontWeight: calView === v ? 600 : 400, background: 'transparent', color: calView === v ? T.navText : T.navSub, transition: 'color .15s', letterSpacing: '0.1em', textTransform: 'uppercase' as const, lineHeight: 1 }}>
-              {v}
+          {/* Center: date + nav arrows */}
+          <div style={{ position: 'absolute', left: '50%', transform: 'translateX(-50%)', display: 'flex', alignItems: 'center', gap: 8, zIndex: 1 }}>
+            <button onClick={() => shiftView(-1)} style={{ background: 'none', border: `0.5px solid ${T.border}`, borderRadius: 0, padding: '2px 9px', cursor: 'pointer', fontSize: 14, color: T.textMuted, lineHeight: 1 }}>‹</button>
+            <span style={{ fontSize: 13, fontWeight: 500, minWidth: 160, textAlign: 'center', color: T.navText }}>
+              {navLabel()}
+            </span>
+            <button onClick={() => shiftView(1)} style={{ background: 'none', border: `0.5px solid ${T.border}`, borderRadius: 0, padding: '2px 9px', cursor: 'pointer', fontSize: 14, color: T.textMuted, lineHeight: 1 }}>›</button>
+          </div>
+
+          {/* Right: + BOOK A ROOM + toggles */}
+          <div style={{ marginLeft: 'auto', display: 'flex', gap: 14, alignItems: 'center', zIndex: 1 }}>
+            <button
+              onClick={() => { setMDate(todayStr); setMTime(''); setMEndTime(''); setMTitle('Occupied'); setRecurFreq('none'); setMError(''); setMRoomId(selectedRoomId || (rooms[0]?.id ?? '')); setShowModal('later'); setMDone(false) }}
+              style={{ background: 'transparent', color: dark ? '#ffffff' : '#111111', border: dark ? '1.5px solid rgba(255,255,255,0.5)' : '1.5px solid #111111', borderRadius: 0, padding: '7px 16px', fontSize: 10, fontWeight: 700, cursor: 'pointer', letterSpacing: '1.5px', textTransform: 'uppercase' as const, whiteSpace: 'nowrap', fontFamily: 'inherit' }}>
+              + {lotr ? 'GATHER THE COUNCIL' : 'BOOK A ROOM'}
             </button>
-          ))}
+            {/* Theme toggle */}
+            <div onClick={() => setTheme(t => t === 'light' ? 'dark' : 'light')}
+              title={dark ? 'Light mode' : 'Dark mode'}
+              style={{ width: 30, height: 16, borderRadius: 0, background: dark ? 'rgba(255,255,255,0.15)' : 'rgba(0,0,0,0.10)', border: dark ? '0.5px solid rgba(255,255,255,0.22)' : '0.5px solid rgba(0,0,0,0.20)', cursor: 'pointer', position: 'relative', flexShrink: 0 }}>
+              <div style={{ position: 'absolute', top: 2, left: dark ? 14 : 2, width: 12, height: 12, borderRadius: 0, background: dark ? '#fff' : '#1c1510', transition: 'left .18s' }} />
+            </div>
+            <span onClick={() => setLotr(l => !l)} title="One ring to rule them all"
+              style={{ cursor: 'pointer', fontSize: 14, opacity: lotr ? 1 : 0.25, transition: 'opacity .18s', userSelect: 'none' as const, lineHeight: 1 }}>
+              🧙
+            </span>
+          </div>
         </div>
 
-        {/* Right controls */}
-        <div style={{ marginLeft: 'auto', display: 'flex', gap: 12, alignItems: 'center', zIndex: 1 }}>
-          {/* Theme slider */}
-          <div onClick={() => setTheme(t => t === 'light' ? 'dark' : 'light')}
-            title={dark ? 'Light mode' : 'Dark mode'}
-            style={{ width: 34, height: 18, borderRadius: 0, background: dark ? 'rgba(255,255,255,0.15)' : 'rgba(0,0,0,0.10)', border: dark ? '0.5px solid rgba(255,255,255,0.22)' : '0.5px solid rgba(28,21,16,0.25)', cursor: 'pointer', position: 'relative', flexShrink: 0 }}>
-            <div style={{ position: 'absolute', top: 2, left: dark ? 16 : 2, width: 14, height: 14, borderRadius: 0, background: dark ? '#fff' : '#1c1510', transition: 'left .18s' }} />
+        {/* Row 2: view pills centered */}
+        <div style={{ display: 'flex', justifyContent: 'center', marginTop: 10 }}>
+          <div style={{ display: 'flex', borderRadius: '999px', overflow: 'hidden', border: dark ? '1.5px solid rgba(255,255,255,0.18)' : '1.5px solid rgba(0,0,0,0.18)' }}>
+            {(['day', 'week', 'month'] as CalView[]).map((v, i) => (
+              <button key={v} onClick={() => { setCalView(v); setViewDate(new Date()) }}
+                style={{ fontSize: 10, padding: '7px 16px', border: 'none', borderRight: i < 2 ? (dark ? '1.5px solid rgba(255,255,255,0.18)' : '1.5px solid rgba(0,0,0,0.18)') : 'none', cursor: 'pointer', fontFamily: 'inherit', fontWeight: 700, background: calView === v ? '#444444' : 'transparent', color: calView === v ? '#ffffff' : T.navSub, transition: 'background .15s, color .15s', letterSpacing: '1.5px', textTransform: 'uppercase' as const, lineHeight: 1 }}>
+                {v}
+              </button>
+            ))}
           </div>
-          {/* LOTR wizard */}
-          <span onClick={() => setLotr(l => !l)} title="One ring to rule them all"
-            style={{ cursor: 'pointer', fontSize: 15, opacity: lotr ? 1 : 0.3, transition: 'opacity .18s', userSelect: 'none' as const, lineHeight: 1 }}>
-            🧙
-          </span>
         </div>
       </div>
 
-      <div style={{ flex: 1, minHeight: 0, display: 'grid', gridTemplateColumns: '200px 1fr', gridTemplateRows: 'auto 1fr auto' }}>
+      <div style={{ flex: 1, minHeight: 0, display: 'grid', gridTemplateColumns: calView === 'day' ? '1fr' : '200px 1fr', gridTemplateRows: '1fr auto' }}>
 
-        {/* [0,0] Sidebar header spacer */}
-        <div style={{ background: T.cardBg }} />
-
-        {/* [0,1] Nav row */}
-        <div style={{ background: T.cardBg, padding: '14px 24px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-            <button onClick={() => shiftView(-1)} style={{ background: 'none', border: `0.5px solid ${T.border}`, borderRadius: 0, padding: '3px 10px', cursor: 'pointer', fontSize: 14, color: T.textMuted }}>‹</button>
-            {(() => {
-              const isCurrent =
-                (calView === 'week'  && todayStr >= dateStr(weekDays[0]) && todayStr <= dateStr(weekDays[6])) ||
-                (calView === 'day'   && viewDateStr === todayStr) ||
-                (calView === 'month' && viewDate.getFullYear() === now.getFullYear() && viewDate.getMonth() === now.getMonth())
-              return (
-                <span style={{ fontSize: 13, fontWeight: 500, minWidth: 180, textAlign: 'center', color: isCurrent ? ROSE : dark ? T.text : NAVY, background: isCurrent ? 'rgba(219,149,171,0.12)' : 'transparent', borderRadius: 0, padding: '2px 10px' }}>
-                  {navLabel()}
-                </span>
-              )
-            })()}
-            <button onClick={() => shiftView(1)} style={{ background: 'none', border: `0.5px solid ${T.border}`, borderRadius: 0, padding: '3px 10px', cursor: 'pointer', fontSize: 14, color: T.textMuted }}>›</button>
-          </div>
-        </div>
-
-        {/* [1,0] Sidebar rooms list */}
-        <div style={{ background: T.cardBg, overflowY: 'auto', display: 'flex', flexDirection: 'column' }}>
+        {/* Sidebar — hidden in day view */}
+        <div style={{ background: T.cardBg, overflowY: 'auto', display: calView === 'day' ? 'none' : 'flex', flexDirection: 'column' }}>
           {pendingReschedules.length > 0 && (
             <div style={{ padding: '9px 12px', borderBottom: `1px solid ${dark ? 'rgba(253,211,77,0.25)' : '#FDE68A'}`, background: dark ? 'rgba(251,191,36,0.08)' : '#FFFBEB', flexShrink: 0 }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
@@ -1239,12 +1435,12 @@ export default function BookingPage() {
           {roomTypes.length > 0 && (
             <div style={{ padding: '8px 14px 4px', display: 'flex', flexWrap: 'wrap', gap: 4, borderBottom: `1px solid ${T.borderFaint}` }}>
               <button onClick={() => setFilterRoomType('')}
-                style={{ fontSize: 10, padding: '3px 8px', borderRadius: 0, border: `1px solid ${!filterRoomType ? T.activeBorder : T.border}`, background: !filterRoomType ? T.activeRoom : 'transparent', cursor: 'pointer', color: !filterRoomType ? FREE_TEXT : T.textMuted, fontFamily: 'inherit' }}>
+                style={{ fontSize: 10, padding: '3px 8px', borderRadius: 0, border: `1px solid ${!filterRoomType ? workspaceTheme.myEventColor : T.border}`, background: !filterRoomType ? (dark ? T.activeRoom : 'rgba(201,138,154,0.12)') : 'transparent', cursor: 'pointer', color: !filterRoomType ? (dark ? FREE_TEXT : workspaceTheme.myEventColor) : T.textMuted, fontFamily: 'inherit', fontWeight: !filterRoomType ? 600 : 400 }}>
                 All
               </button>
               {roomTypes.map(t => (
                 <button key={t} onClick={() => setFilterRoomType(filterRoomType === t ? '' : t)}
-                  style={{ fontSize: 10, padding: '3px 8px', borderRadius: 0, border: `1px solid ${filterRoomType === t ? T.activeBorder : T.border}`, background: filterRoomType === t ? T.activeRoom : 'transparent', cursor: 'pointer', color: filterRoomType === t ? FREE_TEXT : T.textMuted, fontFamily: 'inherit' }}>
+                  style={{ fontSize: 10, padding: '3px 8px', borderRadius: 0, border: `1px solid ${filterRoomType === t ? workspaceTheme.myEventColor : T.border}`, background: filterRoomType === t ? (dark ? T.activeRoom : 'rgba(201,138,154,0.12)') : 'transparent', cursor: 'pointer', color: filterRoomType === t ? (dark ? FREE_TEXT : workspaceTheme.myEventColor) : T.textMuted, fontFamily: 'inherit', fontWeight: filterRoomType === t ? 600 : 400 }}>
                   {t}
                 </button>
               ))}
@@ -1263,7 +1459,7 @@ export default function BookingPage() {
                     style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '8px 10px', borderRadius: 0, cursor: 'pointer', marginBottom: 1, background: active ? T.activeRoom : 'transparent', border: active ? `1px solid ${T.activeBorder}` : '1px solid transparent', transition: 'background 0.12s ease-out, border-color 0.12s ease-out' }}>
                     <div style={{ width: 8, height: 8, borderRadius: '50%', background: dot, flexShrink: 0 }} />
                     <div style={{ flex: 1, minWidth: 0 }}>
-                      <div style={{ fontSize: 13, color: T.text, fontWeight: active ? 600 : 400, letterSpacing: active ? '-0.01em' : 0 }}>{room.name}</div>
+                      <div style={{ fontSize: 10, color: T.text, fontWeight: 700, letterSpacing: workspaceTheme.roomNameSpacing, textTransform: workspaceTheme.roomNameTransform }}>{room.name}</div>
                       {room.room_type && <div style={{ fontSize: 10, color: T.textMuted, marginBottom: 1 }}>{room.room_type}</div>}
                       <div style={{ fontSize: 10, color: T.textFaint }}>{room.capacity} people</div>
                       <div style={{ fontSize: 10, color: isBusy ? '#DC2626' : T.textMuted, letterSpacing: '0.03em' }}>{isBusy ? (txt.busy ?? `In use · free at ${until}`) : (until === 'end of day' ? txt.freeAll : txt.freeUntil(until))}</div>
@@ -1274,18 +1470,33 @@ export default function BookingPage() {
           </div>
         </div>
 
-        {/* [1,1] Calendar */}
-        <div ref={calRef} style={{ padding: '16px 20px', overflow: 'auto' }}>
-          {calView === 'day'   && <DayView   bookings={dayBookings} viewDate={viewDate} onSlotClick={openScheduleLater} onBookingClick={openEdit} pendingSlot={pendingSlot} now={now} dark={dark} myEmail={mEmail} hourH={dynHourH} gridStart={gridStart} gridEnd={gridEnd} visShowTitle={visShowTitle} visShowOrganizer={visShowOrganizer} visAllowEditOthers={visAllowEditOthers} />}
-          {calView === 'week'  && <WeekView  bookings={rangeBkgs}   weekDays={weekDays} onSlotClick={openScheduleLater} onBookingClick={openEdit} pendingSlot={pendingSlot} now={now} dark={dark} myEmail={mEmail} hourH={dynHourH} gridStart={gridStart} gridEnd={gridEnd} visShowTitle={visShowTitle} visShowOrganizer={visShowOrganizer} visAllowEditOthers={visAllowEditOthers} />}
-          {calView === 'month' && <MonthView bookings={rangeBkgs}   viewDate={viewDate} onDayClick={d => { setViewDate(d); setCalView('day') }} dark={dark} />}
+        {/* Calendar area */}
+        <div ref={calRef} style={{ overflow: 'auto', display: 'flex', flexDirection: 'column' }}>
+          {/* Filter chips — day view only, above grid */}
+          {calView === 'day' && roomTypes.length > 0 && (
+            <div style={{ padding: '10px 20px 0', display: 'flex', alignItems: 'center', gap: 6, flexShrink: 0 }}>
+              <span style={{ fontSize: 9, fontWeight: 600, letterSpacing: '1.5px', color: T.textMuted, textTransform: 'uppercase' as const, marginRight: 4 }}>Filter</span>
+              <button onClick={() => setFilterRoomType('')}
+                style={{ fontSize: 10, padding: '4px 10px', borderRadius: 0, border: `1px solid ${!filterRoomType ? workspaceTheme.myEventColor : T.border}`, background: !filterRoomType ? workspaceTheme.myEventColor : 'transparent', cursor: 'pointer', color: !filterRoomType ? '#ffffff' : T.textMuted, fontFamily: 'inherit', fontWeight: 600 }}>
+                All spaces
+              </button>
+              {roomTypes.map(t => (
+                <button key={t} onClick={() => setFilterRoomType(filterRoomType === t ? '' : t)}
+                  style={{ fontSize: 10, padding: '4px 10px', borderRadius: 0, border: `1px solid ${filterRoomType === t ? workspaceTheme.myEventColor : T.border}`, background: filterRoomType === t ? workspaceTheme.myEventColor : 'transparent', cursor: 'pointer', color: filterRoomType === t ? '#ffffff' : T.textMuted, fontFamily: 'inherit', fontWeight: filterRoomType === t ? 600 : 400 }}>
+                  {t}
+                </button>
+              ))}
+            </div>
+          )}
+          <div style={{ flex: 1, padding: '16px 20px', overflow: 'auto' }}>
+            {calView === 'day'   && <AllRoomsDayView bookings={allRoomsDayBkgs} rooms={filteredRooms} viewDate={viewDate} onRoomSlotClick={(roomId, date, time) => openScheduleLater(date, time, roomId)} onBookingClick={openEdit} now={now} dark={dark} myEmail={mEmail} gridStart={gridStart} gridEnd={gridEnd} />}
+            {calView === 'week'  && <WeekView  bookings={rangeBkgs}   weekDays={weekDays} onSlotClick={openScheduleLater} onBookingClick={openEdit} pendingSlot={pendingSlot} now={now} dark={dark} myEmail={mEmail} hourH={dynHourH} gridStart={gridStart} gridEnd={gridEnd} visShowTitle={visShowTitle} visShowOrganizer={visShowOrganizer} visAllowEditOthers={visAllowEditOthers} />}
+            {calView === 'month' && <MonthView bookings={rangeBkgs}   viewDate={viewDate} onDayClick={d => { setViewDate(d); setCalView('day') }} dark={dark} />}
+          </div>
         </div>
 
-        {/* [2,0] Sidebar footer */}
-        <div style={{ background: T.cardBg }} />
-
-        {/* [2,1] Bottom bar */}
-        <div style={{ background: T.cardBg, padding: '12px 24px 28px', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8 }}>
+        {/* Bottom bar — spans full width */}
+        <div style={{ background: T.cardBg, padding: '12px 24px 28px', display: calView === 'day' ? 'none' : 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, gridColumn: '1 / -1', borderTop: `1px solid ${T.borderFaint}` }}>
           <div style={{ display: 'flex', gap: 10, flexShrink: 0 }}>
             <div style={{ position: 'relative' }}>
               <button
@@ -1293,7 +1504,7 @@ export default function BookingPage() {
                   if (!isFree) { setBusyFlash(true); setTimeout(() => setBusyFlash(false), 2200); return }
                   setMError(''); setShowModal('now'); setMDone(false)
                 }}
-                style={{ background: isFree ? roseGrad : 'transparent', color: isFree ? '#fff' : T.textMuted, border: isFree ? 'none' : `1px solid ${T.inputBorder}`, borderRadius: 0, padding: '12px 28px', fontSize: 14, fontWeight: 600, cursor: 'pointer', whiteSpace: 'nowrap', letterSpacing: '0.02em', textDecoration: isFree ? 'none' : 'line-through' }}>
+                style={{ background: isFree ? (dark ? '#444444' : 'transparent') : 'transparent', color: isFree ? (dark ? '#ffffff' : '#111111') : T.textMuted, border: isFree ? (dark ? '1.5px solid #444444' : '1.5px solid #111111') : `1px solid ${T.inputBorder}`, borderRadius: 0, padding: '12px 28px', fontSize: 13, fontWeight: 700, cursor: isFree ? 'pointer' : 'not-allowed', whiteSpace: 'nowrap', letterSpacing: '1px', textTransform: 'uppercase' as const, textDecoration: isFree ? 'none' : 'line-through' }}>
                 {txt.bookNow}
               </button>
               {busyFlash && (
@@ -1372,7 +1583,7 @@ export default function BookingPage() {
                       const busy = res.status === 'booking-next' || res.status === 'booking-alt'
                       const fmtD = new Date(res.date + 'T12:00:00').toLocaleDateString('en-AU', { weekday: 'short', day: 'numeric', month: 'short' })
                       const btnStyle = (active: boolean): React.CSSProperties => ({
-                        fontSize: 11, padding: '3px 9px', border: 'none', cursor: active ? 'pointer' : 'default',
+                        fontSize: 11, padding: '3px 9px', border: 'none', cursor: active ? 'pointer' : 'not-allowed',
                         fontFamily: 'inherit', background: active ? ROSE : T.borderFaint, color: active ? '#fff' : T.textMuted,
                         flexShrink: 0, whiteSpace: 'nowrap',
                       })
@@ -1634,8 +1845,8 @@ export default function BookingPage() {
                 ) : mError ? (
                   <div style={{ fontSize: 12, color: '#B94040', background: '#fdf2f2', border: '0.5px solid #f5c6c6', borderRadius: 0, padding: '8px 12px', marginBottom: 12 }}>{mError}</div>
                 ) : null}
-                <button onClick={handleQuickBook} disabled={mSubmitting || !mName || !mEmail || !mTime || !mEndTime || timeInvalid || (showModal === 'later' && recurFreq !== 'none' && !recurUntil) || (showModal === 'later' && mDate < todayStr)}
-                  style={{ width: '100%', background: mSubmitting ? '#e8bdc7' : roseGrad, color: '#fff', border: 'none', borderRadius: 0, padding: '13px', fontSize: 14, fontWeight: 600, cursor: (mSubmitting || timeInvalid) ? 'default' : 'pointer', letterSpacing: '0.02em', marginTop: 4 }}>
+                <button onClick={handleQuickBook} disabled={submitDisabled}
+                  style={{ width: '100%', background: mSubmitting ? '#e8bdc7' : roseGrad, color: '#fff', border: 'none', borderRadius: 0, padding: '13px', fontSize: 14, fontWeight: 600, cursor: submitDisabled ? 'not-allowed' : 'pointer', letterSpacing: '0.02em', marginTop: 4, opacity: submitDisabled && !mSubmitting ? 0.55 : 1 }}>
                   {mSubmitting ? txt.confirming : (recurFreq !== 'none' && laterRoomAvailability.find(r => r.id === mRoomId)?.taken) ? 'Book series — resolve conflicts after' : txt.confirm}
                 </button>
               </>
@@ -1720,7 +1931,7 @@ export default function BookingPage() {
                     </button>
                     {myBkSelected.size > 0 && (
                       <button onClick={cancelMyBkSelected} disabled={myBkCancelling}
-                        style={{ fontSize: 12, padding: '4px 12px', border: '1px solid rgba(185,64,64,0.4)', background: 'rgba(185,64,64,0.08)', color: '#B94040', cursor: 'pointer', borderRadius: 0 }}>
+                        style={{ fontSize: 12, padding: '4px 12px', border: '1px solid rgba(185,64,64,0.4)', background: 'rgba(185,64,64,0.08)', color: '#B94040', cursor: myBkCancelling ? 'not-allowed' : 'pointer', borderRadius: 0 }}>
                         {myBkCancelling ? 'Cancelling…' : `Cancel ${myBkSelected.size} selected`}
                       </button>
                     )}
@@ -1991,6 +2202,8 @@ export default function BookingPage() {
           </div>
         </div>
       )}
+
+      </div>{/* end calendar card */}
     </div>
   )
 }

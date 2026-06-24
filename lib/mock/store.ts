@@ -22,6 +22,7 @@ export interface MockStore {
   displayHours: { start: number; end: number }
   bookingVisibility: { showTitle: boolean; showOrganizer: boolean; allowEditOthers: boolean }
   countWeekends: boolean
+  workspaceName?: string
   tzOffset?: number
   gcalTokens: Record<string, GcalTokens>   // room_id → tokens
 }
@@ -133,6 +134,9 @@ function createStore(): MockStore {
   }
 }
 
+// In-memory fallback for local dev without KV — persists for the lifetime of the process
+let memStore: MockStore | null = null
+
 async function getSessionId(): Promise<string> {
   const { headers } = await import('next/headers')
   const h = await headers()
@@ -140,7 +144,10 @@ async function getSessionId(): Promise<string> {
 }
 
 export async function getSessionStore(): Promise<MockStore> {
-  if (!kv) return createStore()
+  if (!kv) {
+    if (!memStore) memStore = createStore()
+    return memStore
+  }
   const sessionId = await getSessionId()
   const existing = await kv.get<MockStore>(`mock:${sessionId}`)
   if (existing) {
@@ -162,7 +169,7 @@ export async function getSessionStore(): Promise<MockStore> {
 }
 
 export async function saveSessionStore(store: MockStore): Promise<void> {
-  if (!kv) return
+  if (!kv) { memStore = store; return }
   const sessionId = await getSessionId()
   await kv.set(`mock:${sessionId}`, store, { ex: SESSION_TTL_S })
 }

@@ -87,6 +87,26 @@ The booking endpoint rate-limits to 20 requests per minute per IP. Legitimate us
 
 ---
 
+### "Forbidden." (403) — edit or cancel rejected
+
+**Symptom:** A user tries to edit or cancel a booking from their "My Bookings" page (`/{workspace}/my-bookings`) and gets a 403.
+
+**Cause:** The `PATCH` or `DELETE` request to `/api/{workspace}/bookings/{id}` requires the caller to be either a workspace admin (`admin_{slug}` cookie) or the verified booking owner (`mb_{workspace}` cookie with an email matching `booking.booker_email`).
+
+The `mb_{workspace}` cookie is set when a user verifies their email via the "My Bookings" magic link. It is tied to the browser and device where they clicked the link. If they are accessing from a different browser or device, the cookie won't be present.
+
+**How to diagnose:**
+1. Open DevTools → Application → Cookies. Look for an `mb_{slug}` cookie (e.g. `mb_amber-oak-vale`).
+2. If missing: the user hasn't verified their email in this browser session. They need to re-request a magic link from `/{workspace}/my-bookings` and click it in this browser.
+3. If present but stale: check that the email in the cookie matches the `booker_email` on the booking. If the booking was made with `alice@example.com` and the cookie holds `Alice@example.com`, the comparison is case-insensitive and should still pass. If they are genuinely different emails, the user cannot claim ownership — an admin must make the change.
+4. If the booking was made as a walk-in (`walkin@tablet.spacebook.app`), no `mb_` cookie can claim ownership — only an admin can edit or cancel walk-in bookings.
+
+**Fix:**
+- User on wrong device: send them a new magic link from `/{workspace}/my-bookings`.
+- Walk-in booking: admin edits via the admin panel or by hitting the API with an admin cookie.
+
+---
+
 ### Conflict — booking rejected, alternatives shown (409)
 
 The time slot is already taken. The UI shows the conflicting booking and (if configured) alternative rooms. This is expected behaviour, not an error.
