@@ -20,7 +20,7 @@ const workspaceTheme = {
   accentColor:       _activePreset.accentColor,
   nowLineColor:      _activePreset.accentColor,
   nowLineWidth:      '3px',
-  pastHatching:      'repeating-linear-gradient(-45deg, rgba(0,0,0,0.052) 0, rgba(0,0,0,0.052) 1px, transparent 1px, transparent 9px)',
+  pastHatching:      'repeating-linear-gradient(-45deg, rgba(0,0,0,0.062) 0, rgba(0,0,0,0.062) 1px, transparent 1px, transparent 6px)',
   roomNameTransform: 'uppercase' as const,
   roomNameSpacing:   '1.5px',
   calendarRadius:    '12px',
@@ -951,9 +951,9 @@ export default function BookingPage() {
   }, [])
 
   useEffect(() => {
-    const id = setInterval(() => { fetchSidebar(); fetchRange() }, 60_000)
+    const id = setInterval(() => { fetchSidebar(); fetchRange(); fetchAllRoomsDay() }, 60_000)
     return () => clearInterval(id)
-  }, [fetchSidebar, fetchRange])
+  }, [fetchSidebar, fetchRange, fetchAllRoomsDay])
 
   // Measure calendar container to compute dynamic hourH
   const calRef = useRef<HTMLDivElement>(null)
@@ -1110,6 +1110,7 @@ export default function BookingPage() {
     setRangeBkgs(prev => prev.map(b => b.id === editBooking.id ? updated : b))
     fetchRange()
     fetchSidebar()
+    fetchAllRoomsDay()
     if (result.conflictDates?.length > 0) {
       setEditConflicts(result.conflictDates)
       setEditSubmitting(false)
@@ -1128,6 +1129,7 @@ export default function BookingPage() {
         setEditBooking(null)
         fetchRange()
         fetchSidebar()
+        fetchAllRoomsDay()
       }})
     } else {
       setConfirmCancel({ message: 'This will cancel the booking.', onConfirm: async () => {
@@ -1136,6 +1138,7 @@ export default function BookingPage() {
         setEditBooking(null)
         fetchRange()
         fetchSidebar()
+        fetchAllRoomsDay()
       }})
     }
   }
@@ -1200,7 +1203,7 @@ export default function BookingPage() {
     })
     if (res.ok) {
       setSingleConflict(null)
-      setMTitle('Occupied'); setMError(''); setMDone(true); fetchSidebar(); fetchRange()
+      setMTitle('Occupied'); setMError(''); setMDone(true); fetchSidebar(); fetchRange(); fetchAllRoomsDay()
     } else {
       const body = await res.json().catch(() => ({}))
       setSingleConflict(prev => prev ? { ...prev, bookingStatus: 'error', error: body.error ?? 'Failed to book' } : null)
@@ -1275,7 +1278,7 @@ export default function BookingPage() {
       setLastCreatedRecurFreq(recurrence?.frequency ?? 'none')
       setPendingReschedules(prev => prev.filter(r => r.date !== mDate))
       setConflictResolutions([])
-      setMTitle('Occupied'); setRecurFreq('none'); setMError(''); setMDone(true); fetchSidebar(); fetchRange()
+      setMTitle('Occupied'); setRecurFreq('none'); setMError(''); setMDone(true); fetchSidebar(); fetchRange(); fetchAllRoomsDay()
       if (conflictDates.length > 0 && capturedRoom) {
         setConflictResLoading(true)
         const minDate = conflictDates.reduce((a, b) => a < b ? a : b)
