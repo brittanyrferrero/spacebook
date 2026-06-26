@@ -4,8 +4,8 @@ import { useEffect } from 'react'
 
 export default function GlobalError({ error, reset }: { error: Error & { digest?: string }; reset: () => void }) {
   useEffect(() => {
-    // ChunkLoadError: a new deployment invalidated the JS chunk the browser had
-    // queued to load. Hard-reloading fetches the current chunks.
+    // ChunkLoadError: new deployment invalidated the chunk the browser queued.
+    // Reload immediately — the fresh deployment will serve current chunks.
     const isChunkError =
       error.name === 'ChunkLoadError' ||
       error.message?.includes('Loading chunk') ||
@@ -14,7 +14,23 @@ export default function GlobalError({ error, reset }: { error: Error & { digest?
 
     if (isChunkError) {
       window.location.reload()
+      return
     }
+
+    // For any other error, keep polling /api/version so tablets self-recover
+    // after the next deploy without needing a manual reload.
+    let knownVersion: string | null = null
+    async function checkVersion() {
+      try {
+        const res = await fetch('/api/version')
+        const { version } = await res.json()
+        if (knownVersion === null) { knownVersion = version; return }
+        if (version !== knownVersion) window.location.reload()
+      } catch { /* non-fatal */ }
+    }
+    checkVersion()
+    const id = setInterval(checkVersion, 2 * 60 * 1000)
+    return () => clearInterval(id)
   }, [error])
 
   return (
