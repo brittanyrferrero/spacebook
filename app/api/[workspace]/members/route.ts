@@ -10,7 +10,8 @@ export async function GET(req: NextRequest, { params }: { params: { workspace: s
   }
 
   const adminRole = req.cookies.get(`admin_${params.workspace}`)?.value
-  if (!adminRole) return NextResponse.json({ error: 'Admin required.' }, { status: 403 })
+  const wsRole = req.cookies.get(`ws_${params.workspace}`)?.value
+  if (!adminRole && !wsRole) return NextResponse.json({ error: 'Auth required.' }, { status: 403 })
 
   const workspaceId = await getWorkspaceId(params.workspace)
   if (!workspaceId) return NextResponse.json({ error: 'Workspace not found' }, { status: 404 })

@@ -23,9 +23,10 @@ export function NameAutocomplete({ value, onChange, onSelect, workspace = '', st
   useEffect(() => {
     if (!workspace) return
     if (cache[workspace]) { setUsers(cache[workspace]); return }
-    fetch(`/api/${workspace}/members`).then(r => r.json()).then((data: User[]) => {
-      cache[workspace] = data
-      setUsers(data)
+    fetch(`/api/${workspace}/members`).then(r => r.json()).then((data: unknown) => {
+      const list = Array.isArray(data) ? data as User[] : []
+      cache[workspace] = list
+      setUsers(list)
     }).catch(() => {})
   }, [workspace])
 

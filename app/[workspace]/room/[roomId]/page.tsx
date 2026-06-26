@@ -140,7 +140,7 @@ function TimePicker({ value, onChange, style }: { value: string; onChange: (v: s
   const [rawH, rawM] = value ? value.split(':') : ['', '']
   const selH = rawH ?? ''
   const selM = rawM ?? ''
-  const sel: React.CSSProperties = { fontSize: 14, padding: '8px 6px', border: '1px solid #cccccc', borderRadius: 0, outline: 'none', fontFamily: 'inherit', flex: 1, background: '#fff', cursor: 'pointer', ...style }
+  const sel: React.CSSProperties = { fontSize: 14, padding: '8px 6px', border: '1px solid #cccccc', borderRadius: 0, outline: 'none', fontFamily: 'inherit', flex: 1, background: '#fff', color: '#111111', cursor: 'pointer', ...style }
   return (
     <div style={{ display: 'flex', gap: 6 }}>
       <select style={sel} value={selH} onChange={e => onChange(`${e.target.value}:${selM || '00'}`)}>
@@ -858,7 +858,7 @@ function RoomDisplayPageInner() {
     setMSubmitting(false)
   }
 
-  const inp: React.CSSProperties = { fontSize: 14, padding: '8px 10px', border: '1px solid #cccccc', borderRadius: 0, outline: 'none', fontFamily: 'inherit', width: '100%' }
+  const inp: React.CSSProperties = { fontSize: 14, padding: '8px 10px', border: '1px solid #cccccc', borderRadius: 0, outline: 'none', fontFamily: 'inherit', width: '100%', color: '#111111', background: '#fff' }
   const lbl: React.CSSProperties = { fontSize: 12, color: '#6B7280', fontWeight: 500, display: 'block', marginBottom: 4 }
 
   return (
