@@ -4,7 +4,7 @@ import { useEffect } from 'react'
 
 // How long to wait before forcing a reload even without a version change.
 // Keeps tablets self-healing without any manual intervention.
-const HARD_RELOAD_MS = 5 * 60 * 1000 // 5 minutes
+const HARD_RELOAD_MS = 30_000 // 30 seconds
 
 export default function GlobalError({ error, reset }: { error: Error & { digest?: string }; reset: () => void }) {
   useEffect(() => {
