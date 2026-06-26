@@ -2,10 +2,13 @@
 
 import { useEffect } from 'react'
 
+// How long to wait before forcing a reload even without a version change.
+// Keeps tablets self-healing without any manual intervention.
+const HARD_RELOAD_MS = 5 * 60 * 1000 // 5 minutes
+
 export default function GlobalError({ error, reset }: { error: Error & { digest?: string }; reset: () => void }) {
   useEffect(() => {
-    // ChunkLoadError: new deployment invalidated the chunk the browser queued.
-    // Reload immediately — the fresh deployment will serve current chunks.
+    // ChunkLoadError: new deployment invalidated the chunk — reload immediately.
     const isChunkError =
       error.name === 'ChunkLoadError' ||
       error.message?.includes('Loading chunk') ||
@@ -17,8 +20,7 @@ export default function GlobalError({ error, reset }: { error: Error & { digest?
       return
     }
 
-    // For any other error, keep polling /api/version so tablets self-recover
-    // after the next deploy without needing a manual reload.
+    // For any other error: poll /api/version and reload when a new deploy lands.
     let knownVersion: string | null = null
     async function checkVersion() {
       try {
@@ -29,8 +31,14 @@ export default function GlobalError({ error, reset }: { error: Error & { digest?
       } catch { /* non-fatal */ }
     }
     checkVersion()
-    const id = setInterval(checkVersion, 2 * 60 * 1000)
-    return () => clearInterval(id)
+    const versionId = setInterval(checkVersion, 2 * 60 * 1000)
+
+    // Hard fallback: reload after HARD_RELOAD_MS no matter what.
+    // This recovers tablets that are already stuck on *this* error page
+    // if no new deploy arrives to trigger the version check above.
+    const hardId = setTimeout(() => window.location.reload(), HARD_RELOAD_MS)
+
+    return () => { clearInterval(versionId); clearTimeout(hardId) }
   }, [error])
 
   return (
