@@ -1,16 +1,48 @@
 import { Resend } from 'resend'
 import { NextRequest } from 'next/server'
+import { Ratelimit } from '@upstash/ratelimit'
+import { Redis } from '@upstash/redis'
 
 export const dynamic = 'force-dynamic'
 
 const ALERT_TO = 'brittany@intelligence.org'
 const FROM = process.env.EMAIL_FROM ?? 'spacebook <noreply@spacebook.app>'
 
+const esc = (s: unknown) =>
+  String(s ?? 'unknown')
+    .slice(0, 500)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;')
+
+let ratelimit: Ratelimit | null = null
+function getRatelimit() {
+  if (!ratelimit && process.env.UPSTASH_REDIS_REST_URL && process.env.UPSTASH_REDIS_REST_TOKEN) {
+    ratelimit = new Ratelimit({
+      redis: Redis.fromEnv(),
+      limiter: Ratelimit.slidingWindow(5, '1 h'),
+      prefix: 'sb:error-report',
+    })
+  }
+  return ratelimit
+}
+
 export async function POST(req: NextRequest) {
   const key = process.env.RESEND_API_KEY
   if (!key) return Response.json({ ok: false }, { status: 500 })
 
-  const { message, url } = await req.json()
+  const ip = req.headers.get('x-forwarded-for')?.split(',')[0].trim() ?? 'unknown'
+  const rl = getRatelimit()
+  if (rl) {
+    const { success } = await rl.limit(ip)
+    if (!success) return Response.json({ ok: false }, { status: 429 })
+  }
+
+  const body = await req.json()
+  const safeUrl = esc(body.url)
+  const safeMessage = esc(body.message)
 
   const resend = new Resend(key)
   await resend.emails.send({
@@ -27,8 +59,8 @@ export async function POST(req: NextRequest) {
   </p>
 
   <div style="background:#FEF2F2;border-radius:8px;padding:14px 16px;margin:20px 0;font-size:13px;color:#374151">
-    <div style="margin-bottom:6px"><span style="color:#9CA3AF">URL</span> &nbsp; ${url ?? 'unknown'}</div>
-    <div style="word-break:break-all"><span style="color:#9CA3AF">Error</span> &nbsp; ${message ?? 'unknown'}</div>
+    <div style="margin-bottom:6px"><span style="color:#9CA3AF">URL</span> &nbsp; ${safeUrl}</div>
+    <div style="word-break:break-all"><span style="color:#9CA3AF">Error</span> &nbsp; ${safeMessage}</div>
   </div>
 
   <p style="font-size:12px;color:#9CA3AF">
