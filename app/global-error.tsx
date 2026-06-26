@@ -8,6 +8,20 @@ const HARD_RELOAD_MS = 30_000 // 30 seconds
 
 export default function GlobalError({ error, reset }: { error: Error & { digest?: string }; reset: () => void }) {
   useEffect(() => {
+    // Send one email alert per hour — localStorage persists across the reload loop.
+    try {
+      const COOLDOWN = 60 * 60 * 1000
+      const last = Number(localStorage.getItem('sb_error_report') ?? 0)
+      if (Date.now() - last > COOLDOWN) {
+        localStorage.setItem('sb_error_report', String(Date.now()))
+        fetch('/api/error-report', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ message: error.message, url: window.location.href }),
+        }).catch(() => {})
+      }
+    } catch { /* localStorage unavailable */ }
+
     // ChunkLoadError: new deployment invalidated the chunk — reload immediately.
     const isChunkError =
       error.name === 'ChunkLoadError' ||
