@@ -940,16 +940,16 @@ export default function AdminPage() {
                   const maxSlots = Math.max(...cs.distribution.map((d: any) => d.slots), 1)
                   return (
                     <div style={{ background: '#fff', border: '1px solid #dddddd', borderRadius: 0, padding: 13, flex: 2, minWidth: 0 }}>
-                      <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', marginBottom: 10, flexWrap: 'wrap', gap: 8 }}>
-                        <div style={{ fontSize: 12, fontWeight: 500, color: '#374151' }}>Space pressure</div>
+                      <div style={{ marginBottom: 10 }}>
+                        <div style={{ fontSize: 12, fontWeight: 500, color: '#374151', marginBottom: 5 }}>Space pressure</div>
                         <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
-                          <span style={{ fontSize: 11, color: '#9CA3AF' }}>
+                          <span style={{ fontSize: 11, color: '#6B7280' }}>
                             Peak: <span style={{ color: '#374151', fontWeight: 500 }}>{cs.peak_concurrent} / {cs.total_rooms} rooms</span>
                           </span>
-                          <span style={{ fontSize: 11, color: '#9CA3AF' }}>
+                          <span style={{ fontSize: 11, color: '#6B7280' }}>
                             At capacity: <span style={{ color: cs.full_pct >= 10 ? BUSY : '#374151', fontWeight: 500 }}>{cs.full_pct}%</span> of hours
                           </span>
-                          <span style={{ fontSize: 11, color: '#9CA3AF' }}>
+                          <span style={{ fontSize: 11, color: '#6B7280' }}>
                             High demand: <span style={{ color: cs.high_demand_pct >= 20 ? '#D97706' : '#374151', fontWeight: 500 }}>{cs.high_demand_pct}%</span>
                           </span>
                         </div>
