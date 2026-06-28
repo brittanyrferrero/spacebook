@@ -205,7 +205,7 @@ export default function PalantirPage() {
                       <span style={{ fontSize: 11, color: 'rgba(255,255,255,0.2)' }}>{w.room_count} room{w.room_count !== 1 ? 's' : ''}</span>
                     </div>
                     <div style={{ display: 'flex', flexWrap: 'wrap', gap: 16 }}>
-                      {rooms === null ? (
+                      {rooms == null ? (
                         // Loading skeletons
                         Array.from({ length: Math.max(1, w.room_count) }).map((_, i) => (
                           <div key={i} style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
