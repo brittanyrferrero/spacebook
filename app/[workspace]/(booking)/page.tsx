@@ -300,7 +300,7 @@ function DayView({ bookings, viewDate, onSlotClick, onBookingClick, pendingSlot,
           onMouseMove={onSlotClick && !isPast ? (e) => { const rect = e.currentTarget.getBoundingClientRect(); const t = snapY(e.clientY - rect.top); if (isPastSlot(t)) setHoverTime(null); else setHoverTime(t) } : undefined}
           onMouseLeave={() => setHoverTime(null)}>
           {Array.from({ length: gridHours }, (_, i) => (
-            <div key={i} style={{ position: 'absolute', top: i * hourH, left: 0, right: 0, height: hourH, background: i % 2 === 0 ? T.bandOdd : 'transparent', borderTop: `0.5px solid ${isPast ? (dark ? 'rgba(255,255,255,0.04)' : '#a8a8a8') : (dark ? 'rgba(255,255,255,0.12)' : '#C8C8C8')}` }} />
+            <div key={i} style={{ position: 'absolute', top: i * hourH, left: 0, right: 0, height: hourH, background: i % 2 === 0 ? T.bandOdd : 'transparent', borderTop: `0.5px solid ${isPast ? (dark ? 'rgba(255,255,255,0.04)' : '#888888') : (dark ? 'rgba(255,255,255,0.18)' : '#AAAAAA')}` }} />
           ))}
           {hoverTime && (() => {
             const [sh, sm] = hoverTime.split(':').map(Number)
@@ -437,7 +437,7 @@ function WeekView({ bookings, weekDays, onSlotClick, onBookingClick, pendingSlot
                   onMouseMove={onSlotClick && !isPast ? (e) => { const rect = e.currentTarget.getBoundingClientRect(); const t = snapY(e.clientY - rect.top); if (isToday && now) { const [h,m] = t.split(':').map(Number); const s = new Date(day); s.setHours(h,m,0,0); if (s < now) { setHoverSlot(null); return } } setHoverSlot({ ds, time: t }) } : undefined}
                   onMouseLeave={() => setHoverSlot(null)}>
                   {Array.from({ length: gridHours }, (_, i) => (
-                    <div key={i} style={{ position: 'absolute', top: i * hourH, left: 0, right: 0, height: hourH, background: i % 2 === 0 ? T.bandOdd : 'transparent', borderTop: `0.5px solid ${isPast ? (dark ? 'rgba(255,255,255,0.04)' : '#a8a8a8') : (dark ? 'rgba(255,255,255,0.12)' : '#C8C8C8')}` }} />
+                    <div key={i} style={{ position: 'absolute', top: i * hourH, left: 0, right: 0, height: hourH, background: i % 2 === 0 ? T.bandOdd : 'transparent', borderTop: `0.5px solid ${isPast ? (dark ? 'rgba(255,255,255,0.04)' : '#888888') : (dark ? 'rgba(255,255,255,0.18)' : '#AAAAAA')}` }} />
                   ))}
                   {hoverSlot?.ds === ds && (() => {
                     const [sh, sm] = hoverSlot.time.split(':').map(Number)

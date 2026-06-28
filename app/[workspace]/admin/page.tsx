@@ -891,7 +891,7 @@ export default function AdminPage() {
                 {!filterRoom && (
                   <div style={{ background: '#fff', border: '1px solid #dddddd', borderRadius: 0, padding: 13, flex: 1, minWidth: 0 }}>
                     <div style={{ fontSize: 12, fontWeight: 500, color: '#374151', marginBottom: 10 }}>Room usage</div>
-                    <div style={{ display: 'flex', gap: 5 }}>
+                    <div style={{ display: 'flex', gap: 5, overflow: 'hidden' }}>
                       {[...roomStats].sort((a: any, b: any) => b.total_hours - a.total_hours).map((r: any) => {
                         const h = Math.round(r.total_hours / maxRoomHours * 60)
                         return (
@@ -973,6 +973,9 @@ export default function AdminPage() {
                   )
                 })()}
 
+              </div>
+
+              <div style={{ display: 'flex', gap: 10, marginBottom: 14, alignItems: 'flex-start' }}>
                 <div style={{ background: '#fff', border: '1px solid #dddddd', borderRadius: 0, padding: 13, flex: 1, minWidth: 0 }}>
                   <div style={{ fontSize: 12, fontWeight: 500, color: '#374151', marginBottom: 10 }}>Busiest hours</div>
                   <div style={{ display: 'grid', gridTemplateColumns: `repeat(${hourStats.length},1fr)`, gap: 2, marginBottom: 3 }}>
