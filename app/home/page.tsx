@@ -186,7 +186,7 @@ export default function LandingPage({ showPricing = true, showIntro = true }: { 
           </h1>
           {/* Audience */}
           <p style={{ fontSize: 15, color: 'rgba(255,255,255,0.72)', lineHeight: 1.75, maxWidth: 620, margin: '24px 0 56px' }}>
-            For coworking spaces, offices, studios, gyms, maker spaces, and anywhere else people share resources and need a simple way to book them.
+            For coworking spaces, offices, studios, gyms, maker spaces, and anywhere people share resources and need a simple way to book them.
           </p>
 
           <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', justifyContent: 'center' }}>
