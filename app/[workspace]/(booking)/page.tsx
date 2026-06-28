@@ -676,9 +676,10 @@ function AllRoomsDayView({ bookings, rooms, viewDate, onRoomSlotClick, onBooking
                 <div key={i} style={{ position: 'absolute', top: 0, bottom: 0, left: `${i / gridHours * 100}%`, width: `${1 / gridHours * 100}%`, background: T.bandOdd, pointerEvents: 'none' }} />
               ) : null)}
 
-              {/* Past hatching overlay */}
+              {/* Past hatching overlay — backgroundPositionY offsets by cumulative row height so
+                  diagonal lines are continuous across all room rows rather than restarting per-row */}
               {pastWidth > 0 && (
-                <div style={{ position: 'absolute', top: 0, bottom: 0, left: 0, width: `${pastWidth}%`, background: dark ? 'rgba(0,0,0,0.45)' : 'transparent', backgroundImage: !dark ? workspaceTheme.pastHatching : undefined, pointerEvents: 'none', zIndex: 1 }} />
+                <div style={{ position: 'absolute', top: 0, bottom: 0, left: 0, width: `${pastWidth}%`, background: dark ? 'rgba(0,0,0,0.45)' : T.pastBg, backgroundImage: !dark ? workspaceTheme.pastHatching : undefined, backgroundPositionY: `${-(ri * (TRACK_H + 1))}px`, pointerEvents: 'none', zIndex: 1 }} />
               )}
 
               {/* Now-line */}
