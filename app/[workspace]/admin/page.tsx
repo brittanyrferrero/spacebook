@@ -832,7 +832,7 @@ export default function AdminPage() {
                 ))}
               </div>
 
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 8, marginBottom: 14 }}>
+              <div style={{ display: 'grid', gridTemplateColumns: `repeat(${totals.outside_display_hours > 0 ? 5 : 4}, 1fr)`, gap: 8, marginBottom: 14 }}>
                 {[
                   { label: 'Total bookings', value: totals.total_bookings },
                   { label: 'Hours booked', value: totals.total_hours },
