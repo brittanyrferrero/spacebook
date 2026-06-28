@@ -832,7 +832,7 @@ export default function AdminPage() {
                 ))}
               </div>
 
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 8, marginBottom: 14, maxWidth: 480 }}>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 8, marginBottom: 14 }}>
                 {[
                   { label: 'Total bookings', value: totals.total_bookings },
                   { label: 'Hours booked', value: totals.total_hours },
@@ -888,6 +888,26 @@ export default function AdminPage() {
               </div>
 
               <div style={{ display: 'flex', gap: 10, marginBottom: 14, alignItems: 'flex-start' }}>
+                {!filterRoom && (
+                  <div style={{ background: '#fff', border: '1px solid #dddddd', borderRadius: 0, padding: 13, flex: 1, minWidth: 0 }}>
+                    <div style={{ fontSize: 12, fontWeight: 500, color: '#374151', marginBottom: 10 }}>Room usage</div>
+                    <div style={{ display: 'flex', gap: 5 }}>
+                      {[...roomStats].sort((a: any, b: any) => b.total_hours - a.total_hours).map((r: any) => {
+                        const h = Math.round(r.total_hours / maxRoomHours * 60)
+                        return (
+                          <div key={r.room.id} title={`${r.room.name}: ${r.total_bookings} bookings · ${r.total_hours}h · ${r.utilisation_pct}% utilised`} style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 2, flex: 1, cursor: 'default' }}>
+                            <div style={{ display: 'flex', alignItems: 'flex-end', width: '100%', height: 60 }}>
+                              <div style={{ borderRadius: '3px 3px 0 0', width: '100%', height: h, background: r.room.is_active ? SAGE : '#C8D8CC' }} />
+                            </div>
+                            <div style={{ fontSize: 10, color: '#9CA3AF', textAlign: 'center', width: '100%', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{r.room.name}</div>
+                            <div style={{ fontSize: 10, fontWeight: 500, color: '#374151' }}>{r.total_hours}h</div>
+                          </div>
+                        )
+                      })}
+                    </div>
+                  </div>
+                )}
+
                 {stats.originStats && totals.total_bookings > 0 && (() => {
                   const os = stats.originStats
                   const bars: { key: string; label: string; color: string; count: number; pct: number }[] = [
@@ -896,7 +916,7 @@ export default function AdminPage() {
                     { key: 'gcal',    label: 'Google Calendar', color: '#4285F4', count: os.gcal.count,    pct: os.gcal.pct    },
                   ].filter(b => b.count > 0)
                   return (
-                    <div style={{ background: '#fff', border: '1px solid #dddddd', padding: 13, flex: 1 }}>
+                    <div style={{ background: '#fff', border: '1px solid #dddddd', padding: 13, flex: 1, minWidth: 0 }}>
                       <div style={{ fontSize: 12, fontWeight: 500, color: '#374151', marginBottom: 10 }}>Booking origin</div>
                       <div style={{ display: 'flex', flexDirection: 'column', gap: 7 }}>
                         {bars.map(b => (
@@ -919,10 +939,10 @@ export default function AdminPage() {
                   const cs = concurrentStats
                   const maxSlots = Math.max(...cs.distribution.map((d: any) => d.slots), 1)
                   return (
-                    <div style={{ background: '#fff', border: '1px solid #dddddd', borderRadius: 0, padding: 13, flex: 1 }}>
-                      <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', marginBottom: 14, flexWrap: 'wrap', gap: 8 }}>
+                    <div style={{ background: '#fff', border: '1px solid #dddddd', borderRadius: 0, padding: 13, flex: 2, minWidth: 0 }}>
+                      <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', marginBottom: 10, flexWrap: 'wrap', gap: 8 }}>
                         <div style={{ fontSize: 12, fontWeight: 500, color: '#374151' }}>Space pressure</div>
-                        <div style={{ display: 'flex', gap: 14, flexWrap: 'wrap' }}>
+                        <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
                           <span style={{ fontSize: 11, color: '#9CA3AF' }}>
                             Peak: <span style={{ color: '#374151', fontWeight: 500 }}>{cs.peak_concurrent} / {cs.total_rooms} rooms</span>
                           </span>
@@ -952,30 +972,8 @@ export default function AdminPage() {
                     </div>
                   )
                 })()}
-              </div>
 
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 10, marginBottom: 14 }}>
-                {!filterRoom && (
-                  <div style={{ background: '#fff', border: '1px solid #dddddd', borderRadius: 0, padding: 13 }}>
-                    <div style={{ fontSize: 12, fontWeight: 500, color: '#374151', marginBottom: 10 }}>Room usage</div>
-                    <div style={{ display: 'flex', gap: 5 }}>
-                      {[...roomStats].sort((a: any, b: any) => b.total_hours - a.total_hours).map((r: any) => {
-                        const h = Math.round(r.total_hours / maxRoomHours * 60)
-                        return (
-                          <div key={r.room.id} title={`${r.room.name}: ${r.total_bookings} bookings · ${r.total_hours}h · ${r.utilisation_pct}% utilised`} style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 2, flex: 1, cursor: 'default' }}>
-                            <div style={{ display: 'flex', alignItems: 'flex-end', width: '100%', height: 60 }}>
-                              <div style={{ borderRadius: '3px 3px 0 0', width: '100%', height: h, background: r.room.is_active ? SAGE : '#C8D8CC' }} />
-                            </div>
-                            <div style={{ fontSize: 10, color: '#9CA3AF', textAlign: 'center', width: '100%', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{r.room.name}</div>
-                            <div style={{ fontSize: 10, fontWeight: 500, color: '#374151' }}>{r.total_hours}h</div>
-                          </div>
-                        )
-                      })}
-                    </div>
-                  </div>
-                )}
-
-                <div style={{ background: '#fff', border: '1px solid #dddddd', borderRadius: 0, padding: 13 }}>
+                <div style={{ background: '#fff', border: '1px solid #dddddd', borderRadius: 0, padding: 13, flex: 1, minWidth: 0 }}>
                   <div style={{ fontSize: 12, fontWeight: 500, color: '#374151', marginBottom: 10 }}>Busiest hours</div>
                   <div style={{ display: 'grid', gridTemplateColumns: `repeat(${hourStats.length},1fr)`, gap: 2, marginBottom: 3 }}>
                     {hourStats.map((h: any) => (
@@ -992,7 +990,7 @@ export default function AdminPage() {
                   </div>
                 </div>
 
-                <div style={{ background: '#fff', border: '1px solid #dddddd', borderRadius: 0, padding: 13 }}>
+                <div style={{ background: '#fff', border: '1px solid #dddddd', borderRadius: 0, padding: 13, flex: 1, minWidth: 0 }}>
                   <div style={{ fontSize: 12, fontWeight: 500, color: '#374151', marginBottom: 10 }}>Busiest days</div>
                   {(() => {
                     const dowStats: any[] = stats.dowStats ?? []
