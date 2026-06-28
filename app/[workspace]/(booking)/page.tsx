@@ -1454,12 +1454,12 @@ export default function BookingPage() {
           {roomTypes.length > 0 && (
             <div style={{ padding: '8px 14px 4px', display: 'flex', flexWrap: 'wrap', gap: 4, borderBottom: `1px solid ${T.borderFaint}` }}>
               <button onClick={() => setFilterRoomType('')}
-                style={{ fontSize: 10, padding: '3px 8px', borderRadius: 0, border: `1px solid ${!filterRoomType ? workspaceTheme.myEventColor : T.border}`, background: !filterRoomType ? (dark ? T.activeRoom : 'rgba(201,138,154,0.12)') : 'transparent', cursor: 'pointer', color: !filterRoomType ? (dark ? FREE_TEXT : workspaceTheme.myEventColor) : T.textMuted, fontFamily: 'inherit', fontWeight: !filterRoomType ? 600 : 400 }}>
+                style={{ fontSize: 10, padding: '3px 8px', borderRadius: 0, border: `1px solid ${!filterRoomType ? accentColor : T.border}`, background: !filterRoomType ? (dark ? T.activeRoom : `${accentColor}1f`) : 'transparent', cursor: 'pointer', color: !filterRoomType ? (dark ? FREE_TEXT : accentColor) : T.textMuted, fontFamily: 'inherit', fontWeight: !filterRoomType ? 600 : 400 }}>
                 All
               </button>
               {roomTypes.map(t => (
                 <button key={t} onClick={() => setFilterRoomType(filterRoomType === t ? '' : t)}
-                  style={{ fontSize: 10, padding: '3px 8px', borderRadius: 0, border: `1px solid ${filterRoomType === t ? workspaceTheme.myEventColor : T.border}`, background: filterRoomType === t ? (dark ? T.activeRoom : 'rgba(201,138,154,0.12)') : 'transparent', cursor: 'pointer', color: filterRoomType === t ? (dark ? FREE_TEXT : workspaceTheme.myEventColor) : T.textMuted, fontFamily: 'inherit', fontWeight: filterRoomType === t ? 600 : 400 }}>
+                  style={{ fontSize: 10, padding: '3px 8px', borderRadius: 0, border: `1px solid ${filterRoomType === t ? accentColor : T.border}`, background: filterRoomType === t ? (dark ? T.activeRoom : `${accentColor}1f`) : 'transparent', cursor: 'pointer', color: filterRoomType === t ? (dark ? FREE_TEXT : accentColor) : T.textMuted, fontFamily: 'inherit', fontWeight: filterRoomType === t ? 600 : 400 }}>
                   {t}
                 </button>
               ))}
@@ -1496,12 +1496,12 @@ export default function BookingPage() {
             <div style={{ padding: '10px 20px 0', display: 'flex', alignItems: 'center', gap: 6, flexShrink: 0 }}>
               <span style={{ fontSize: 9, fontWeight: 600, letterSpacing: '1.5px', color: T.textMuted, textTransform: 'uppercase' as const, marginRight: 4 }}>Filter</span>
               <button onClick={() => setFilterRoomType('')}
-                style={{ fontSize: 10, padding: '4px 10px', borderRadius: 0, border: `1px solid ${!filterRoomType ? workspaceTheme.myEventColor : T.border}`, background: !filterRoomType ? workspaceTheme.myEventColor : 'transparent', cursor: 'pointer', color: !filterRoomType ? '#ffffff' : T.textMuted, fontFamily: 'inherit', fontWeight: 600 }}>
+                style={{ fontSize: 10, padding: '4px 10px', borderRadius: 0, border: `1px solid ${!filterRoomType ? accentColor : T.border}`, background: !filterRoomType ? accentColor : 'transparent', cursor: 'pointer', color: !filterRoomType ? contrastColor(accentColor) : T.textMuted, fontFamily: 'inherit', fontWeight: 600 }}>
                 All spaces
               </button>
               {roomTypes.map(t => (
                 <button key={t} onClick={() => setFilterRoomType(filterRoomType === t ? '' : t)}
-                  style={{ fontSize: 10, padding: '4px 10px', borderRadius: 0, border: `1px solid ${filterRoomType === t ? workspaceTheme.myEventColor : T.border}`, background: filterRoomType === t ? workspaceTheme.myEventColor : 'transparent', cursor: 'pointer', color: filterRoomType === t ? '#ffffff' : T.textMuted, fontFamily: 'inherit', fontWeight: filterRoomType === t ? 600 : 400 }}>
+                  style={{ fontSize: 10, padding: '4px 10px', borderRadius: 0, border: `1px solid ${filterRoomType === t ? accentColor : T.border}`, background: filterRoomType === t ? accentColor : 'transparent', cursor: 'pointer', color: filterRoomType === t ? contrastColor(accentColor) : T.textMuted, fontFamily: 'inherit', fontWeight: filterRoomType === t ? 600 : 400 }}>
                   {t}
                 </button>
               ))}
