@@ -250,7 +250,7 @@ export default function LandingPage() {
           </h1>
 
           <p style={{ fontSize: 'clamp(15px, 1.8vw, 18px)', color: `${CREAM}99`, lineHeight: 1.7, maxWidth: 560, margin: '0 0 48px' }}>
-            Created for coworking spaces, offices, studios, maker spaces, and anywhere else people share rooms and need a simple way to book them.
+            For coworking spaces, offices, studios, gyms, maker spaces, and anywhere else people share resources and need a simple way to book them.
           </p>
 
           {/* Section nav */}
