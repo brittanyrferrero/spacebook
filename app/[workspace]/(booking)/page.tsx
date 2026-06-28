@@ -589,12 +589,13 @@ function FloorplanIcon({ type }: { type?: string | null }) {
 const ROOM_COL_W = 180
 const TRACK_H    = 88
 
-function AllRoomsDayView({ bookings, rooms, viewDate, onRoomSlotClick, onBookingClick, now, dark, myEmail, gridStart = GRID_START, gridEnd = GRID_END }: {
+function AllRoomsDayView({ bookings, rooms, viewDate, onRoomSlotClick, onBookingClick, now, dark, myEmail, gridStart = GRID_START, gridEnd = GRID_END, visShowTitle = false, visShowOrganizer = false }: {
   bookings: Booking[]; rooms: Room[]; viewDate: Date
   onRoomSlotClick: (roomId: string, date: Date, time: string) => void
   onBookingClick: (b: Booking) => void
   now: Date; dark?: boolean; myEmail?: string
   gridStart?: number; gridEnd?: number
+  visShowTitle?: boolean; visShowOrganizer?: boolean
 }) {
   const T = mkT(dark ?? false)
   const gridHours = gridEnd - gridStart
@@ -707,7 +708,7 @@ function AllRoomsDayView({ bookings, rooms, viewDate, onRoomSlotClick, onBooking
                       display: 'flex', alignItems: 'center', padding: '0 10px 0 12px', gap: 6,
                     }}>
                     <span style={{ fontSize: 11, fontWeight: 600, color: '#ffffff', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', flex: 1, minWidth: 0 }}>
-                      {b.booker_name}
+                      {isMine ? (b.title || b.booker_name) : visShowTitle ? (b.title || 'Occupied') : visShowOrganizer ? b.booker_name : 'Occupied'}
                     </span>
                   </div>
                 )
@@ -1492,7 +1493,7 @@ export default function BookingPage() {
             </div>
           )}
           <div style={{ flex: 1, padding: '16px 20px', overflow: 'auto' }}>
-            {calView === 'day'   && <AllRoomsDayView bookings={allRoomsDayBkgs} rooms={filteredRooms} viewDate={viewDate} onRoomSlotClick={(roomId, date, time) => openScheduleLater(date, time, roomId)} onBookingClick={openEdit} now={now} dark={dark} myEmail={mEmail} gridStart={gridStart} gridEnd={gridEnd} />}
+            {calView === 'day'   && <AllRoomsDayView bookings={allRoomsDayBkgs} rooms={filteredRooms} viewDate={viewDate} onRoomSlotClick={(roomId, date, time) => openScheduleLater(date, time, roomId)} onBookingClick={openEdit} now={now} dark={dark} myEmail={mEmail} gridStart={gridStart} gridEnd={gridEnd} visShowTitle={visShowTitle} visShowOrganizer={visShowOrganizer} />}
             {calView === 'week'  && <WeekView  bookings={rangeBkgs}   weekDays={weekDays} onSlotClick={openScheduleLater} onBookingClick={openEdit} pendingSlot={pendingSlot} now={now} dark={dark} myEmail={mEmail} hourH={dynHourH} gridStart={gridStart} gridEnd={gridEnd} visShowTitle={visShowTitle} visShowOrganizer={visShowOrganizer} visAllowEditOthers={visAllowEditOthers} />}
             {calView === 'month' && <MonthView bookings={rangeBkgs}   viewDate={viewDate} onDayClick={d => { setViewDate(d); setCalView('day') }} dark={dark} />}
           </div>
