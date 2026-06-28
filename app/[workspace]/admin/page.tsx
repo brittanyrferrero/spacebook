@@ -1916,7 +1916,7 @@ export default function AdminPage() {
                       <input type="color" value={accentColor} onChange={e => { setAccentColor(e.target.value); setAccentColorSaved(false) }}
                         style={{ width: 28, height: 28, borderRadius: 0, border: '1px solid #dddddd', padding: 0, cursor: 'pointer', background: 'none' }} />
                     </div>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
                       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, padding: '6px 14px', background: accentColor, fontSize: 12, fontWeight: 500, color: cc(accentColor) }}>
                         Preview
                       </div>
@@ -1924,13 +1924,14 @@ export default function AdminPage() {
                         disabled={accentColorSaving}
                         onClick={async () => {
                           setAccentColorSaving(true)
-                          await fetch(`${api}/settings`, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ accentColor }) })
+                          const res = await fetch(`${api}/settings`, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ accentColor }) })
                           setAccentColorSaving(false)
-                          setAccentColorSaved(true)
+                          if (res.ok) { setAccentColorSaved(true); setTimeout(() => setAccentColorSaved(false), 2500) }
                         }}
-                        style={{ fontSize: 12, padding: '6px 14px', borderRadius: 0, border: '1px solid #dddddd', background: 'none', cursor: 'pointer', whiteSpace: 'nowrap', color: '#374151' }}>
-                        {accentColorSaving ? 'Saving…' : accentColorSaved ? 'Saved' : 'Save'}
+                        style={{ fontSize: 12, padding: '6px 14px', borderRadius: 0, border: `1px solid ${accentColorSaved ? '#a3d9a5' : '#dddddd'}`, background: accentColorSaved ? '#eef7f0' : 'none', cursor: accentColorSaving ? 'default' : 'pointer', whiteSpace: 'nowrap', color: accentColorSaved ? FREE : '#374151', transition: 'all .2s' }}>
+                        {accentColorSaving ? 'Saving…' : accentColorSaved ? '✓ Saved' : 'Save'}
                       </button>
+                      {accentColorSaved && <div style={{ fontSize: 11, color: '#9CA3AF' }}>Refresh the booking view to see the new color.</div>}
                     </div>
                   </div>
                 )
