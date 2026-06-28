@@ -139,6 +139,15 @@ export async function isWorkspaceUnclaimed(workspaceId: string): Promise<boolean
   return admins.length === 0
 }
 
+// ─── Accent color ─────────────────────────────────────────────────────────────
+
+export async function getAccentColor(workspaceId: string): Promise<string | null> {
+  return kv().get<string>(k(workspaceId, 'cfg:accentColor'))
+}
+export async function setAccentColor(workspaceId: string, color: string): Promise<void> {
+  await kv().set(k(workspaceId, 'cfg:accentColor'), color)
+}
+
 // ─── Recovery nonces ──────────────────────────────────────────────────────────
 // Short-lived one-time tokens used in recovery emails. Each nonce expires after
 // 1 hour and is consumed on first use, preventing replay via email/browser history.

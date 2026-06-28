@@ -8,10 +8,10 @@ import { NameAutocomplete } from '@/components/NameAutocomplete'
 // ─── Colours ──────────────────────────────────────────────────────────────────
 const SAGE = '#5C7A6B'
 const NAVY = '#111111'
-const ROSE = '#c45f80'          // user accent — selected day, now-line
+const ROSE = '#c98a9a'          // user accent — selected day, now-line
 const BOOK_GREEN = '#1db954'
-const FREE_BG = '#c8ebd8'; const FREE_TEXT = '#1b5e30'; const FREE_BAR = '#2d7044'
-const BUSY_BG = '#f0f0f0'; const BUSY_TEXT = '#1a1a1a'; const BUSY_BAR = '#333333'
+const FREE_BG = '#e0f0e8'; const FREE_TEXT = '#2d7a42'; const FREE_BAR = '#4d8f5c'
+const BUSY_BG = '#f0f0f0'; const BUSY_TEXT = '#333333'; const BUSY_BAR = '#555555'
 
 // ─── Delight utilities ────────────────────────────────────────────────────────
 function playTap() {
@@ -136,6 +136,17 @@ function fmtHour(h: number) {
 
 function ordinal(n: number) { return ['1st','2nd','3rd','4th','5th'][n - 1] ?? `${n}th` }
 
+function contrastColor(hex: string): '#ffffff' | '#111111' {
+  const c = hex.replace('#', '')
+  if (c.length !== 6) return '#111111'
+  const r = parseInt(c.slice(0, 2), 16) / 255
+  const g = parseInt(c.slice(2, 4), 16) / 255
+  const b = parseInt(c.slice(4, 6), 16) / 255
+  const lin = (x: number) => x <= 0.03928 ? x / 12.92 : ((x + 0.055) / 1.055) ** 2.4
+  const L = 0.2126 * lin(r) + 0.7152 * lin(g) + 0.0722 * lin(b)
+  return L > 0.179 ? '#111111' : '#ffffff'
+}
+
 function TimePicker({ value, onChange, style }: { value: string; onChange: (v: string) => void; style?: React.CSSProperties }) {
   const [rawH, rawM] = value ? value.split(':') : ['', '']
   const selH = rawH ?? ''
@@ -155,27 +166,27 @@ function TimePicker({ value, onChange, style }: { value: string; onChange: (v: s
   )
 }
 
-function NowLine({ now, gridH, gridStart = GRID_START, gridHours = GRID_HOURS }: { now: Date; gridH: number; gridStart?: number; gridHours?: number }) {
+function NowLine({ now, gridH, gridStart = GRID_START, gridHours = GRID_HOURS, rose = ROSE }: { now: Date; gridH: number; gridStart?: number; gridHours?: number; rose?: string }) {
   const pct = toGridPct(now.getHours(), now.getMinutes(), gridStart, gridHours)
   if (pct < 0 || pct > 1) return null
   const top = pct * gridH
   return (
     <div style={{ position: 'absolute', top, left: 0, right: 0, zIndex: 3, pointerEvents: 'none' }}>
-      <div style={{ position: 'absolute', left: -5, top: -5, width: 10, height: 10, borderRadius: '50%', background: ROSE }} />
-      <div style={{ height: 2, background: ROSE, opacity: 0.85 }} />
+      <div style={{ position: 'absolute', left: -5, top: -5, width: 10, height: 10, borderRadius: '50%', background: rose }} />
+      <div style={{ height: 2, background: rose, opacity: 0.85 }} />
     </div>
   )
 }
 
 // ─── Sub-views ────────────────────────────────────────────────────────────────
 
-function DayView({ bookings, viewDate, onSlotClick, onBookingClick, pendingSlot, now, gridStart = GRID_START, gridEnd = GRID_END, visShowTitle = false }: {
+function DayView({ bookings, viewDate, onSlotClick, onBookingClick, pendingSlot, now, gridStart = GRID_START, gridEnd = GRID_END, visShowTitle = false, rose = ROSE }: {
   bookings: Booking[];
   viewDate: Date;
   onSlotClick?: (date: Date, time: string) => void;
   onBookingClick?: (b: Booking) => void;
   pendingSlot?: { ds: string; startHHMM: string; endHHMM: string } | null;
-  now?: Date; gridStart?: number; gridEnd?: number; visShowTitle?: boolean;
+  now?: Date; gridStart?: number; gridEnd?: number; visShowTitle?: boolean; rose?: string;
 }) {
   const gridHours = gridEnd - gridStart
   const gridH = gridHours * HOUR_H
@@ -253,7 +264,7 @@ function DayView({ bookings, viewDate, onSlotClick, onBookingClick, pendingSlot,
           })()}
 
           {/* Current time line */}
-          {now && dateStr(viewDate) === dateStr(now) && <NowLine now={now} gridH={gridH} gridStart={gridStart} gridHours={gridHours} />}
+          {now && dateStr(viewDate) === dateStr(now) && <NowLine now={now} gridH={gridH} gridStart={gridStart} gridHours={gridHours} rose={rose} />}
 
           {/* Booking blocks */}
           {activeBookings.map(b => {
@@ -278,7 +289,7 @@ function DayView({ bookings, viewDate, onSlotClick, onBookingClick, pendingSlot,
   )
 }
 
-function WeekView({ bookings, weekDays, onSlotClick, onBookingClick, pendingSlot, now, gridStart = GRID_START, gridEnd = GRID_END, visShowTitle = false }: { bookings: Booking[]; weekDays: Date[]; onSlotClick?: (date: Date, time: string) => void; onBookingClick?: (b: Booking) => void; pendingSlot?: { ds: string; startHHMM: string; endHHMM: string } | null; now?: Date; gridStart?: number; gridEnd?: number; visShowTitle?: boolean }) {
+function WeekView({ bookings, weekDays, onSlotClick, onBookingClick, pendingSlot, now, gridStart = GRID_START, gridEnd = GRID_END, visShowTitle = false, rose = ROSE }: { bookings: Booking[]; weekDays: Date[]; onSlotClick?: (date: Date, time: string) => void; onBookingClick?: (b: Booking) => void; pendingSlot?: { ds: string; startHHMM: string; endHHMM: string } | null; now?: Date; gridStart?: number; gridEnd?: number; visShowTitle?: boolean; rose?: string }) {
   const gridHours = gridEnd - gridStart
   const gridH = gridHours * HOUR_H
   const gp = (h: number, m: number) => toGridPct(h, m, gridStart, gridHours)
@@ -312,8 +323,8 @@ function WeekView({ bookings, weekDays, onSlotClick, onBookingClick, pendingSlot
           const isToday = ds === todayStr
           return (
             <div key={ds} style={{ flex: 1, textAlign: 'center', padding: '6px 0 8px', borderRight: colIdx < 6 ? '1px solid #eeeeee' : 'none' }}>
-              <div style={{ fontSize: 11, color: isToday ? ROSE : '#4B5563', fontWeight: isToday ? 600 : 500 }}>{DAYS_SHORT[colIdx]}</div>
-              <div style={{ width: 24, height: 24, borderRadius: '50%', background: isToday ? ROSE : 'transparent', color: isToday ? '#fff' : '#374151', fontSize: 12, fontWeight: isToday ? 600 : 400, display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '2px auto 0' }}>
+              <div style={{ fontSize: 11, color: isToday ? rose : '#4B5563', fontWeight: isToday ? 600 : 500 }}>{DAYS_SHORT[colIdx]}</div>
+              <div style={{ width: 24, height: 24, borderRadius: '50%', background: isToday ? rose : 'transparent', color: isToday ? contrastColor(rose) : '#374151', fontSize: 12, fontWeight: isToday ? 600 : 400, display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '2px auto 0' }}>
                 {day.getDate()}
               </div>
             </div>
@@ -377,7 +388,7 @@ function WeekView({ bookings, weekDays, onSlotClick, onBookingClick, pendingSlot
                   )}
 
                   {/* Current time line */}
-                  {now && isToday && <NowLine now={now} gridH={gridH} gridStart={gridStart} gridHours={gridHours} />}
+                  {now && isToday && <NowLine now={now} gridH={gridH} gridStart={gridStart} gridHours={gridHours} rose={rose} />}
 
                   {/* Booking blocks */}
                   {dayBookings.map(b => {
@@ -406,7 +417,7 @@ function WeekView({ bookings, weekDays, onSlotClick, onBookingClick, pendingSlot
   )
 }
 
-function MonthView({ bookings, viewDate, onDayClick }: { bookings: Booking[]; viewDate: Date; onDayClick: (d: Date) => void }) {
+function MonthView({ bookings, viewDate, onDayClick, rose = ROSE }: { bookings: Booking[]; viewDate: Date; onDayClick: (d: Date) => void; rose?: string }) {
   const todayStr   = dateStr(new Date())
   const viewMonth  = viewDate.getMonth()
   const weeks      = getMonthCalendar(viewDate)
@@ -441,7 +452,7 @@ function MonthView({ bookings, viewDate, onDayClick }: { bookings: Booking[]; vi
               <div key={ds} onClick={() => { if (!isPast) onDayClick(day) }}
                 style={{ padding: '6px 4px 8px', minHeight: 52, cursor: isPast ? 'default' : 'pointer', borderRight: di < 6 ? '1px solid #eeeeee' : 'none', background: isPast ? 'rgba(0,0,0,0.03)' : isToday ? 'rgba(212,155,169,0.07)' : 'transparent', transition: 'background .1s' }}>
                 <div style={{ display: 'flex', justifyContent: 'center' }}>
-                  <div style={{ width: 22, height: 22, borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', background: isToday ? ROSE : 'transparent', color: isToday ? '#fff' : isPast ? '#C8CDD4' : inMonth ? '#374151' : '#C8CDD4', fontSize: 11, fontWeight: isToday ? 600 : 400 }}>
+                  <div style={{ width: 22, height: 22, borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', background: isToday ? rose : 'transparent', color: isToday ? contrastColor(rose) : isPast ? '#C8CDD4' : inMonth ? '#374151' : '#C8CDD4', fontSize: 11, fontWeight: isToday ? 600 : 400 }}>
                     {day.getDate()}
                   </div>
                 </div>
@@ -479,6 +490,7 @@ function RoomDisplayPageInner() {
   const [viewDate,     setViewDate]     = useState(new Date())
   const [gridStart,    setGridStart]    = useState(8)
   const [gridEnd,      setGridEnd]      = useState(20)
+  const [accentColor,  setAccentColor]  = useState(ROSE)
   const [visShowTitle, setVisShowTitle] = useState(false)
   const [busyFlash,    setBusyFlash]    = useState(false)
   const calContainerRef = useRef<HTMLDivElement>(null)
@@ -550,6 +562,7 @@ function RoomDisplayPageInner() {
     fetch(`${api}/settings`).then(r => r.json()).then(d => {
       setGridStart(d.displayHours?.start ?? 8)
       setGridEnd(d.displayHours?.end ?? 20)
+      if (d.accentColor) setAccentColor(d.accentColor)
       setVisShowTitle(d.bookingVisibility?.showTitle ?? false)
     }).catch(() => {})
   }, [])
@@ -862,8 +875,8 @@ function RoomDisplayPageInner() {
   const lbl: React.CSSProperties = { fontSize: 12, color: '#6B7280', fontWeight: 500, display: 'block', marginBottom: 4 }
 
   return (
-    <div style={{ height: '100dvh', display: 'flex', flexDirection: 'column', overflow: 'hidden', background: '#fff', fontFamily: "'Nunito', system-ui, sans-serif" }}>
-      <style dangerouslySetInnerHTML={{ __html: `@import url('https://fonts.googleapis.com/css2?family=Spectral:ital,wght@0,400;0,500;0,600;1,400&family=Nunito:wght@400;500;600;700;800&display=swap');@keyframes shimmer{0%,100%{opacity:0}50%{opacity:1}}@keyframes chronoFlash{0%{opacity:0;transform:translateY(3px)}12%{opacity:1;transform:translateY(0)}70%{opacity:1}100%{opacity:0}}@keyframes checkDraw{from{stroke-dashoffset:50}to{stroke-dashoffset:0}}@keyframes celebIn{from{opacity:0;transform:scale(0.97)}to{opacity:1;transform:scale(1)}}button:not(:disabled):active{transform:scale(0.95)}` }} />
+    <div style={{ height: '100dvh', display: 'flex', flexDirection: 'column', overflow: 'hidden', background: '#fff' }}>
+      <style dangerouslySetInnerHTML={{ __html: `@keyframes shimmer{0%,100%{opacity:0}50%{opacity:1}}@keyframes chronoFlash{0%{opacity:0;transform:translateY(3px)}12%{opacity:1;transform:translateY(0)}70%{opacity:1}100%{opacity:0}}@keyframes checkDraw{from{stroke-dashoffset:50}to{stroke-dashoffset:0}}@keyframes celebIn{from{opacity:0;transform:scale(0.97)}to{opacity:1;transform:scale(1)}}button:not(:disabled):active{transform:scale(0.95)}` }} />
 
       {/* Clock bar */}
       <div style={{ background: '#111111', padding: '10px 24px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexShrink: 0 }}>
@@ -909,7 +922,7 @@ function RoomDisplayPageInner() {
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
                   <button
                     onClick={() => { setShowModal('now'); setMDone(false) }}
-                    style={{ width: '100%', position: 'relative', overflow: 'hidden', backgroundColor: ROSE, color: '#fff', border: 'none', borderRadius: 0, padding: '10px 0', fontSize: 18, fontWeight: 800, cursor: 'pointer', fontFamily: 'inherit', letterSpacing: '0.04em' }}>
+                    style={{ width: '100%', position: 'relative', overflow: 'hidden', backgroundColor: accentColor, color: contrastColor(accentColor), border: 'none', borderRadius: 0, padding: '10px 0', fontSize: 18, fontWeight: 800, cursor: 'pointer', fontFamily: 'inherit', letterSpacing: '0.04em' }}>
                     <span style={{ position: 'absolute', inset: 0, background: 'rgba(255,255,255,0.15)', animation: 'shimmer 3s ease-in-out infinite' }} />
                     BOOK NOW
                   </button>
@@ -920,7 +933,7 @@ function RoomDisplayPageInner() {
                         <button key={mins}
                           onClick={() => { if (!blocked) { setMDone(false); handleWalkIn(mins) } }}
                           disabled={mSubmitting || blocked}
-                          style={{ flex: 1, background: blocked ? 'transparent' : ROSE, color: blocked ? '#C8CDD4' : '#fff', border: blocked ? '1px solid #e5e7eb' : 'none', borderRadius: 0, padding: '10px 0', fontSize: 13, fontWeight: 500, cursor: (mSubmitting || blocked) ? 'default' : 'pointer', fontFamily: 'inherit', opacity: mSubmitting ? 0.6 : 1, textDecoration: blocked ? 'line-through' : 'none' }}>
+                          style={{ flex: 1, background: blocked ? 'transparent' : accentColor, color: blocked ? '#C8CDD4' : contrastColor(accentColor), border: blocked ? '1px solid #e5e7eb' : 'none', borderRadius: 0, padding: '10px 0', fontSize: 13, fontWeight: 500, cursor: (mSubmitting || blocked) ? 'default' : 'pointer', fontFamily: 'inherit', opacity: mSubmitting ? 0.6 : 1, textDecoration: blocked ? 'line-through' : 'none' }}>
                           {mins < 60 ? `${mins}m` : `${mins / 60}h`}
                         </button>
                       )
@@ -974,11 +987,11 @@ function RoomDisplayPageInner() {
               <button onClick={() => shiftView(-1)} style={{ background: 'none', border: '1px solid #cccccc', borderRadius: 0, padding: '3px 9px', cursor: 'pointer', fontSize: 14, color: '#374151', lineHeight: 1 }}>‹</button>
               {(() => {
                 const isCurrent = viewDateStr === todayStr
-                return <span style={{ fontSize: 13, fontWeight: 500, minWidth: 160, textAlign: 'center', color: isCurrent ? ROSE : NAVY, background: isCurrent ? 'rgba(212,155,169,0.12)' : 'transparent', borderRadius: 0, padding: '2px 10px' }}>{navLabel()}</span>
+                return <span style={{ fontSize: 13, fontWeight: 500, minWidth: 160, textAlign: 'center', color: isCurrent ? accentColor : NAVY, background: isCurrent ? 'rgba(212,155,169,0.12)' : 'transparent', borderRadius: 0, padding: '2px 10px' }}>{navLabel()}</span>
               })()}
               <button onClick={() => shiftView(1)} style={{ background: 'none', border: '1px solid #cccccc', borderRadius: 0, padding: '3px 9px', cursor: 'pointer', fontSize: 14, color: '#374151', lineHeight: 1 }}>›</button>
             </div>
-            <DayView bookings={dayBookings} viewDate={viewDate} onSlotClick={openScheduleLater} onBookingClick={openEdit} pendingSlot={pendingSlot} now={now} gridStart={gridStart} gridEnd={gridEnd} visShowTitle={visShowTitle} />
+            <DayView bookings={dayBookings} viewDate={viewDate} onSlotClick={openScheduleLater} onBookingClick={openEdit} pendingSlot={pendingSlot} now={now} gridStart={gridStart} gridEnd={gridEnd} visShowTitle={visShowTitle} rose={accentColor} />
           </div>
         </div>
       ) : (
@@ -991,12 +1004,12 @@ function RoomDisplayPageInner() {
                 const isCurrent =
                   (calView === 'week'  && todayStr >= dateStr(weekDays[0]) && todayStr <= dateStr(weekDays[6])) ||
                   (calView === 'month' && viewDate.getFullYear() === now.getFullYear() && viewDate.getMonth() === now.getMonth())
-                return <span style={{ fontSize: 13, fontWeight: 500, minWidth: 160, textAlign: 'center', color: isCurrent ? ROSE : NAVY, background: isCurrent ? 'rgba(212,155,169,0.12)' : 'transparent', borderRadius: 0, padding: '2px 10px' }}>{navLabel()}</span>
+                return <span style={{ fontSize: 13, fontWeight: 500, minWidth: 160, textAlign: 'center', color: isCurrent ? accentColor : NAVY, background: isCurrent ? 'rgba(212,155,169,0.12)' : 'transparent', borderRadius: 0, padding: '2px 10px' }}>{navLabel()}</span>
               })()}
               <button onClick={() => shiftView(1)} style={{ background: 'none', border: '1px solid #cccccc', borderRadius: 0, padding: '3px 9px', cursor: 'pointer', fontSize: 14, color: '#374151', lineHeight: 1 }}>›</button>
             </div>
-            {calView === 'week'  && <WeekView  bookings={rangeBkgs} weekDays={weekDays} onSlotClick={openScheduleLater} onBookingClick={openEdit} pendingSlot={pendingSlot} now={now} gridStart={gridStart} gridEnd={gridEnd} visShowTitle={visShowTitle} />}
-            {calView === 'month' && <MonthView bookings={rangeBkgs} viewDate={viewDate} onDayClick={d => { setViewDate(d); setCalView('day') }} />}
+            {calView === 'week'  && <WeekView  bookings={rangeBkgs} weekDays={weekDays} onSlotClick={openScheduleLater} onBookingClick={openEdit} pendingSlot={pendingSlot} now={now} gridStart={gridStart} gridEnd={gridEnd} visShowTitle={visShowTitle} rose={accentColor} />}
+            {calView === 'month' && <MonthView bookings={rangeBkgs} viewDate={viewDate} onDayClick={d => { setViewDate(d); setCalView('day') }} rose={accentColor} />}
           </div>
           <div style={{ flex: 1, display: 'flex', alignItems: 'center', padding: '0 20px' }}>
           <div style={{ display: 'flex', gap: 12, width: '100%' }}>
@@ -1006,7 +1019,7 @@ function RoomDisplayPageInner() {
                   if (!isFree) { setBusyFlash(true); setTimeout(() => setBusyFlash(false), 2200); return }
                   const t = toHHMMExact(new Date()); const [h,m] = t.split(':').map(Number); const et = Math.min(h*60+m+60,23*60); setMDate(todayStr); setMTime(t); setMEndTime(`${String(Math.floor(et/60)).padStart(2,'0')}:${String(et%60).padStart(2,'0')}`); setShowModal('now'); setMDone(false)
                 }}
-                style={{ position: 'relative', overflow: 'hidden', backgroundColor: isFree ? ROSE : 'transparent', color: isFree ? '#fff' : '#9CA3AF', border: isFree ? 'none' : '1px solid #e5e7eb', borderRadius: 0, padding: '15px', fontSize: 15, fontWeight: 800, cursor: 'pointer', width: '100%', textDecoration: isFree ? 'none' : 'line-through', letterSpacing: '0.04em' }}>
+                style={{ position: 'relative', overflow: 'hidden', backgroundColor: isFree ? accentColor : 'transparent', color: isFree ? contrastColor(accentColor) : '#9CA3AF', border: isFree ? 'none' : '1px solid #e5e7eb', borderRadius: 0, padding: '15px', fontSize: 15, fontWeight: 800, cursor: 'pointer', width: '100%', textDecoration: isFree ? 'none' : 'line-through', letterSpacing: '0.04em' }}>
                 {isFree && <span style={{ position: 'absolute', inset: 0, background: 'rgba(255,255,255,0.15)', animation: 'shimmer 3s ease-in-out infinite' }} />}
                 BOOK NOW
               </button>
@@ -1034,7 +1047,7 @@ function RoomDisplayPageInner() {
                 <div style={{ fontSize: 16, fontWeight: 500, color: NAVY, marginBottom: 8 }}>Booking confirmed!</div>
                 <div style={{ fontSize: 13, color: '#6B7280', marginBottom: 16 }}>Your room is reserved.</div>
                 <button onClick={() => { setShowModal(null); setMDone(false); setMSubmitting(false) }}
-                  style={{ background: ROSE, color: '#fff', border: 'none', borderRadius: 0, padding: '10px 24px', fontSize: 14, fontWeight: 500, cursor: 'pointer' }}>Done</button>
+                  style={{ background: accentColor, color: contrastColor(accentColor), border: 'none', borderRadius: 0, padding: '10px 24px', fontSize: 14, fontWeight: 500, cursor: 'pointer' }}>Done</button>
               </div>
             ) : showModal === 'now' ? (
               <>
@@ -1103,7 +1116,7 @@ function RoomDisplayPageInner() {
                     <div style={{ display: 'flex', gap: 6 }}>
                       {(['none', 'weekly', 'monthly'] as const).map(f => (
                         <button key={f} onClick={() => setRecurFreq(f)}
-                          style={{ flex: 1, padding: '6px 0', fontSize: 12, borderRadius: 0, border: `1px solid ${recurFreq === f ? ROSE : '#cccccc'}`, cursor: 'pointer', fontFamily: 'inherit', background: recurFreq === f ? ROSE : 'transparent', color: recurFreq === f ? '#fff' : '#374151', fontWeight: recurFreq === f ? 600 : 400, transition: 'all .15s' }}>
+                          style={{ flex: 1, padding: '6px 0', fontSize: 12, borderRadius: 0, border: `1px solid ${recurFreq === f ? accentColor : '#cccccc'}`, cursor: 'pointer', fontFamily: 'inherit', background: recurFreq === f ? accentColor : 'transparent', color: recurFreq === f ? contrastColor(accentColor) : '#374151', fontWeight: recurFreq === f ? 600 : 400, transition: 'all .15s' }}>
                           {f === 'none' ? 'None' : f === 'weekly' ? 'Weekly' : 'Monthly'}
                         </button>
                       ))}
@@ -1130,7 +1143,7 @@ function RoomDisplayPageInner() {
                     Cancel
                   </button>
                   <button onClick={handleQuickBook} disabled={mSubmitting || !mTime || !mEndTime || mEndTime <= mTime || (showModal === 'later' && recurFreq !== 'none' && !recurUntil)}
-                    style={{ flex: 1, background: mSubmitting ? '#e8bdc7' : ROSE, color: '#fff', border: 'none', borderRadius: 0, padding: 10, fontSize: 14, fontWeight: 600, cursor: (mSubmitting || mEndTime <= mTime) ? 'default' : 'pointer' }}>
+                    style={{ flex: 1, background: mSubmitting ? '#e8bdc7' : accentColor, color: mSubmitting ? '#111111' : contrastColor(accentColor), border: 'none', borderRadius: 0, padding: 10, fontSize: 14, fontWeight: 600, cursor: (mSubmitting || mEndTime <= mTime) ? 'default' : 'pointer' }}>
                     {mSubmitting ? 'Booking…' : 'Confirm'}
                   </button>
                 </div>
@@ -1202,7 +1215,7 @@ function RoomDisplayPageInner() {
       })()}
 
       {celebrating && (
-        <div onClick={() => setCelebrating(null)} style={{ position: 'fixed', inset: 0, background: '#1b5e30', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', zIndex: 300, animation: 'celebIn 0.3s ease-out', fontFamily: "'Nunito', system-ui, sans-serif" }}>
+        <div onClick={() => setCelebrating(null)} style={{ position: 'fixed', inset: 0, background: '#1b5e30', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', zIndex: 300, animation: 'celebIn 0.3s ease-out' }}>
           <svg viewBox="0 0 52 52" width={96} height={96} style={{ marginBottom: 28 }}>
             <circle cx="26" cy="26" r="24" fill="none" stroke="rgba(255,255,255,0.2)" strokeWidth="2" />
             <path fill="none" stroke="#7dd39c" strokeWidth="3.5" strokeLinecap="round" strokeLinejoin="round"

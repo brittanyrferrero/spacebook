@@ -183,6 +183,11 @@ export default function AdminPage() {
   const [bhSaving, setBhSaving] = useState(false)
   const [bhSaved,  setBhSaved]  = useState(false)
 
+  // Accent color
+  const [accentColor,      setAccentColor]      = useState('#c98a9a')
+  const [accentColorSaved, setAccentColorSaved] = useState(false)
+  const [accentColorSaving, setAccentColorSaving] = useState(false)
+
   // Booking visibility
   const [visShowTitle,       setVisShowTitle]       = useState(false)
   const [visShowOrganizer,   setVisShowOrganizer]   = useState(false)
@@ -257,6 +262,7 @@ export default function AdminPage() {
       setVisAllowEditOthers(d.bookingVisibility?.allowEditOthers ?? false)
       if (d.adminEntryToken) setAdminEntryToken(d.adminEntryToken)
       if (d.workspaceName != null) setWsName(d.workspaceName)
+      if (d.accentColor) setAccentColor(d.accentColor)
       if (d.limits?.is_trial) { setTrialLimits(d.limits); setTrialUsage(d.trial_usage ?? null) }
     }).catch(() => {})
   }, [])
@@ -1878,6 +1884,48 @@ export default function AdminPage() {
               </div>
 
               <EntryLinkCard workspace={workspace} adminEntryToken={adminEntryToken} />
+
+              {/* ── Accent color ── */}
+              {(() => {
+                const PRESETS = ['#c98a9a','#d97a7a','#d4956e','#b59a5a','#5a9a8a','#6b8fcc','#9a7aca','#888888']
+                const cc = (hex: string) => {
+                  const c = hex.replace('#',''); const r = parseInt(c.slice(0,2),16)/255, g = parseInt(c.slice(2,4),16)/255, b = parseInt(c.slice(4,6),16)/255
+                  const lin = (x: number) => x <= 0.03928 ? x/12.92 : ((x+0.055)/1.055)**2.4
+                  return 0.2126*lin(r)+0.7152*lin(g)+0.0722*lin(b) > 0.179 ? '#111111' : '#ffffff'
+                }
+                return (
+                  <div style={{ background: '#fff', border: '1px solid #dddddd', borderRadius: 0, padding: 16, marginBottom: 10 }}>
+                    <div style={{ fontSize: 12, fontWeight: 500, color: '#374151', marginBottom: 4 }}>Accent color</div>
+                    <div style={{ fontSize: 12, color: '#9CA3AF', marginBottom: 12 }}>
+                      Used for action buttons, today's date, and your bookings. Text color adjusts automatically for contrast.
+                    </div>
+                    <div style={{ display: 'flex', gap: 6, marginBottom: 12, flexWrap: 'wrap' }}>
+                      {PRESETS.map(p => (
+                        <button key={p} onClick={() => { setAccentColor(p); setAccentColorSaved(false) }}
+                          style={{ width: 28, height: 28, borderRadius: 0, background: p, border: accentColor === p ? '2px solid #111111' : '2px solid transparent', cursor: 'pointer', outline: 'none', flexShrink: 0 }} />
+                      ))}
+                      <input type="color" value={accentColor} onChange={e => { setAccentColor(e.target.value); setAccentColorSaved(false) }}
+                        style={{ width: 28, height: 28, borderRadius: 0, border: '1px solid #dddddd', padding: 0, cursor: 'pointer', background: 'none' }} />
+                    </div>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, padding: '6px 14px', background: accentColor, fontSize: 12, fontWeight: 500, color: cc(accentColor) }}>
+                        Preview
+                      </div>
+                      <button
+                        disabled={accentColorSaving}
+                        onClick={async () => {
+                          setAccentColorSaving(true)
+                          await fetch(`${api}/settings`, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ accentColor }) })
+                          setAccentColorSaving(false)
+                          setAccentColorSaved(true)
+                        }}
+                        style={{ fontSize: 12, padding: '6px 14px', borderRadius: 0, border: '1px solid #dddddd', background: 'none', cursor: 'pointer', whiteSpace: 'nowrap' }}>
+                        {accentColorSaving ? 'Saving…' : accentColorSaved ? 'Saved' : 'Save'}
+                      </button>
+                    </div>
+                  </div>
+                )
+              })()}
 
               <div style={{ background: '#fff', border: '1px solid #f5c6c6', borderRadius: 0, padding: 16, marginBottom: 10 }}>
                 <div style={{ fontSize: 12, fontWeight: 500, color: '#374151', marginBottom: 4 }}>Rename workspace URL</div>

@@ -166,6 +166,17 @@ function fmtHour(h: number) {
 
 function ordinal(n: number) { return ['1st','2nd','3rd','4th','5th'][n - 1] ?? `${n}th` }
 
+function contrastColor(hex: string): '#ffffff' | '#111111' {
+  const c = hex.replace('#', '')
+  if (c.length !== 6) return '#111111'
+  const r = parseInt(c.slice(0, 2), 16) / 255
+  const g = parseInt(c.slice(2, 4), 16) / 255
+  const b = parseInt(c.slice(4, 6), 16) / 255
+  const lin = (x: number) => x <= 0.03928 ? x / 12.92 : ((x + 0.055) / 1.055) ** 2.4
+  const L = 0.2126 * lin(r) + 0.7152 * lin(g) + 0.0722 * lin(b)
+  return L > 0.179 ? '#111111' : '#ffffff'
+}
+
 function toHHMMExact(d: Date) {
   return `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`
 }
@@ -243,12 +254,12 @@ function TimePicker({ value, onChange, dark }: { value: string; onChange: (v: st
 }
 
 // ─── DayView ──────────────────────────────────────────────────────────────────
-function DayView({ bookings, viewDate, onSlotClick, onBookingClick, pendingSlot, now, dark, myEmail, hourH = HOUR_H, gridStart = GRID_START, gridEnd = GRID_END, visShowTitle = false, visShowOrganizer = false, visAllowEditOthers = false }: {
+function DayView({ bookings, viewDate, onSlotClick, onBookingClick, pendingSlot, now, dark, myEmail, hourH = HOUR_H, gridStart = GRID_START, gridEnd = GRID_END, visShowTitle = false, visShowOrganizer = false, visAllowEditOthers = false, rose = ROSE }: {
   bookings: Booking[]; viewDate: Date;
   onSlotClick?: (date: Date, time: string) => void;
   onBookingClick?: (b: Booking) => void;
   pendingSlot?: { ds: string; startHHMM: string; endHHMM: string } | null;
-  now?: Date; dark?: boolean; myEmail?: string; hourH?: number; gridStart?: number; gridEnd?: number; visShowTitle?: boolean; visShowOrganizer?: boolean; visAllowEditOthers?: boolean;
+  now?: Date; dark?: boolean; myEmail?: string; hourH?: number; gridStart?: number; gridEnd?: number; visShowTitle?: boolean; visShowOrganizer?: boolean; visAllowEditOthers?: boolean; rose?: string;
 }) {
   const T = mkT(dark ?? false)
   const gridHours = gridEnd - gridStart
@@ -341,7 +352,7 @@ function DayView({ bookings, viewDate, onSlotClick, onBookingClick, pendingSlot,
             const isBlockPast = !!now && new Date(b.end_time) < now
             const isInProgress = !!now && new Date(b.start_time) <= now && new Date(b.end_time) > now
             const bg     = (isBlockPast || isInProgress) ? (dark ? '#1e222a' : '#c8cdd4') : isMine ? (dark ? '#5c3747' : '#f5e0e7') : T.blockBg
-            const border = (isBlockPast || isInProgress) ? (dark ? '#2a303a' : '#a8b0bc') : isMine ? ROSE : T.blockBorder
+            const border = (isBlockPast || isInProgress) ? (dark ? '#2a303a' : '#a8b0bc') : isMine ? rose : T.blockBorder
             const label  = isMine ? (b.title || b.booker_name) : visShowTitle ? (b.title || 'Occupied') : visShowOrganizer ? b.booker_name : 'Occupied'
             const textColor = (isBlockPast || isInProgress) ? T.textFaint : isMine ? (dark ? '#e8b4c4' : '#8a3d58') : (dark ? '#a0b4c8' : '#3d5068')
             return (
@@ -358,12 +369,12 @@ function DayView({ bookings, viewDate, onSlotClick, onBookingClick, pendingSlot,
 }
 
 // ─── WeekView ─────────────────────────────────────────────────────────────────
-function WeekView({ bookings, weekDays, onSlotClick, onBookingClick, pendingSlot, now, dark, myEmail, hourH = HOUR_H, gridStart = GRID_START, gridEnd = GRID_END, visShowTitle = false, visShowOrganizer = false, visAllowEditOthers = false }: {
+function WeekView({ bookings, weekDays, onSlotClick, onBookingClick, pendingSlot, now, dark, myEmail, hourH = HOUR_H, gridStart = GRID_START, gridEnd = GRID_END, visShowTitle = false, visShowOrganizer = false, visAllowEditOthers = false, rose = ROSE }: {
   bookings: Booking[]; weekDays: Date[];
   onSlotClick?: (date: Date, time: string) => void;
   onBookingClick?: (b: Booking) => void;
   pendingSlot?: { ds: string; startHHMM: string; endHHMM: string } | null;
-  now?: Date; dark?: boolean; myEmail?: string; hourH?: number; gridStart?: number; gridEnd?: number; visShowTitle?: boolean; visShowOrganizer?: boolean; visAllowEditOthers?: boolean;
+  now?: Date; dark?: boolean; myEmail?: string; hourH?: number; gridStart?: number; gridEnd?: number; visShowTitle?: boolean; visShowOrganizer?: boolean; visAllowEditOthers?: boolean; rose?: string;
 }) {
   const T = mkT(dark ?? false)
   const gridHours = gridEnd - gridStart
@@ -407,8 +418,8 @@ function WeekView({ bookings, weekDays, onSlotClick, onBookingClick, pendingSlot
           const isWeekend = colIdx >= 5
           return (
             <div key={ds} style={{ flex: 1, textAlign: 'center', padding: '6px 0 8px', borderRight: colIdx < 6 ? `0.5px solid ${T.colSep}` : 'none' }}>
-              <div style={{ fontSize: 10, color: isToday ? ROSE : isPast ? T.pastText : isWeekend ? '#aa9a80' : T.textMuted, fontWeight: isToday ? 600 : 400 }}>{DAYS_SHORT[colIdx]}</div>
-              <div style={{ width: 24, height: 24, borderRadius: '50%', background: isToday ? ROSE : 'transparent', color: isToday ? '#fff' : isPast ? T.pastText : isWeekend ? '#8a7a60' : T.text, fontSize: 12, fontWeight: isToday ? 600 : 400, display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '2px auto 0' }}>
+              <div style={{ fontSize: 10, color: isToday ? rose : isPast ? T.pastText : isWeekend ? '#aa9a80' : T.textMuted, fontWeight: isToday ? 600 : 400 }}>{DAYS_SHORT[colIdx]}</div>
+              <div style={{ width: 24, height: 24, borderRadius: '50%', background: isToday ? rose : 'transparent', color: isToday ? contrastColor(rose) : isPast ? T.pastText : isWeekend ? '#8a7a60' : T.text, fontSize: 12, fontWeight: isToday ? 600 : 400, display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '2px auto 0' }}>
                 {day.getDate()}
               </div>
             </div>
@@ -477,12 +488,13 @@ function WeekView({ bookings, weekDays, onSlotClick, onBookingClick, pendingSlot
                     const isBlockPast = !!now && new Date(b.end_time) < now
                     const isInProgress = !!now && new Date(b.start_time) <= now && new Date(b.end_time) > now
                     const grayBg = dark ? 'rgba(255,255,255,0.18)' : '#b8b8b8'
-                    const bg = (isBlockPast || isInProgress) ? grayBg : isMine ? workspaceTheme.myEventColor : (dark ? T.blockBg : workspaceTheme.eventColor)
+                    const bg = (isBlockPast || isInProgress) ? grayBg : isMine ? rose : (dark ? T.blockBg : workspaceTheme.eventColor)
                     const label  = isMine ? (b.title || b.booker_name) : visShowTitle ? (b.title || 'Occupied') : visShowOrganizer ? b.booker_name : 'Occupied'
+                    const blockTextColor = isMine && !(isBlockPast || isInProgress) ? contrastColor(rose) : '#ffffff'
                     return (
                       <div key={b.id} onClick={e => { e.stopPropagation(); if (isMine || othersClickable) onBookingClick?.(b) }}
                         style={{ position: 'absolute', top: topPx, left: 2, right: 2, height: heightPx, background: bg, borderRadius: 0, cursor: (isMine || othersClickable) && onBookingClick ? 'pointer' : 'default', overflow: 'hidden', opacity: isBlockPast ? 0.55 : 1 }}>
-                        {heightPx > 18 && <div style={{ padding: '2px 4px', fontSize: 9, color: '#ffffff', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', fontWeight: 500 }}>{b.recurring_series_id ? `↻ ${label}` : label}</div>}
+                        {heightPx > 18 && <div style={{ padding: '2px 4px', fontSize: 9, color: blockTextColor, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', fontWeight: 500 }}>{b.recurring_series_id ? `↻ ${label}` : label}</div>}
                       </div>
                     )
                   })}
@@ -497,7 +509,7 @@ function WeekView({ bookings, weekDays, onSlotClick, onBookingClick, pendingSlot
 }
 
 // ─── MonthView ────────────────────────────────────────────────────────────────
-function MonthView({ bookings, viewDate, onDayClick, dark }: { bookings: Booking[]; viewDate: Date; onDayClick: (d: Date) => void; dark?: boolean }) {
+function MonthView({ bookings, viewDate, onDayClick, dark, rose = ROSE }: { bookings: Booking[]; viewDate: Date; onDayClick: (d: Date) => void; dark?: boolean; rose?: string }) {
   const T = mkT(dark ?? false)
   const todayStr  = dateStr(new Date())
   const viewMonth = viewDate.getMonth()
@@ -526,12 +538,12 @@ function MonthView({ bookings, viewDate, onDayClick, dark }: { bookings: Booking
             const isWeekend = di >= 5
             const count     = byDay[ds] ?? 0
             const cellBg    = isWeekend ? T.weekendBg : T.cardBg
-            const numColor  = isToday ? '#fff' : isPast ? T.pastText : isWeekend && inMonth ? '#8a7a60' : inMonth ? T.text : T.borderFaint
+            const numColor  = isToday ? contrastColor(rose) : isPast ? T.pastText : isWeekend && inMonth ? '#8a7a60' : inMonth ? T.text : T.borderFaint
             return (
               <div key={ds} onClick={() => { if (!isPast) onDayClick(day) }}
                 style={{ padding: '6px 4px 8px', minHeight: 64, cursor: isPast ? 'default' : 'pointer', borderRight: di < 6 ? `0.5px solid ${T.colSep}` : 'none', background: isPast ? T.pastBg : cellBg, backgroundImage: isPast && !dark ? workspaceTheme.pastHatching : undefined }}>
                 <div style={{ display: 'flex', justifyContent: 'center' }}>
-                  <div style={{ width: 22, height: 22, borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', background: isToday ? ROSE : 'transparent', color: numColor, fontSize: 11, fontWeight: isToday ? 600 : 400 }}>
+                  <div style={{ width: 22, height: 22, borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', background: isToday ? rose : 'transparent', color: numColor, fontSize: 11, fontWeight: isToday ? 600 : 400 }}>
                     {day.getDate()}
                   </div>
                 </div>
@@ -589,13 +601,13 @@ function FloorplanIcon({ type }: { type?: string | null }) {
 const ROOM_COL_W = 180
 const TRACK_H    = 88
 
-function AllRoomsDayView({ bookings, rooms, viewDate, onRoomSlotClick, onBookingClick, now, dark, myEmail, gridStart = GRID_START, gridEnd = GRID_END, visShowTitle = false, visShowOrganizer = false }: {
+function AllRoomsDayView({ bookings, rooms, viewDate, onRoomSlotClick, onBookingClick, now, dark, myEmail, gridStart = GRID_START, gridEnd = GRID_END, visShowTitle = false, visShowOrganizer = false, rose = ROSE }: {
   bookings: Booking[]; rooms: Room[]; viewDate: Date
   onRoomSlotClick: (roomId: string, date: Date, time: string) => void
   onBookingClick: (b: Booking) => void
   now: Date; dark?: boolean; myEmail?: string
   gridStart?: number; gridEnd?: number
-  visShowTitle?: boolean; visShowOrganizer?: boolean
+  visShowTitle?: boolean; visShowOrganizer?: boolean; rose?: string
 }) {
   const T = mkT(dark ?? false)
   const gridHours = gridEnd - gridStart
@@ -703,12 +715,12 @@ function AllRoomsDayView({ bookings, rooms, viewDate, onRoomSlotClick, onBooking
                       position: 'absolute', height: 32, top: '50%', transform: 'translateY(-50%)',
                       left: `calc(${l * 100}% + 2px)`,
                       width: `calc(${(r - l) * 100}% - 4px)`,
-                      background: isMine ? workspaceTheme.myEventColor : workspaceTheme.eventColor,
+                      background: isMine ? rose : workspaceTheme.eventColor,
                       opacity: isPast ? 0.55 : 1,
                       zIndex: 2, cursor: 'pointer', overflow: 'hidden',
                       display: 'flex', alignItems: 'center', padding: '0 10px 0 12px', gap: 6,
                     }}>
-                    <span style={{ fontSize: 11, fontWeight: 600, color: '#ffffff', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', flex: 1, minWidth: 0 }}>
+                    <span style={{ fontSize: 11, fontWeight: 600, color: isMine ? contrastColor(rose) : '#ffffff', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', flex: 1, minWidth: 0 }}>
                       {isMine ? (b.title || b.booker_name) : visShowTitle ? (b.title || 'Occupied') : visShowOrganizer ? b.booker_name : 'Occupied'}
                     </span>
                   </div>
@@ -751,6 +763,7 @@ export default function BookingPage() {
   }, [])
   const [gridStart,     setGridStart]     = useState(8)
   const [gridEnd,       setGridEnd]       = useState(20)
+  const [accentColor,   setAccentColor]   = useState(ROSE)
 
   const [showModal,   setShowModal]   = useState<'now' | 'later' | null>(null)
   const [mName,       setMName]       = useState('')
@@ -910,6 +923,7 @@ export default function BookingPage() {
       setVisShowOrganizer(d.bookingVisibility?.showOrganizer ?? false)
       setVisAllowEditOthers(d.bookingVisibility?.allowEditOthers ?? false)
       if (d.workspaceName) setWorkspaceName(d.workspaceName)
+      if (d.accentColor) setAccentColor(d.accentColor)
     }).catch(() => {})
   }, [])
 
@@ -1345,7 +1359,7 @@ export default function BookingPage() {
   const lbl: React.CSSProperties = { fontSize: 10, color: T.textMuted, fontWeight: 600, display: 'block', marginBottom: 5, letterSpacing: '0.08em', textTransform: 'uppercase' as const }
   const timeInvalid = !!(mTime && mEndTime && mEndTime <= mTime)
   const submitDisabled = mSubmitting || !mName || !mEmail || !mTime || !mEndTime || !mRoomId || timeInvalid || (showModal === 'later' && recurFreq !== 'none' && !recurUntil) || (showModal === 'later' && mDate < todayStr)
-  const roseGrad = ROSE
+  const roseGrad = accentColor
 
   const toggleBtn: React.CSSProperties = { background: 'rgba(255,255,255,0.1)', border: '0.5px solid rgba(255,255,255,0.18)', borderRadius: 0, padding: '5px 11px', cursor: 'pointer', fontSize: 13, color: 'rgba(255,255,255,0.85)', lineHeight: 1 }
 
@@ -1494,9 +1508,9 @@ export default function BookingPage() {
             </div>
           )}
           <div style={{ flex: 1, padding: '16px 20px', overflow: 'auto' }}>
-            {calView === 'day'   && <AllRoomsDayView bookings={allRoomsDayBkgs} rooms={filteredRooms} viewDate={viewDate} onRoomSlotClick={(roomId, date, time) => openScheduleLater(date, time, roomId)} onBookingClick={openEdit} now={now} dark={dark} myEmail={mEmail} gridStart={gridStart} gridEnd={gridEnd} visShowTitle={visShowTitle} visShowOrganizer={visShowOrganizer} />}
-            {calView === 'week'  && <WeekView  bookings={rangeBkgs}   weekDays={weekDays} onSlotClick={openScheduleLater} onBookingClick={openEdit} pendingSlot={pendingSlot} now={now} dark={dark} myEmail={mEmail} hourH={dynHourH} gridStart={gridStart} gridEnd={gridEnd} visShowTitle={visShowTitle} visShowOrganizer={visShowOrganizer} visAllowEditOthers={visAllowEditOthers} />}
-            {calView === 'month' && <MonthView bookings={rangeBkgs}   viewDate={viewDate} onDayClick={d => { setViewDate(d); setCalView('day') }} dark={dark} />}
+            {calView === 'day'   && <AllRoomsDayView bookings={allRoomsDayBkgs} rooms={filteredRooms} viewDate={viewDate} onRoomSlotClick={(roomId, date, time) => openScheduleLater(date, time, roomId)} onBookingClick={openEdit} now={now} dark={dark} myEmail={mEmail} gridStart={gridStart} gridEnd={gridEnd} visShowTitle={visShowTitle} visShowOrganizer={visShowOrganizer} rose={accentColor} />}
+            {calView === 'week'  && <WeekView  bookings={rangeBkgs}   weekDays={weekDays} onSlotClick={openScheduleLater} onBookingClick={openEdit} pendingSlot={pendingSlot} now={now} dark={dark} myEmail={mEmail} hourH={dynHourH} gridStart={gridStart} gridEnd={gridEnd} visShowTitle={visShowTitle} visShowOrganizer={visShowOrganizer} visAllowEditOthers={visAllowEditOthers} rose={accentColor} />}
+            {calView === 'month' && <MonthView bookings={rangeBkgs}   viewDate={viewDate} onDayClick={d => { setViewDate(d); setCalView('day') }} dark={dark} rose={accentColor} />}
           </div>
         </div>
 
@@ -1589,7 +1603,7 @@ export default function BookingPage() {
                       const fmtD = new Date(res.date + 'T12:00:00').toLocaleDateString('en-AU', { weekday: 'short', day: 'numeric', month: 'short' })
                       const btnStyle = (active: boolean): React.CSSProperties => ({
                         fontSize: 11, padding: '3px 9px', border: 'none', cursor: active ? 'pointer' : 'not-allowed',
-                        fontFamily: 'inherit', background: active ? ROSE : T.borderFaint, color: active ? '#fff' : T.textMuted,
+                        fontFamily: 'inherit', background: active ? accentColor : T.borderFaint, color: active ? contrastColor(accentColor) : T.textMuted,
                         flexShrink: 0, whiteSpace: 'nowrap',
                       })
                       return (
@@ -1645,7 +1659,7 @@ export default function BookingPage() {
                     }
                     setShowModal(null); setBookingConflicts([]); setLastCreatedBooking(null); setLastCreatedSeries(null); setConflictResolutions([])
                   }}
-                    style={{ background: bookingConflicts.length > 0 && (conflictResLoading || conflictResolutions.some(r => r.status !== 'done-next' && r.status !== 'done-alt')) ? (dark ? '#4B5563' : '#D1D5DB') : ROSE, color: bookingConflicts.length > 0 && (conflictResLoading || conflictResolutions.some(r => r.status !== 'done-next' && r.status !== 'done-alt')) ? (dark ? '#9CA3AF' : '#6B7280') : '#fff', border: 'none', borderRadius: 0, padding: '10px 24px', fontSize: 14, fontWeight: 500, cursor: 'pointer', fontFamily: 'inherit' }}>
+                    style={{ background: bookingConflicts.length > 0 && (conflictResLoading || conflictResolutions.some(r => r.status !== 'done-next' && r.status !== 'done-alt')) ? (dark ? '#4B5563' : '#D1D5DB') : accentColor, color: bookingConflicts.length > 0 && (conflictResLoading || conflictResolutions.some(r => r.status !== 'done-next' && r.status !== 'done-alt')) ? (dark ? '#9CA3AF' : '#6B7280') : contrastColor(accentColor), border: 'none', borderRadius: 0, padding: '10px 24px', fontSize: 14, fontWeight: 500, cursor: 'pointer', fontFamily: 'inherit' }}>
                     {lotr ? txt.done : 'OK'}
                   </button>
                 </div>
@@ -1653,7 +1667,7 @@ export default function BookingPage() {
             ) : showModal === 'now' ? (
               <>
                 <div style={{ fontSize: 17, fontWeight: 700, marginBottom: 6, color: dark ? T.text : NAVY, letterSpacing: '-0.02em' }}>
-                  {txt.bookNow} <span style={{ color: ROSE }}>·</span> {selectedRoom?.name}
+                  {txt.bookNow} <span style={{ color: accentColor }}>·</span> {selectedRoom?.name}
                 </div>
                 <div style={{ fontSize: 13, color: T.textMuted, marginBottom: 20 }}>How long do you need?</div>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
@@ -1719,7 +1733,7 @@ export default function BookingPage() {
                     <div style={{ display: 'flex', gap: 6 }}>
                       {(['none', 'weekly', 'monthly'] as const).map(f => (
                         <button key={f} onClick={() => setRecurFreq(f)}
-                          style={{ flex: 1, padding: '6px 0', fontSize: 12, borderRadius: 0, border: `0.5px solid ${recurFreq === f ? ROSE : T.inputBorder}`, cursor: 'pointer', fontFamily: 'inherit', background: recurFreq === f ? ROSE : 'transparent', color: recurFreq === f ? '#fff' : T.text, fontWeight: recurFreq === f ? 600 : 400, transition: 'all .15s' }}>
+                          style={{ flex: 1, padding: '6px 0', fontSize: 12, borderRadius: 0, border: `0.5px solid ${recurFreq === f ? accentColor : T.inputBorder}`, cursor: 'pointer', fontFamily: 'inherit', background: recurFreq === f ? accentColor : 'transparent', color: recurFreq === f ? contrastColor(accentColor) : T.text, fontWeight: recurFreq === f ? 600 : 400, transition: 'all .15s' }}>
                           {f === 'none' ? 'None' : f === 'weekly' ? 'Weekly' : 'Monthly'}
                         </button>
                       ))}
@@ -1811,7 +1825,7 @@ export default function BookingPage() {
                         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '6px 12px 10px', gap: 8 }}>
                           <div style={{ fontSize: 13, fontWeight: 500, color: T.text }}>{fmtTime(singleConflict.nextAvail.startHHMM)}–{fmtTime(singleConflict.nextAvail.endHHMM)}</div>
                           <button onClick={() => handleSingleConflictBook('next')} disabled={singleConflict.bookingStatus !== 'idle'}
-                            style={{ fontSize: 11, padding: '5px 14px', border: 'none', background: ROSE, color: '#fff', cursor: singleConflict.bookingStatus !== 'idle' ? 'default' : 'pointer', opacity: singleConflict.bookingStatus !== 'idle' ? 0.6 : 1, flexShrink: 0, fontFamily: 'inherit', fontWeight: 500 }}>
+                            style={{ fontSize: 11, padding: '5px 14px', border: 'none', background: accentColor, color: contrastColor(accentColor), cursor: singleConflict.bookingStatus !== 'idle' ? 'default' : 'pointer', opacity: singleConflict.bookingStatus !== 'idle' ? 0.6 : 1, flexShrink: 0, fontFamily: 'inherit', fontWeight: 500 }}>
                             {singleConflict.bookingStatus === 'booking-next' ? '…' : 'Book'}
                           </button>
                         </div>
@@ -1831,7 +1845,7 @@ export default function BookingPage() {
                               <div style={{ fontSize: 11, color: T.textMuted }}>{fmtTime(mTime)}–{fmtTime(mEndTime)}</div>
                             </div>
                             <button onClick={() => handleSingleConflictBook('alt', r.id)} disabled={singleConflict.bookingStatus !== 'idle'}
-                              style={{ fontSize: 11, padding: '5px 14px', border: 'none', background: ROSE, color: '#fff', cursor: singleConflict.bookingStatus !== 'idle' ? 'default' : 'pointer', opacity: singleConflict.bookingStatus !== 'idle' ? 0.6 : 1, flexShrink: 0, fontFamily: 'inherit', fontWeight: 500 }}>
+                              style={{ fontSize: 11, padding: '5px 14px', border: 'none', background: accentColor, color: contrastColor(accentColor), cursor: singleConflict.bookingStatus !== 'idle' ? 'default' : 'pointer', opacity: singleConflict.bookingStatus !== 'idle' ? 0.6 : 1, flexShrink: 0, fontFamily: 'inherit', fontWeight: 500 }}>
                               {singleConflict.bookingStatus === 'booking-alt' && singleConflict.bookedRoomId === r.id ? '…' : 'Book'}
                             </button>
                           </div>
@@ -1851,7 +1865,7 @@ export default function BookingPage() {
                   <div style={{ fontSize: 12, color: '#B94040', background: '#fdf2f2', border: '0.5px solid #f5c6c6', borderRadius: 0, padding: '8px 12px', marginBottom: 12 }}>{mError}</div>
                 ) : null}
                 <button onClick={handleQuickBook} disabled={submitDisabled}
-                  style={{ width: '100%', background: mSubmitting ? '#e8bdc7' : roseGrad, color: '#fff', border: 'none', borderRadius: 0, padding: '13px', fontSize: 14, fontWeight: 600, cursor: submitDisabled ? 'not-allowed' : 'pointer', letterSpacing: '0.02em', marginTop: 4, opacity: submitDisabled && !mSubmitting ? 0.55 : 1 }}>
+                  style={{ width: '100%', background: mSubmitting ? '#e8bdc7' : roseGrad, color: mSubmitting ? '#111111' : contrastColor(roseGrad), border: 'none', borderRadius: 0, padding: '13px', fontSize: 14, fontWeight: 600, cursor: submitDisabled ? 'not-allowed' : 'pointer', letterSpacing: '0.02em', marginTop: 4, opacity: submitDisabled && !mSubmitting ? 0.55 : 1 }}>
                   {mSubmitting ? txt.confirming : (recurFreq !== 'none' && laterRoomAvailability.find(r => r.id === mRoomId)?.taken) ? 'Book series — resolve conflicts after' : txt.confirm}
                 </button>
               </>
@@ -1912,7 +1926,7 @@ export default function BookingPage() {
                           fetch(`${api}/my-bookings-verify`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ email: myBkEmail.trim().toLowerCase() }) }).catch(() => {})
                           setMyBkVerifySent(true)
                         }}
-                          style={{ background: ROSE, color: '#fff', border: 'none', borderRadius: 0, padding: '8px 18px', fontSize: 13, fontWeight: 500, cursor: 'pointer' }}>
+                          style={{ background: accentColor, color: contrastColor(accentColor), border: 'none', borderRadius: 0, padding: '8px 18px', fontSize: 13, fontWeight: 500, cursor: 'pointer' }}>
                           Send link
                         </button>
                       </div>
@@ -1968,7 +1982,7 @@ export default function BookingPage() {
                                     <div style={{ fontSize: 13, fontWeight: 500, color: T.text }}>{room?.name ?? '—'}</div>
                                     <div style={{ fontSize: 12, color: T.textMuted }}>{fmtRow(b.start_time)} · {fmtT(b.start_time)}–{fmtT(b.end_time)}</div>
                                     {b.title && <div style={{ fontSize: 11, color: T.textFaint }}>{b.title}</div>}
-                                    {b.recurring_series_id && <div style={{ fontSize: 10, color: ROSE, marginTop: 1 }}>recurring</div>}
+                                    {b.recurring_series_id && <div style={{ fontSize: 10, color: accentColor, marginTop: 1 }}>recurring</div>}
                                   </div>
                                   <button onClick={() => { setShowMyBookings(false); openEdit(b as any) }}
                                     style={{ fontSize: 12, padding: '4px 9px', border: `1px solid ${T.border}`, background: 'none', cursor: 'pointer', color: T.textMuted, borderRadius: 0, whiteSpace: 'nowrap' }}>
@@ -2022,7 +2036,7 @@ export default function BookingPage() {
           <div onClick={() => { setEditBooking(null); setEditConflicts([]) }} style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 100 }}>
             <div onClick={e => e.stopPropagation()} style={{ background: T.modalBg, borderRadius: 0, padding: 28, width: 370, border: `1px solid ${T.modalBorder}`, boxShadow: dark ? '0 24px 64px rgba(0,0,0,0.6)' : '0 12px 48px rgba(0,0,0,0.18)' }}>
               <div style={{ fontSize: 17, fontWeight: 700, color: dark ? T.text : NAVY, marginBottom: isOthers ? 10 : 20, letterSpacing: '-0.02em' }}>
-                Edit booking <span style={{ color: ROSE }}>·</span> {selectedRoom?.name}
+                Edit booking <span style={{ color: accentColor }}>·</span> {selectedRoom?.name}
               </div>
               {isOthers && editConflicts.length === 0 && (
                 <div style={{ background: '#C0392B', borderRadius: 0, padding: '12px 14px', marginBottom: 16 }}>

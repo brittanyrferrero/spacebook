@@ -22,6 +22,7 @@ export interface MockStore {
   displayHours: { start: number; end: number }
   bookingVisibility: { showTitle: boolean; showOrganizer: boolean; allowEditOthers: boolean }
   countWeekends: boolean
+  accentColor?: string
   workspaceName?: string
   tzOffset?: number
   gcalTokens: Record<string, GcalTokens>   // room_id → tokens
@@ -128,7 +129,7 @@ function createStore(): MockStore {
     amenityOptions: ['TV', 'Whiteboard', 'Video conferencing', 'Phone', 'Natural light'],
     bookingHours: { start: 6, end: 22 },
     displayHours: { start: 8, end: 20 },
-    bookingVisibility: { showTitle: false, showOrganizer: false, allowEditOthers: false },
+    bookingVisibility: { showTitle: true, showOrganizer: true, allowEditOthers: false },
     countWeekends: false,
     gcalTokens: {},
   }
