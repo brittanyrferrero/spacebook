@@ -69,6 +69,10 @@ export async function middleware(request: NextRequest) {
 
   if (wsToken || adminToken) return pass()
 
+  // Palantir superadmin bypass — allows the overlord tablet preview to load workspace routes
+  const palantirSession = request.cookies.get('palantir_session')?.value
+  if (palantirSession) return pass()
+
   // No valid cookie — redirect to the entry page for this workspace
   // (But let admin-enter and enter routes through regardless)
   return NextResponse.redirect(new URL(`/enter/${slug}`, request.url))

@@ -17,6 +17,7 @@ function fmtActivity(iso: string | null) {
 }
 
 export default function PalantirPage() {
+  const [tab, setTab] = useState<'workspaces' | 'tablets'>('workspaces')
   const [workspaces, setWorkspaces] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
   const [deleteTarget, setDeleteTarget] = useState<any>(null)
@@ -29,6 +30,8 @@ export default function PalantirPage() {
   const [limitsDraft, setLimitsDraft] = useState({ is_trial: true, max_rooms: '10', max_members: '3', max_bookings: '50' })
   const [limitsSaving, setLimitsSaving] = useState(false)
   const [limitsError, setLimitsError] = useState('')
+  const [roomsByWorkspace, setRoomsByWorkspace] = useState<Record<string, any[] | null>>({})
+  const [tabletsFetched, setTabletsFetched] = useState(false)
 
   useEffect(() => {
     fetch('/api/palantir/workspaces')
@@ -38,6 +41,18 @@ export default function PalantirPage() {
       .then(r => r.json())
       .then(data => { if (Array.isArray(data)) setPendingDeletes(data) })
   }, [])
+
+  useEffect(() => {
+    if (tab !== 'tablets' || tabletsFetched || workspaces.length === 0) return
+    setTabletsFetched(true)
+    workspaces.forEach(w => {
+      setRoomsByWorkspace(prev => ({ ...prev, [w.id]: null }))
+      fetch(`/api/palantir/workspaces/${w.id}/rooms`)
+        .then(r => r.json())
+        .then(data => setRoomsByWorkspace(prev => ({ ...prev, [w.id]: Array.isArray(data) ? data : [] })))
+        .catch(() => setRoomsByWorkspace(prev => ({ ...prev, [w.id]: [] })))
+    })
+  }, [tab, tabletsFetched, workspaces])
 
   async function handleDelete() {
     if (!deleteTarget || deleteSlug !== deleteTarget.slug) {
@@ -147,8 +162,18 @@ export default function PalantirPage() {
         </form>
       </div>
 
+      {/* Tab toggle */}
+      <div style={{ display: 'flex', gap: 2, marginBottom: 32, borderBottom: '1px solid rgba(255,255,255,0.08)', paddingBottom: 0 }}>
+        {(['workspaces', 'tablets'] as const).map(t => (
+          <button key={t} onClick={() => setTab(t)}
+            style={{ fontSize: 12, padding: '8px 16px', background: 'none', border: 'none', borderBottom: tab === t ? '2px solid rgba(255,255,255,0.6)' : '2px solid transparent', color: tab === t ? '#fff' : 'rgba(255,255,255,0.35)', cursor: 'pointer', fontFamily: 'inherit', textTransform: 'capitalize', letterSpacing: '0.04em', marginBottom: -1 }}>
+            {t}
+          </button>
+        ))}
+      </div>
+
       {/* Summary tiles */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 12, marginBottom: 32, maxWidth: 480 }}>
+      <div style={{ display: tab === 'workspaces' ? 'grid' : 'none', gridTemplateColumns: 'repeat(3, 1fr)', gap: 12, marginBottom: 32, maxWidth: 480 }}>
         {[
           { label: 'Workspaces', value: workspaces.length },
           { label: 'Total members', value: totalMembers },
@@ -161,8 +186,72 @@ export default function PalantirPage() {
         ))}
       </div>
 
+      {/* Tablets view */}
+      {tab === 'tablets' && (
+        <div>
+          {loading ? (
+            <div style={{ color: 'rgba(255,255,255,0.3)', fontSize: 13 }}>Loading workspaces…</div>
+          ) : workspaces.length === 0 ? (
+            <div style={{ color: 'rgba(255,255,255,0.25)', fontSize: 13 }}>No workspaces.</div>
+          ) : (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 40 }}>
+              {workspaces.map(w => {
+                const rooms = roomsByWorkspace[w.id]
+                return (
+                  <div key={w.id}>
+                    <div style={{ display: 'flex', alignItems: 'baseline', gap: 10, marginBottom: 14 }}>
+                      <span style={{ fontSize: 13, fontWeight: 500, color: '#fff' }}>{w.name ?? w.slug}</span>
+                      <span style={{ fontSize: 11, color: 'rgba(255,255,255,0.3)', fontFamily: 'monospace' }}>{w.slug}</span>
+                      <span style={{ fontSize: 11, color: 'rgba(255,255,255,0.2)' }}>{w.room_count} room{w.room_count !== 1 ? 's' : ''}</span>
+                    </div>
+                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: 16 }}>
+                      {rooms === null ? (
+                        // Loading skeletons
+                        Array.from({ length: Math.max(1, w.room_count) }).map((_, i) => (
+                          <div key={i} style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                            <div style={{ width: 320, height: 200, background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                              <span style={{ fontSize: 11, color: 'rgba(255,255,255,0.2)' }}>Loading…</span>
+                            </div>
+                            <div style={{ height: 10, width: 80, background: 'rgba(255,255,255,0.06)', borderRadius: 2 }} />
+                          </div>
+                        ))
+                      ) : rooms.length === 0 ? (
+                        <div style={{ width: 320, height: 200, background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.06)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                          <span style={{ fontSize: 11, color: 'rgba(255,255,255,0.2)' }}>No rooms</span>
+                        </div>
+                      ) : (
+                        rooms.map(room => (
+                          <div key={room.id} style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                            <div
+                              onClick={() => window.open(`/${w.slug}/room/${room.id}`, '_blank')}
+                              title={`Open ${room.name} tablet`}
+                              style={{ width: 320, height: 200, overflow: 'hidden', position: 'relative', cursor: 'pointer', border: '1px solid rgba(255,255,255,0.1)', flexShrink: 0 }}>
+                              <iframe
+                                src={`/${w.slug}/room/${room.id}`}
+                                style={{ width: 1280, height: 800, transform: 'scale(0.25)', transformOrigin: '0 0', border: 'none', pointerEvents: 'none' }}
+                                tabIndex={-1}
+                              />
+                              {/* click overlay so pointer-events on iframe don't interfere */}
+                              <div style={{ position: 'absolute', inset: 0 }} />
+                            </div>
+                            <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.5)', paddingLeft: 2 }}>
+                              {room.name}
+                              {room.room_type && <span style={{ color: 'rgba(255,255,255,0.25)', marginLeft: 6 }}>{room.room_type}</span>}
+                            </div>
+                          </div>
+                        ))
+                      )}
+                    </div>
+                  </div>
+                )
+              })}
+            </div>
+          )}
+        </div>
+      )}
+
       {/* Workspace table */}
-      {loading ? (
+      {tab === 'workspaces' && (loading ? (
         <div style={{ color: 'rgba(255,255,255,0.3)', fontSize: 13 }}>Loading…</div>
       ) : (
         <div style={{ overflowX: 'auto' }}>
@@ -218,10 +307,10 @@ export default function PalantirPage() {
             <div style={{ padding: '24px 12px', color: 'rgba(255,255,255,0.25)', fontSize: 13 }}>No workspaces yet.</div>
           )}
         </div>
-      )}
+      ))}
 
       {/* Pending deletion requests */}
-      {pendingDeletes.length > 0 && (
+      {tab === 'workspaces' && pendingDeletes.length > 0 && (
         <div style={{ marginTop: 48 }}>
           <div style={{ fontSize: 11, color: 'rgba(255,100,100,0.7)', textTransform: 'uppercase', letterSpacing: '0.08em', fontWeight: 500, marginBottom: 12 }}>
             Pending deletion requests
