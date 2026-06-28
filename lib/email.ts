@@ -9,6 +9,10 @@ export function isValidEmail(email: unknown): email is string {
 
 const FROM = process.env.EMAIL_FROM ?? 'spacebook <noreply@spacebook.app>'
 
+function escapeHtml(s: string): string {
+  return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#39;')
+}
+
 // Single canonical app URL — falls back through both env vars so either works.
 // Set NEXT_PUBLIC_APP_URL (or NEXT_PUBLIC_BASE_URL) in Vercel; keep them in sync.
 // Uses || not ?? so empty-string values don't silently produce broken URLs.
@@ -349,6 +353,61 @@ export async function sendBlockCancelledEmail({
   <p style="font-size:13px;color:#6B7280">
     Visit <a href="${workspaceUrl}" style="color:#2C3E6B">${workspaceUrl}</a> to find another time.
   </p>
+</div>`,
+  })
+}
+
+export async function sendFindMyWorkspacesEmail({
+  to,
+  workspaces,
+}: {
+  to: string
+  workspaces: { name: string; slug: string; role: string | null; workspaceUrl: string; adminUrl?: string }[]
+}) {
+  const key = process.env.RESEND_API_KEY
+  if (!key) return
+  const resend = new Resend(key)
+
+  const bodyHtml = workspaces.length === 0
+    ? `<p style="font-size:14px;color:#6B7280">We couldn't find any Spacebook workspaces associated with <strong>${escapeHtml(to)}</strong>. If you think this is a mistake, reach out to your workspace admin.</p>`
+    : workspaces.map(ws => {
+        const roleLabel = ws.role === 'super_admin' ? 'Super Admin' : ws.role === 'admin' ? 'Admin' : 'Member'
+        const roleBg    = ws.role ? '#EEF1FB' : '#F3F4F6'
+        const roleColor = ws.role ? '#2C3E6B' : '#6B7280'
+        const safeName  = escapeHtml(ws.name)
+        const safeWsUrl = escapeHtml(ws.workspaceUrl)
+        const safeAdminUrl = ws.adminUrl ? escapeHtml(ws.adminUrl) : null
+        return `
+<div style="background:#F8F8F6;border-radius:8px;padding:16px;margin:12px 0">
+  <div style="margin-bottom:12px;display:flex;align-items:center;gap:10px">
+    <span style="font-size:15px;font-weight:600;color:#111">${safeName}</span>
+    <span style="font-size:11px;color:${roleColor};background:${roleBg};padding:3px 8px;border-radius:20px;white-space:nowrap">${roleLabel}</span>
+  </div>
+  <div>
+    <a href="${safeWsUrl}" style="display:inline-block;padding:8px 16px;background:#090d18;color:#fff;text-decoration:none;border-radius:6px;font-size:13px;margin-right:8px">Visit workspace</a>
+    ${safeAdminUrl ? `<a href="${safeAdminUrl}" style="display:inline-block;padding:8px 16px;background:#2C3E6B;color:#fff;text-decoration:none;border-radius:6px;font-size:13px">Open admin panel</a>` : ''}
+  </div>
+</div>`
+      }).join('')
+
+  const hasAdminLinks = workspaces.some(w => w.adminUrl)
+
+  await resend.emails.send({
+    from: FROM,
+    to,
+    subject: 'Your Spacebook workspaces',
+    html: `
+<div style="font-family:sans-serif;max-width:520px;margin:0 auto;padding:24px">
+  <div style="font-size:18px;font-weight:600;color:#2C3E6B;margin-bottom:4px">spacebook</div>
+  <div style="font-size:13px;color:#9CA3AF;margin-bottom:24px">Your workspaces</div>
+
+  <p style="font-size:14px;color:#374151;margin-bottom:4px">
+    Here are the Spacebook workspaces associated with <strong>${escapeHtml(to)}</strong>:
+  </p>
+
+  ${bodyHtml}
+
+  ${hasAdminLinks ? '<p style="font-size:12px;color:#9CA3AF;margin-top:20px">Admin sign-in links expire in 1 hour.</p>' : ''}
 </div>`,
   })
 }
