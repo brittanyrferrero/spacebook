@@ -941,7 +941,8 @@ export default function AdminPage() {
                   return (
                     <div style={{ background: '#fff', border: '1px solid #dddddd', borderRadius: 0, padding: 13, flex: 2, minWidth: 0 }}>
                       <div style={{ marginBottom: 10 }}>
-                        <div style={{ fontSize: 12, fontWeight: 500, color: '#374151', marginBottom: 5 }}>Space pressure</div>
+                        <div style={{ fontSize: 12, fontWeight: 500, color: '#374151', marginBottom: 3 }}>Space pressure</div>
+                        <div style={{ fontSize: 10, color: '#6B7280', marginBottom: 5 }}>rooms occupied simultaneously · sampled every 30 min</div>
                         <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
                           <span style={{ fontSize: 11, color: '#6B7280' }}>
                             Peak: <span style={{ color: '#374151', fontWeight: 500 }}>{cs.peak_concurrent} / {cs.total_rooms} rooms</span>
@@ -968,7 +969,6 @@ export default function AdminPage() {
                           )
                         })}
                       </div>
-                      <div style={{ fontSize: 10, color: '#C0C8D0', marginTop: 2 }}>rooms occupied simultaneously · sampled every 30 min</div>
                     </div>
                   )
                 })()}
