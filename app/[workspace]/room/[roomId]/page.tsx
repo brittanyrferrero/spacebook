@@ -653,6 +653,32 @@ function RoomDisplayPageInner() {
     return () => { clearTimeout(timer); events.forEach(e => window.removeEventListener(e, reset)) }
   }, [])
 
+  // Periodic screenshot upload for palantir overlord view
+  useEffect(() => {
+    let cancelled = false
+    async function capture() {
+      if (cancelled) return
+      try {
+        const mod = await import('html2canvas')
+        const canvas = await mod.default(document.body, {
+          useCORS: true, allowTaint: false, scale: 1, logging: false,
+          width: window.innerWidth, height: window.innerHeight,
+          windowWidth: window.innerWidth, windowHeight: window.innerHeight,
+        })
+        if (cancelled) return
+        const image = canvas.toDataURL('image/jpeg', 0.72)
+        await fetch(`/api/${workspace}/tablet-snapshot`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ roomId, image }),
+        })
+      } catch { /* non-fatal */ }
+    }
+    const initial = setTimeout(capture, 5_000)
+    const interval = setInterval(capture, 5 * 60_000)
+    return () => { cancelled = true; clearTimeout(initial); clearInterval(interval) }
+  }, [workspace, roomId])
+
   const { status, until } = getRoomStatus(todayBkgs)
   const isFree    = status === 'free'
   const bandBg    = isFree ? FREE_BG  : '#8B2020'

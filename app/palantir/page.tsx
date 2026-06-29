@@ -2,6 +2,15 @@
 
 import { useState, useEffect } from 'react'
 
+function timeAgo(iso: string) {
+  const mins = Math.floor((Date.now() - new Date(iso).getTime()) / 60_000)
+  if (mins < 1) return 'just now'
+  if (mins < 60) return `${mins}m ago`
+  const hrs = Math.floor(mins / 60)
+  if (hrs < 24) return `${hrs}h ago`
+  return `${Math.floor(hrs / 24)}d ago`
+}
+
 function fmtDate(iso: string) {
   return new Date(iso).toLocaleDateString('en-AU', { day: 'numeric', month: 'short', year: 'numeric' })
 }
@@ -31,6 +40,7 @@ export default function PalantirPage() {
   const [limitsSaving, setLimitsSaving] = useState(false)
   const [limitsError, setLimitsError] = useState('')
   const [roomsByWorkspace, setRoomsByWorkspace] = useState<Record<string, any[] | null>>({})
+  const [snapshotsByRoom, setSnapshotsByRoom] = useState<Record<string, { image: string; capturedAt: string } | null>>({})
   const [tabletsFetched, setTabletsFetched] = useState(false)
 
   useEffect(() => {
@@ -42,6 +52,15 @@ export default function PalantirPage() {
       .then(data => { if (Array.isArray(data)) setPendingDeletes(data) })
   }, [])
 
+  function fetchSnapshots(slug: string, rooms: any[]) {
+    rooms.forEach(room => {
+      fetch(`/api/${slug}/tablet-snapshot?roomId=${room.id}`)
+        .then(r => r.json())
+        .then(data => { if (data?.image) setSnapshotsByRoom(prev => ({ ...prev, [room.id]: data })) })
+        .catch(() => {})
+    })
+  }
+
   useEffect(() => {
     if (tab !== 'tablets' || tabletsFetched || workspaces.length === 0) return
     setTabletsFetched(true)
@@ -49,7 +68,11 @@ export default function PalantirPage() {
       setRoomsByWorkspace(prev => ({ ...prev, [w.id]: null }))
       fetch(`/api/palantir/workspaces/${w.id}/rooms`)
         .then(r => r.json())
-        .then(data => setRoomsByWorkspace(prev => ({ ...prev, [w.id]: Array.isArray(data) ? data : [] })))
+        .then(data => {
+          const rooms = Array.isArray(data) ? data : []
+          setRoomsByWorkspace(prev => ({ ...prev, [w.id]: rooms }))
+          fetchSnapshots(w.slug, rooms)
+        })
         .catch(() => setRoomsByWorkspace(prev => ({ ...prev, [w.id]: [] })))
     })
   }, [tab, tabletsFetched, workspaces])
@@ -203,6 +226,12 @@ export default function PalantirPage() {
                       <span style={{ fontSize: 13, fontWeight: 500, color: '#fff' }}>{w.name ?? w.slug}</span>
                       <span style={{ fontSize: 11, color: 'rgba(255,255,255,0.3)', fontFamily: 'monospace' }}>{w.slug}</span>
                       <span style={{ fontSize: 11, color: 'rgba(255,255,255,0.2)' }}>{w.room_count} room{w.room_count !== 1 ? 's' : ''}</span>
+                      {Array.isArray(roomsByWorkspace[w.id]) && roomsByWorkspace[w.id]!.length > 0 && (
+                        <button onClick={() => fetchSnapshots(w.slug, roomsByWorkspace[w.id]!)}
+                          style={{ fontSize: 10, padding: '2px 8px', background: 'none', border: '1px solid rgba(255,255,255,0.15)', color: 'rgba(255,255,255,0.35)', cursor: 'pointer', fontFamily: 'inherit', marginLeft: 4 }}>
+                          Refresh
+                        </button>
+                      )}
                     </div>
                     <div style={{ display: 'flex', flexWrap: 'wrap', gap: 16 }}>
                       {rooms == null ? (
@@ -220,26 +249,31 @@ export default function PalantirPage() {
                           <span style={{ fontSize: 11, color: 'rgba(255,255,255,0.2)' }}>No rooms</span>
                         </div>
                       ) : (
-                        rooms.map(room => (
-                          <div key={room.id} style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-                            <div
-                              onClick={() => window.open(`/${w.slug}/room/${room.id}`, '_blank')}
-                              title={`Open ${room.name} tablet`}
-                              style={{ width: 320, height: 200, overflow: 'hidden', position: 'relative', cursor: 'pointer', border: '1px solid rgba(255,255,255,0.1)', flexShrink: 0 }}>
-                              <iframe
-                                src={`/${w.slug}/room/${room.id}`}
-                                style={{ width: 1280, height: 800, transform: 'scale(0.25)', transformOrigin: '0 0', border: 'none', pointerEvents: 'none' }}
-                                tabIndex={-1}
-                              />
-                              {/* click overlay so pointer-events on iframe don't interfere */}
-                              <div style={{ position: 'absolute', inset: 0 }} />
+                        rooms.map(room => {
+                          const snap = snapshotsByRoom[room.id]
+                          return (
+                            <div key={room.id} style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                              <div
+                                onClick={() => window.open(`/${w.slug}/room/${room.id}`, '_blank')}
+                                title={`Open ${room.name} tablet`}
+                                style={{ width: 320, height: 200, overflow: 'hidden', position: 'relative', cursor: 'pointer', border: '1px solid rgba(255,255,255,0.1)', flexShrink: 0, background: 'rgba(255,255,255,0.03)' }}>
+                                {snap ? (
+                                  <img src={snap.image} style={{ width: '100%', height: '100%', objectFit: 'cover', objectPosition: 'top left', display: 'block' }} />
+                                ) : (
+                                  <div style={{ width: '100%', height: '100%', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 6 }}>
+                                    <span style={{ fontSize: 11, color: 'rgba(255,255,255,0.2)' }}>No screenshot yet</span>
+                                    <span style={{ fontSize: 10, color: 'rgba(255,255,255,0.12)' }}>Captured 5s after tablet loads</span>
+                                  </div>
+                                )}
+                              </div>
+                              <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.5)', paddingLeft: 2, display: 'flex', gap: 8, alignItems: 'baseline' }}>
+                                <span>{room.name}</span>
+                                {room.room_type && <span style={{ color: 'rgba(255,255,255,0.25)' }}>{room.room_type}</span>}
+                                {snap && <span style={{ color: 'rgba(255,255,255,0.2)', marginLeft: 'auto' }}>{timeAgo(snap.capturedAt)}</span>}
+                              </div>
                             </div>
-                            <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.5)', paddingLeft: 2 }}>
-                              {room.name}
-                              {room.room_type && <span style={{ color: 'rgba(255,255,255,0.25)', marginLeft: 6 }}>{room.room_type}</span>}
-                            </div>
-                          </div>
-                        ))
+                          )
+                        })
                       )}
                     </div>
                   </div>
