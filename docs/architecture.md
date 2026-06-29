@@ -131,6 +131,8 @@ The room display page (`/[workspace]/room/[roomId]`) is designed to run as a per
 
 **Deployment auto-reload** — the page polls `/api/version` every 2 minutes. On mount it captures the current `VERCEL_GIT_COMMIT_SHA`; if a subsequent poll returns a different value, it calls `window.location.reload()`. This means tablets pick up new deployments within 2 minutes automatically. See [ADR-006](decisions/006-tablet-auto-reload.md) for the decision rationale.
 
+**Screenshot upload** — 5 seconds after mount, and every 5 minutes thereafter, the page dynamically imports `html2canvas`, renders its own DOM to a canvas, and POSTs a JPEG to `/api/[workspace]/tablet-snapshot`. These screenshots are stored in Redis and surfaced in the palantir overlord view so super-admins can see what each tablet's browser is actually rendering. The upload is fire-and-forget — a failure is silently swallowed and never crashes the tablet page. See [ADR-011](decisions/011-tablet-screenshot-approach.md) for why html2canvas was chosen over iframes, puppeteer, and ADB.
+
 ## Desktop "Book Now" and "Schedule for later"
 
 > See [ADR-008](decisions/008-book-now-time-semantics.md) — why "Book Now" uses retroactive slot timing and why past-time validation must not apply to it.
@@ -154,7 +156,7 @@ The existing `ROSE` and `NAVY` constants reference `workspaceTheme` — downstre
 
 **Adding a new theme token:** add the key to `workspaceTheme`, consume it in the relevant inline style. Don't add new hardcoded colour hex values to the render tree — put them in a preset or in `workspaceTheme` directly.
 
-**Future workspace colour picker:** load the active preset `id` from Redis (`ws:{workspaceId}:cfg:theme`), look it up in `PALETTE_PRESETS`, and pass it as a prop or server-loaded value. The structure is already in place.
+**Accent colour picker:** workspace admins can set a custom accent (rose/highlight) colour from the admin panel. The value is stored in Redis at `ws:{workspaceId}:cfg:accentColor` and returned via `/api/[workspace]/settings`. Both the desktop booking page and the tablet display page read it on mount and pass it down as a `rose` prop to sub-components. Text on accent-coloured elements uses a WCAG relative-luminance check (`contrastColor()`) to automatically switch between `#111111` and `#ffffff` for readability.
 
 ## Routing and middleware
 
@@ -164,5 +166,7 @@ The Next.js middleware (`middleware.ts`) runs on every request to `/{workspace}/
 3. Redirects to the workspace entry page if no valid session
 
 Admin routes additionally check for the `admin_{slug}` cookie.
+
+**Palantir bypass** — the middleware also accepts a `palantir_session` cookie as a pass-through for any workspace route. This gives the palantir super-admin access to all workspace pages and APIs without needing workspace-specific session cookies. The cookie is httpOnly and Secure; it cannot be set from client-side JavaScript. See [ADR-012](decisions/012-palantir-middleware-bypass.md) for the full reasoning and the important caveat about blast radius.
 
 **Reserved slugs** — workspace slugs cannot match any segment in `PUBLIC_API_SEGMENTS` or `PUBLIC_SEGMENTS` (the middleware's public bypass lists). If they did, the middleware would skip auth for all that workspace's API routes. The full blocklist lives in `RESERVED_SLUGS` in `lib/workspace.ts` and is enforced at rename time. The slug generator produces three-word slugs (e.g. `amber-oak-vale`) that never collide with reserved names.
