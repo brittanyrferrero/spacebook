@@ -29,6 +29,13 @@ export async function POST(req: NextRequest, { params }: { params: { workspace: 
 }
 
 export async function GET(req: NextRequest, { params }: { params: { workspace: string } }) {
+  const wsToken      = req.cookies.get(`ws_${params.workspace}`)?.value
+  const adminToken   = req.cookies.get(`admin_${params.workspace}`)?.value
+  const palantir     = req.cookies.get('palantir_session')?.value
+  if (!wsToken && !adminToken && !palantir) {
+    return Response.json({ error: 'Unauthorized' }, { status: 401 })
+  }
+
   const roomId = new URL(req.url).searchParams.get('roomId')
   if (!roomId) return Response.json({ error: 'roomId required' }, { status: 400 })
 
