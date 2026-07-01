@@ -848,18 +848,28 @@ export default function BookingPage() {
   const [laterRoomOpen,  setLaterRoomOpen]  = useState(false)
   const [laterRoomLayout, setLaterRoomLayout] = useState<{ openUp: boolean; maxHeight: number }>({ openUp: false, maxHeight: 220 })
   const laterRoomRef = useRef<HTMLDivElement>(null)
+  const modalCardRef = useRef<HTMLDivElement>(null)
+
+  function computeLaterRoomLayout() {
+    if (!laterRoomRef.current) return null
+    const rect = laterRoomRef.current.getBoundingClientRect()
+    const cardRect = modalCardRef.current?.getBoundingClientRect()
+    const boundTop = cardRect ? cardRect.top : 0
+    const boundBottom = cardRect ? cardRect.bottom : window.innerHeight
+    const margin = 12
+    const desired = 220
+    const spaceBelow = boundBottom - rect.bottom - margin
+    const spaceAbove = rect.top - boundTop - margin
+    const openUp = spaceBelow < Math.min(desired, 120) && spaceAbove > spaceBelow
+    return { openUp, maxHeight: Math.max(80, Math.min(desired, openUp ? spaceAbove : spaceBelow)) }
+  }
 
   function toggleLaterRoomOpen() {
     setLaterRoomOpen(o => {
       const next = !o
-      if (next && laterRoomRef.current) {
-        const rect = laterRoomRef.current.getBoundingClientRect()
-        const margin = 12
-        const desired = 220
-        const spaceBelow = window.innerHeight - rect.bottom - margin
-        const spaceAbove = rect.top - margin
-        const openUp = spaceBelow < Math.min(desired, 120) && spaceAbove > spaceBelow
-        setLaterRoomLayout({ openUp, maxHeight: Math.max(80, Math.min(desired, openUp ? spaceAbove : spaceBelow)) })
+      if (next) {
+        const layout = computeLaterRoomLayout()
+        if (layout) setLaterRoomLayout(layout)
       }
       return next
     })
@@ -872,6 +882,16 @@ export default function BookingPage() {
     }
     document.addEventListener('mousedown', onMouseDown)
     return () => document.removeEventListener('mousedown', onMouseDown)
+  }, [laterRoomOpen])
+
+  useEffect(() => {
+    if (!laterRoomOpen) return
+    const onResize = () => {
+      const layout = computeLaterRoomLayout()
+      if (layout) setLaterRoomLayout(layout)
+    }
+    window.addEventListener('resize', onResize)
+    return () => window.removeEventListener('resize', onResize)
   }, [laterRoomOpen])
 
   const dark = theme === 'dark'
@@ -1577,7 +1597,7 @@ export default function BookingPage() {
       {/* Modal */}
       {showModal && (
         <div onClick={() => { setShowModal(null); setSingleConflict(null) }} style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 100 }}>
-          <div onClick={e => e.stopPropagation()} style={{ background: T.modalBg, borderRadius: 0, padding: 28, width: mDone && bookingConflicts.length > 0 ? 580 : 370, maxHeight: '85vh', overflowY: 'auto', border: `1px solid ${T.modalBorder}`, boxShadow: dark ? '0 24px 64px rgba(0,0,0,0.6)' : '0 12px 48px rgba(0,0,0,0.18)', transition: 'width 0.2s ease' }}>
+          <div ref={modalCardRef} onClick={e => e.stopPropagation()} style={{ background: T.modalBg, borderRadius: 0, padding: 28, width: mDone && bookingConflicts.length > 0 ? 580 : 370, maxHeight: '85vh', overflowY: 'auto', border: `1px solid ${T.modalBorder}`, boxShadow: dark ? '0 24px 64px rgba(0,0,0,0.6)' : '0 12px 48px rgba(0,0,0,0.18)', transition: 'width 0.2s ease' }}>
             {mDone ? (
               <div style={{ textAlign: 'center', position: 'relative' }}>
                 {lotr && (
