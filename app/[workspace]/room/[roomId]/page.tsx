@@ -667,12 +667,13 @@ function RoomDisplayPageInner() {
         })
         if (cancelled) return
         const image = canvas.toDataURL('image/jpeg', 0.72)
-        await fetch(`/api/${workspace}/tablet-snapshot`, {
+        const res = await fetch(`/api/${workspace}/tablet-snapshot`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ roomId, image }),
         })
-      } catch { /* non-fatal */ }
+        if (!res.ok) console.error('[snapshot] upload failed', res.status)
+      } catch (err) { console.error('[snapshot] capture failed', err) }
     }
     const initial = setTimeout(capture, 5_000)
     const interval = setInterval(capture, 5 * 60_000)
