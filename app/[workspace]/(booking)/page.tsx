@@ -846,6 +846,33 @@ export default function BookingPage() {
   const [mRoomId,        setMRoomId]        = useState('')
   const [laterDayBkgs,   setLaterDayBkgs]   = useState<Booking[]>([])
   const [laterRoomOpen,  setLaterRoomOpen]  = useState(false)
+  const [laterRoomLayout, setLaterRoomLayout] = useState<{ openUp: boolean; maxHeight: number }>({ openUp: false, maxHeight: 220 })
+  const laterRoomRef = useRef<HTMLDivElement>(null)
+
+  function toggleLaterRoomOpen() {
+    setLaterRoomOpen(o => {
+      const next = !o
+      if (next && laterRoomRef.current) {
+        const rect = laterRoomRef.current.getBoundingClientRect()
+        const margin = 12
+        const desired = 220
+        const spaceBelow = window.innerHeight - rect.bottom - margin
+        const spaceAbove = rect.top - margin
+        const openUp = spaceBelow < Math.min(desired, 120) && spaceAbove > spaceBelow
+        setLaterRoomLayout({ openUp, maxHeight: Math.max(80, Math.min(desired, openUp ? spaceAbove : spaceBelow)) })
+      }
+      return next
+    })
+  }
+
+  useEffect(() => {
+    if (!laterRoomOpen) return
+    const onMouseDown = (e: MouseEvent) => {
+      if (laterRoomRef.current && !laterRoomRef.current.contains(e.target as Node)) setLaterRoomOpen(false)
+    }
+    document.addEventListener('mousedown', onMouseDown)
+    return () => document.removeEventListener('mousedown', onMouseDown)
+  }, [laterRoomOpen])
 
   const dark = theme === 'dark'
   const T = mkT(dark)
@@ -1550,7 +1577,7 @@ export default function BookingPage() {
       {/* Modal */}
       {showModal && (
         <div onClick={() => { setShowModal(null); setSingleConflict(null) }} style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 100 }}>
-          <div onClick={e => e.stopPropagation()} style={{ background: T.modalBg, borderRadius: 0, padding: 28, width: mDone && bookingConflicts.length > 0 ? 580 : 370, border: `1px solid ${T.modalBorder}`, boxShadow: dark ? '0 24px 64px rgba(0,0,0,0.6)' : '0 12px 48px rgba(0,0,0,0.18)', transition: 'width 0.2s ease' }}>
+          <div onClick={e => e.stopPropagation()} style={{ background: T.modalBg, borderRadius: 0, padding: 28, width: mDone && bookingConflicts.length > 0 ? 580 : 370, maxHeight: '85vh', overflowY: 'auto', border: `1px solid ${T.modalBorder}`, boxShadow: dark ? '0 24px 64px rgba(0,0,0,0.6)' : '0 12px 48px rgba(0,0,0,0.18)', transition: 'width 0.2s ease' }}>
             {mDone ? (
               <div style={{ textAlign: 'center', position: 'relative' }}>
                 {lotr && (
@@ -1762,11 +1789,11 @@ export default function BookingPage() {
                   const AVAIL = dark ? '#6ee7a0' : '#15803d'
                   const hasTimeData = !!(mTime && mEndTime && !timeInvalid)
                   return (
-                    <div style={{ marginBottom: 12, position: 'relative' }}>
+                    <div ref={laterRoomRef} style={{ marginBottom: 12, position: 'relative' }}>
                       <label style={lbl}>Room</label>
                       <button
                         type="button"
-                        onClick={() => setLaterRoomOpen(o => !o)}
+                        onClick={toggleLaterRoomOpen}
                         style={{ ...inp, display: 'flex', justifyContent: 'space-between', alignItems: 'center', cursor: 'pointer', color: sel?.taken ? CONFLICT : T.inpText, textAlign: 'left', gap: 8 }}
                       >
                         <span style={{ flex: 1, minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
@@ -1776,9 +1803,7 @@ export default function BookingPage() {
                         <span style={{ fontSize: 10, color: T.textMuted, flexShrink: 0 }}>▾</span>
                       </button>
                       {laterRoomOpen && (
-                        <>
-                          <div style={{ position: 'fixed', inset: 0, zIndex: 10 }} onClick={() => setLaterRoomOpen(false)} />
-                          <div style={{ position: 'absolute', top: '100%', left: 0, right: 0, zIndex: 11, background: T.modalBg, border: `1px solid ${T.inputBorder}`, boxShadow: dark ? '0 8px 24px rgba(0,0,0,0.5)' : '0 4px 16px rgba(0,0,0,0.12)', maxHeight: 220, overflowY: 'auto' }}>
+                        <div style={{ position: 'absolute', ...(laterRoomLayout.openUp ? { bottom: '100%' } : { top: '100%' }), left: 0, right: 0, zIndex: 11, background: T.modalBg, border: `1px solid ${T.inputBorder}`, boxShadow: dark ? '0 8px 24px rgba(0,0,0,0.5)' : '0 4px 16px rgba(0,0,0,0.12)', maxHeight: laterRoomLayout.maxHeight, overflowY: 'auto' }}>
                             {types.map((type, ti) => (
                               <div key={type}>
                                 {ti > 0 && <div style={{ borderTop: `1px solid ${T.borderFaint}`, margin: '2px 0' }} />}
@@ -1804,7 +1829,6 @@ export default function BookingPage() {
                               </div>
                             ))}
                           </div>
-                        </>
                       )}
                     </div>
                   )

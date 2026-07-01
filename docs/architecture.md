@@ -136,6 +136,8 @@ The room display page (`/[workspace]/room/[roomId]`) is designed to run as a per
 ## Desktop "Book Now" and "Schedule for later"
 
 > See [ADR-008](decisions/008-book-now-time-semantics.md) — why "Book Now" uses retroactive slot timing and why past-time validation must not apply to it.
+>
+> See [ADR-013](decisions/013-modal-overflow-scroll.md) — the room dropdown's scroll-clipping bug needed three fixes: `maxHeight`/`overflowY` on the modal card, replacing the dropdown's fixed-position click-catcher (which silently blocked scroll-chaining) with a document-level click-outside listener, and finally collision-aware popover positioning so the dropdown scrolls itself in place instead of requiring the whole modal to scroll.
 
 The main booking page (`app/[workspace]/(booking)/page.tsx`) has two booking paths that share a single submit function, `handleQuickBook`:
 
