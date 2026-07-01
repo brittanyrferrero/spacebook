@@ -1268,7 +1268,7 @@ export default function BookingPage() {
     const startTime = new Date(`${mDate}T${mTime}`).toISOString()
     const endTime   = new Date(`${mDate}T${mEndTime}`).toISOString()
     if (endTime <= startTime) { setMSubmitting(false); return }
-    if (showModal === 'later' && new Date(startTime) < now) { setMError('Start time is in the past.'); setMSubmitting(false); return }
+    if (showModal === 'later' && new Date(endTime) < now) { setMError('End time is in the past.'); setMSubmitting(false); return }
     const jsDay = new Date(`${mDate}T00:00:00`).getDay()
     const isoDay = jsDay === 0 ? 7 : jsDay
     const recurrence = (showModal === 'later' && recurFreq !== 'none') ? {
