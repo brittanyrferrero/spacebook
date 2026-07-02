@@ -1809,8 +1809,9 @@ export default function BookingPage() {
                   const AVAIL = dark ? '#6ee7a0' : '#15803d'
                   const hasTimeData = !!(mTime && mEndTime && !timeInvalid)
                   return (
-                    <div ref={laterRoomRef} style={{ marginBottom: 12, position: 'relative' }}>
+                    <div style={{ marginBottom: 12 }}>
                       <label style={lbl}>Room</label>
+                      <div ref={laterRoomRef} style={{ position: 'relative' }}>
                       <button
                         type="button"
                         onClick={toggleLaterRoomOpen}
@@ -1850,6 +1851,7 @@ export default function BookingPage() {
                             ))}
                           </div>
                       )}
+                      </div>
                     </div>
                   )
                 })()}
