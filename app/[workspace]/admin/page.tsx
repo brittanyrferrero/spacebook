@@ -1286,7 +1286,7 @@ export default function AdminPage() {
                     <div style={{ flex: 1 }}>
                       <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                         <span style={{ fontSize: 13, fontWeight: 500, color: r.is_active ? '#374151' : '#9CA3AF' }}>{r.name}</span>
-                        {!r.is_active && <span style={{ fontSize: 11, color: '#9CA3AF', background: '#f0f0f0', padding: '1px 6px', borderRadius: 0 }}>inactive</span>}
+                        {!r.is_active && <span style={{ fontSize: 11, color: '#9CA3AF', background: '#f0f0f0', padding: '1px 6px', borderRadius: 0 }}>disabled</span>}
                       </div>
                       <div style={{ fontSize: 11, color: '#9CA3AF', marginTop: 3 }}>
                         {r.room_type && <>{r.room_type} · </>}{r.capacity} people · {r.amenities.length > 0 ? r.amenities.join(', ') : 'No amenities listed'}
@@ -1317,7 +1317,7 @@ export default function AdminPage() {
                           + GCal
                         </a>
                       )}
-                      <div onClick={() => toggleRoom(r)} title={r.is_active ? 'Deactivate room' : 'Activate room'}
+                      <div onClick={() => toggleRoom(r)} title={r.is_active ? 'Disable room' : 'Enable room'}
                         style={{ width: 30, height: 17, borderRadius: 9, background: r.is_active ? SAGE : '#C8CDD4', position: 'relative', cursor: 'pointer', flexShrink: 0 }}>
                         <div style={{ position: 'absolute', width: 11, height: 11, borderRadius: '50%', background: '#fff', top: 3, left: r.is_active ? 16 : 3, transition: 'left .2s' }} />
                       </div>

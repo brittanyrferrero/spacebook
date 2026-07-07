@@ -89,7 +89,7 @@ async function processWebhook(channelId: string) {
   const now = new Date().toISOString()
   const nowMs = Date.now()
 
-  const { data: room } = await supabase.from('rooms').select('name, gcal_resource_email').eq('id', roomId).single()
+  const { data: room } = await supabase.from('rooms').select('name, gcal_resource_email, is_active').eq('id', roomId).single()
 
   for (const event of changed) {
     const googleEventId: string = event.id
@@ -116,6 +116,9 @@ async function processWebhook(channelId: string) {
       // We own this booking (spacebook-originated or previously imported) — echo, skip
       continue
     }
+
+    // Room is disabled — don't mirror new external events into spacebook, leave the GCal event alone
+    if (!room?.is_active) continue
 
     // New external event — determine start/end
     let startTime: string, endTime: string

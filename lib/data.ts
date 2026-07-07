@@ -93,6 +93,6 @@ export async function getBookingsForRange(from: string, to: string, roomId?: str
 }
 
 export async function getRoomById(id: string, workspaceId?: string): Promise<Room | null> {
-  const rooms = await getRooms(workspaceId)
+  const rooms = await getAllRooms(workspaceId)
   return rooms.find(r => r.id === id) ?? null
 }

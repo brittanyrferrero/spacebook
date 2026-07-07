@@ -126,6 +126,9 @@ export function getSeriesById(store: MockStore, id: string): RecurringSeries | n
 }
 
 export function createBooking(store: MockStore, payload: CreateBookingPayload): { booking?: Booking; series?: RecurringSeries; conflictDates?: string[]; error?: string } {
+  const targetRoom = store.rooms.find(r => r.id === payload.room_id)
+  if (!targetRoom?.is_active) return { error: 'This room is no longer available for booking.' }
+
   const start = new Date(payload.start_time)
   const end = new Date(payload.end_time)
 

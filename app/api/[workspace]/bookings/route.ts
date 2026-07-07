@@ -89,6 +89,9 @@ export async function POST(req: NextRequest, { params }: { params: { workspace: 
     createClient(),
     getLimits(workspaceId),
   ])
+  const { data: targetRoom } = await supabase.from('rooms').select('is_active').eq('id', payload.room_id).eq('workspace_id', workspaceId).single()
+  if (!targetRoom?.is_active) return Response.json({ error: 'This room is no longer available for booking.' }, { status: 403 })
+
   if (limits?.max_bookings != null) {
     const { count } = await supabase.from('bookings').select('*', { count: 'exact', head: true }).eq('workspace_id', workspaceId).then(r => ({ count: r.count ?? 0 }))
     if (count >= limits.max_bookings) {
