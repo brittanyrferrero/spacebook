@@ -109,13 +109,15 @@ The admin dashboard computes booking stats (total hours, utilisation %, concurre
 ## Google Calendar sync
 
 > See [ADR-004](decisions/004-gcal-oauth-callback-global.md) — why the GCal OAuth callback is a global route rather than workspace-scoped.
+> See [ADR-015](decisions/015-disable-room-leaves-gcal-connected.md) — why disabling a room doesn't touch its GCal connection.
 
-Each room can be linked to a Google Calendar ID. Sync uses a Google service account — no OAuth per user.
+Each room can be linked to a Google Calendar ID. Sync is **per-room OAuth**, not a service account: an admin connects a room by going through Google's consent flow (`/api/[workspace]/gcal/auth`), and the resulting refresh token is stored per room in Redis (`gcal:tokens:{roomId}`, see [ADR-005](decisions/005-kv-vs-supabase.md)).
 
 - Spacebook registers a **push notification webhook** with Google for each linked room's calendar
 - When Google notifies Spacebook of a change, the webhook at `/api/[workspace]/gcal/webhook` checks for conflicts
 - If an external event conflicts with an existing Spacebook booking, the event organiser is emailed and the conflict is rejected
 - **Spacebook is always the source of truth** — external events that conflict are not accepted
+- If the room is disabled (`is_active: false`), new external events are silently not mirrored into Spacebook at all — no conflict check, no email, and the calendar event itself is left untouched (ADR-015)
 
 ## Tablet display lifecycle
 

@@ -59,13 +59,15 @@ Click **Edit** next to any room. Name, type, capacity, and amenities can be chan
 
 Drag rooms using the dot-grid handle on the left. The displayed order on the booking page reflects this order.
 
-### Deactivating a room
+### Disabling a room
 
-Toggle the switch on the right side of a room row. Inactive rooms are hidden from the booking view but their past bookings are retained. Deactivating is reversible; delete is permanent.
+Toggle the switch on the right side of a room row. Disabled rooms are hidden from the booking view (desktop and tablet) but all of their data — past and future bookings — is retained untouched. Re-enabling is instant and reverses this completely.
+
+If the room is connected to Google Calendar, that connection is deliberately left alone while disabled — see [ADR-015](decisions/015-disable-room-leaves-gcal-connected.md) for why. In practice this means: no new booking can be made against the room through Spacebook (whether from the booking page, directly via the API, or via an event created on its linked Google Calendar), but the Google Calendar itself keeps working normally and isn't disconnected. Re-enabling never requires reconnecting Google Calendar.
 
 ### Deleting a room
 
-Click **Delete**. If the room has upcoming bookings, those bookings remain in the database but the room is removed from display. Use deactivation instead if you might want to restore the room.
+Click **Delete**. This is a **permanent, hard delete** — the room and all of its bookings are removed from the database (bookings and recurring series reference their room and are deleted along with it). There is no recovery. If you might want to bring the room back later, disable it instead.
 
 ### Room types and amenities
 
