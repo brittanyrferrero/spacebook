@@ -17,6 +17,20 @@ const canonicalOrigin = () =>
   process.env.NEXT_PUBLIC_BASE_URL ||
   (typeof window !== 'undefined' ? window.location.origin : '')
 
+type ApiResult<T = any> = { ok: true; data: T } | { ok: false; error: string }
+
+async function apiRequest<T = any>(url: string, init?: RequestInit, fallbackError = 'Something went wrong.'): Promise<ApiResult<T>> {
+  let res: Response
+  try {
+    res = await fetch(url, init)
+  } catch {
+    return { ok: false, error: 'Network error — check your connection.' }
+  }
+  const data = await res.json().catch(() => ({}))
+  if (!res.ok) return { ok: false, error: (data as any)?.error ?? fallbackError }
+  return { ok: true, data }
+}
+
 type Preset = '7d' | '30d' | 'month' | 'quarter'
 type Nav = 'Overview' | 'Bookings' | 'Rooms' | 'Members' | 'Settings'
 
@@ -107,8 +121,9 @@ export default function AdminPage() {
   const [newDraft, setNewDraft] = useState({ name: '', room_type: '', capacity: '4', amenities: [] as string[] })
   const [deletingRoomId, setDeletingRoomId] = useState<string | null>(null)
   const [disconnectingRoomId, setDisconnectingRoomId] = useState<string | null>(null)
-  const [gcalToast, setGcalToast] = useState<string | null>(null)
-  const gcalToastTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const [roomModalError, setRoomModalError] = useState('')
+  const [actionToast, setActionToast] = useState<{ message: string; kind: 'error' | 'success' } | null>(null)
+  const actionToastTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
   const [gcalPickRoomId, setGcalPickRoomId] = useState<string | null>(null)
   const [gcalCalendars, setGcalCalendars] = useState<{ id: string; summary: string; primary: boolean; backgroundColor?: string }[]>([])
   const [gcalPickLoading, setGcalPickLoading] = useState(false)
@@ -123,10 +138,9 @@ export default function AdminPage() {
   const [blockReason,    setBlockReason]    = useState('')
   const [blockPreview,   setBlockPreview]   = useState<{ conflictCount: number; conflicts: { id: string; bookerName: string; date: string; time: string; hasEquivalent: boolean; equivalentRoomName?: string }[] } | null>(null)
   const [blockSaving,    setBlockSaving]    = useState(false)
+  const [blockError,     setBlockError]     = useState('')
   const [roomBlocks,     setRoomBlocks]     = useState<Record<string, any[]>>({})
   const [expandedBlocks, setExpandedBlocks] = useState<string | null>(null)
-  const [blockToast,     setBlockToast]     = useState<string | null>(null)
-  const blockToastTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
 
   // Members tab
   const [members, setMembers] = useState<any[]>([])
@@ -154,6 +168,7 @@ export default function AdminPage() {
   const [wsName, setWsName] = useState('')
   const [wsNameSaving, setWsNameSaving] = useState(false)
   const [wsNameSaved, setWsNameSaved] = useState(false)
+  const [wsNameError, setWsNameError] = useState('')
   const [newSlug, setNewSlug] = useState('')
   const [slugConfirming, setSlugConfirming] = useState(false)
   const [slugSaving, setSlugSaving] = useState(false)
@@ -174,6 +189,7 @@ export default function AdminPage() {
   const [dispEnd,   setDispEnd]   = useState(20)
   const [dispSaving, setDispSaving] = useState(false)
   const [dispSaved,  setDispSaved]  = useState(false)
+  const [dispError,  setDispError]  = useState('')
 
   const [countWeekends, setCountWeekends] = useState(false)
 
@@ -182,11 +198,13 @@ export default function AdminPage() {
   const [bhEnd,   setBhEnd]   = useState(22)
   const [bhSaving, setBhSaving] = useState(false)
   const [bhSaved,  setBhSaved]  = useState(false)
+  const [bhError,  setBhError]  = useState('')
 
   // Accent color
   const [accentColor,      setAccentColor]      = useState('#c98a9a')
   const [accentColorSaved, setAccentColorSaved] = useState(false)
   const [accentColorSaving, setAccentColorSaving] = useState(false)
+  const [accentColorError, setAccentColorError] = useState('')
 
   // Booking visibility
   const [visShowTitle,       setVisShowTitle]       = useState(false)
@@ -194,6 +212,7 @@ export default function AdminPage() {
   const [visAllowEditOthers, setVisAllowEditOthers] = useState(false)
   const [visSaving,        setVisSaving]        = useState(false)
   const [visSaved,         setVisSaved]         = useState(false)
+  const [visError,         setVisError]         = useState('')
 
   // Overview filters
   const [filterRoom, setFilterRoom] = useState<string>('')
@@ -338,8 +357,8 @@ export default function AdminPage() {
           .then(data => { setGcalCalendars(Array.isArray(data) ? data : []); setGcalPickLoading(false) })
           .catch(() => setGcalPickLoading(false))
       }
-    } else if (gcal === 'no_refresh_token') setGcalToast('No refresh token returned — try again with prompt=consent.')
-    else if (gcal && gcal.startsWith('error')) setGcalToast('Google Calendar connection failed. Please try again.')
+    } else if (gcal === 'no_refresh_token') setActionToast({ message: 'No refresh token returned — try again with prompt=consent.', kind: 'error' })
+    else if (gcal && gcal.startsWith('error')) setActionToast({ message: 'Google Calendar connection failed. Please try again.', kind: 'error' })
     if (gcal) {
       const url = new URL(window.location.href)
       url.searchParams.delete('gcal')
@@ -350,16 +369,10 @@ export default function AdminPage() {
   }, [])
 
   useEffect(() => {
-    if (!gcalToast) return
-    if (gcalToastTimer.current) clearTimeout(gcalToastTimer.current)
-    gcalToastTimer.current = setTimeout(() => setGcalToast(null), 4000)
-  }, [gcalToast])
-
-  useEffect(() => {
-    if (!blockToast) return
-    if (blockToastTimer.current) clearTimeout(blockToastTimer.current)
-    blockToastTimer.current = setTimeout(() => setBlockToast(null), 4000)
-  }, [blockToast])
+    if (!actionToast) return
+    if (actionToastTimer.current) clearTimeout(actionToastTimer.current)
+    actionToastTimer.current = setTimeout(() => setActionToast(null), 4000)
+  }, [actionToast])
 
   async function disconnectGcal(roomId: string) {
     setDisconnectingRoomId(roomId)
@@ -389,8 +402,8 @@ export default function AdminPage() {
     setGcalPickRoomId(null)
     setGcalCalendars([])
     setGcalPickSaving(false)
-    if (!watchRes?.ok) setGcalToast('Calendar connected, but live sync could not be enabled. Check domain verification in Google Cloud Console.')
-    else setGcalToast('Google Calendar connected.')
+    if (!watchRes?.ok) setActionToast({ message: 'Calendar connected, but live sync could not be enabled. Check domain verification in Google Cloud Console.', kind: 'error' })
+    else setActionToast({ message: 'Google Calendar connected.', kind: 'success' })
   }
 
   function roomName(roomId: string) {
@@ -439,7 +452,8 @@ export default function AdminPage() {
   async function doCancel(booking: any, scope: 'this' | 'future' | 'all') {
     setCancellingId(booking.id)
     setCancelModal(null)
-    await fetch(`/api/cancel/${booking.cancel_token}`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ scope }) })
+    const result = await apiRequest(`/api/cancel/${booking.cancel_token}`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ scope }) }, 'Failed to cancel booking.')
+    if (!result.ok) setActionToast({ message: result.error, kind: 'error' })
     await fetchBookings()
     setCancellingId(null)
   }
@@ -453,46 +467,53 @@ export default function AdminPage() {
     setBulkCancelConfirm(false)
     setBulkCancelling(true)
     const toCancel = bookings.filter(b => selected.has(b.id))
-    await Promise.all(toCancel.map(b =>
-      fetch(`/api/cancel/${b.cancel_token}`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ scope: 'this' }) })
+    const results = await Promise.all(toCancel.map(b =>
+      apiRequest(`/api/cancel/${b.cancel_token}`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ scope: 'this' }) }, 'Failed to cancel booking.')
     ))
+    const failed = results.filter(r => !r.ok).length
+    if (failed > 0) setActionToast({ message: `${failed} of ${toCancel.length} could not be cancelled.`, kind: 'error' })
     await fetchBookings()
     setBulkCancelling(false)
   }
 
   async function toggleRoom(room: any) {
-    await fetch(`${api}/rooms/${room.id}`, {
+    const result = await apiRequest(`${api}/rooms/${room.id}`, {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ is_active: !room.is_active }),
-    })
+    }, 'Failed to update room.')
+    if (!result.ok) setActionToast({ message: result.error, kind: 'error' })
     fetchAllRooms()
     if (nav === 'Overview') fetch(`${api}/admin/stats?from=${from}&to=${to}&tz=${process.env.NEXT_PUBLIC_MOCK_MODE === 'true' ? 420 : new Date().getTimezoneOffset()}`).then(r => r.json()).then(setStats)
   }
 
   async function saveRoom() {
     setRoomSaving(true)
-    await fetch(`${api}/rooms/${editingRoom.id}`, {
+    setRoomModalError('')
+    const result = await apiRequest(`${api}/rooms/${editingRoom.id}`, {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ name: editDraft.name, room_type: editDraft.room_type || null, capacity: Number(editDraft.capacity), amenities: editDraft.amenities, gcal_resource_email: editDraft.gcal_resource_email?.trim() || null }),
-    })
+    }, 'Failed to save room.')
+    setRoomSaving(false)
+    if (!result.ok) { setRoomModalError(result.error); return }
     setEditingRoom(null)
     setEditDraft(null)
-    setRoomSaving(false)
     fetchAllRooms()
   }
 
   async function addRoom() {
     setRoomSaving(true)
-    await fetch(`${api}/rooms`, {
+    setRoomModalError('')
+    const result = await apiRequest(`${api}/rooms`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ name: newDraft.name, room_type: newDraft.room_type || null, capacity: Number(newDraft.capacity), amenities: newDraft.amenities }),
-    })
+    }, 'Failed to add room.')
+    setRoomSaving(false)
+    if (!result.ok) { setRoomModalError(result.error); return }
     setAddingRoom(false)
     setNewDraft({ name: '', room_type: '', capacity: '4', amenities: [] })
-    setRoomSaving(false)
     fetchAllRooms()
   }
 
@@ -500,12 +521,9 @@ export default function AdminPage() {
     const bookingWarning = room._hasBookings ? ' This room has upcoming bookings — they will remain but the room will be hidden.' : ''
     if (!confirm(`Delete "${room.name}"?${bookingWarning}`)) return
     setDeletingRoomId(room.id)
-    const res = await fetch(`${api}/rooms/${room.id}`, { method: 'DELETE' })
-    const data = await res.json()
-    if (data.hasBookings) {
-      // Room deleted but had bookings — just refresh
-    }
+    const result = await apiRequest(`${api}/rooms/${room.id}`, { method: 'DELETE' }, 'Failed to delete room.')
     setDeletingRoomId(null)
+    if (!result.ok) { setActionToast({ message: result.error, kind: 'error' }); return }
     fetchAllRooms()
   }
 
@@ -519,11 +537,12 @@ export default function AdminPage() {
   }
 
   async function liftBlock(blockId: string, roomId: string) {
-    await fetch(`${api}/bookings/${blockId}`, {
+    const result = await apiRequest(`${api}/bookings/${blockId}`, {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ cancelled_at: new Date().toISOString() }),
-    })
+    }, 'Failed to lift block.')
+    if (!result.ok) { setActionToast({ message: result.error, kind: 'error' }); return }
     const today = new Date().toISOString().slice(0, 10)
     const future = new Date(Date.now() + 365 * 24 * 3600 * 1000).toISOString().slice(0, 10)
     const data = await fetch(`${api}/bookings?room_id=${roomId}&from=${today}&to=${future}`).then(r => r.json())
@@ -551,9 +570,11 @@ export default function AdminPage() {
     if (!confirm(`Remove ${member?.name ?? 'this member'}?`)) return
     setRemovingMemberId(id)
     const isAdmin = adminList.some((a: any) => a.email.toLowerCase() === member?.email?.toLowerCase())
-    await fetch(`${api}/members/${id}`, { method: 'DELETE' })
+    const result = await apiRequest(`${api}/members/${id}`, { method: 'DELETE' }, 'Failed to remove member.')
+    if (!result.ok) { setRemovingMemberId(null); setActionToast({ message: result.error, kind: 'error' }); return }
     if (isAdmin && member?.email) {
-      await fetch(`${api}/admin/admins`, { method: 'DELETE', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ email: member.email }) })
+      const adminResult = await apiRequest(`${api}/admin/admins`, { method: 'DELETE', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ email: member.email }) }, 'Failed to remove admin access.')
+      if (!adminResult.ok) setActionToast({ message: `Member removed, but ${adminResult.error.toLowerCase()}`, kind: 'error' })
       const res = await fetch(`${api}/admin/admins`).then(r => r.json())
       setAdminList(res.admins ?? res)
     }
@@ -565,10 +586,21 @@ export default function AdminPage() {
     const count = selectedMembers.size
     if (!confirm(`Remove ${count} member${count > 1 ? 's' : ''}?`)) return
     setBulkRemovingMembers(true)
-    await Promise.all([...selectedMembers].map(id => fetch(`${api}/members/${id}`, { method: 'DELETE' })))
+    const results = await Promise.all([...selectedMembers].map(id => apiRequest(`${api}/members/${id}`, { method: 'DELETE' }, 'Failed to remove member.')))
+    const failed = results.filter(r => !r.ok).length
+    if (failed > 0) setActionToast({ message: `${failed} of ${count} could not be removed.`, kind: 'error' })
     setSelectedMembers(new Set())
     setBulkRemovingMembers(false)
     fetchMembers()
+  }
+
+  async function setAdminRole(email: string, newRole: string) {
+    const result = newRole
+      ? await apiRequest(`${api}/admin/admins`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ email, role: newRole }) }, 'Failed to update role.')
+      : await apiRequest(`${api}/admin/admins`, { method: 'DELETE', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ email }) }, 'Failed to update role.')
+    if (!result.ok) { setActionToast({ message: result.error, kind: 'error' }); return }
+    const res = await fetch(`${api}/admin/admins`).then(r => r.json())
+    setAdminList(res.admins ?? res)
   }
 
   function sortedMembers() {
@@ -659,8 +691,9 @@ export default function AdminPage() {
 
   async function deleteType(type: string) {
     setDeletingType(type)
-    await fetch(`${api}/room-types/${encodeURIComponent(type)}`, { method: 'DELETE' })
+    const result = await apiRequest(`${api}/room-types/${encodeURIComponent(type)}`, { method: 'DELETE' }, 'Failed to delete room type.')
     setDeletingType(null)
+    if (!result.ok) { setActionToast({ message: result.error, kind: 'error' }); return }
     fetch(`${api}/room-types`).then(r => r.json()).then(setRoomTypes)
   }
 
@@ -683,13 +716,14 @@ export default function AdminPage() {
 
   async function deleteAmenity(amenity: string) {
     setDeletingAmenity(amenity)
-    await fetch(`${api}/amenities/${encodeURIComponent(amenity)}`, { method: 'DELETE' })
+    const result = await apiRequest(`${api}/amenities/${encodeURIComponent(amenity)}`, { method: 'DELETE' }, 'Failed to delete amenity.')
     setDeletingAmenity(null)
+    if (!result.ok) { setActionToast({ message: result.error, kind: 'error' }); return }
     fetch(`${api}/amenities`).then(r => r.json()).then(setAmenityOptions)
   }
 
   async function logout() {
-    await fetch(`${api}/admin/logout`, { method: 'POST' })
+    await fetch(`${api}/admin/logout`, { method: 'POST' }).catch(() => {})
     window.location.href = '/admin'
   }
 
@@ -1268,7 +1302,7 @@ export default function AdminPage() {
 
               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
                 <span style={{ fontSize: 13, fontWeight: 500, color: '#374151' }}>Rooms</span>
-                <button onClick={() => setAddingRoom(true)}
+                <button onClick={() => { setAddingRoom(true); setRoomModalError('') }}
                   style={{ fontSize: 12, padding: '6px 12px', borderRadius: 0, border: 'none', background: SAGE, color: '#fff', cursor: 'pointer' }}>
                   + Add room
                 </button>
@@ -1338,12 +1372,12 @@ export default function AdminPage() {
                         </button>
                       )}
                       <button
-                        onClick={() => { setBlockingRoom(r); setBlockStep('form'); setBlockFrom(''); setBlockTo(''); setBlockReason(''); setBlockPreview(null) }}
+                        onClick={() => { setBlockingRoom(r); setBlockStep('form'); setBlockFrom(''); setBlockTo(''); setBlockReason(''); setBlockPreview(null); setBlockError('') }}
                         title="Block a time period"
                         style={{ fontSize: 11, padding: '4px 8px', borderRadius: 0, border: '1px solid #dddddd', background: 'none', cursor: 'pointer', color: '#6B7280', fontFamily: 'inherit' }}>
                         Block
                       </button>
-                      <button onClick={() => { setEditingRoom(r); setEditDraft({ name: r.name, room_type: r.room_type ?? '', capacity: r.capacity, amenities: [...r.amenities], gcal_resource_email: r.gcal_resource_email ?? '' }) }}
+                      <button onClick={() => { setEditingRoom(r); setEditDraft({ name: r.name, room_type: r.room_type ?? '', capacity: r.capacity, amenities: [...r.amenities], gcal_resource_email: r.gcal_resource_email ?? '' }); setRoomModalError('') }}
                         style={{ fontSize: 11, padding: '4px 9px', borderRadius: 0, border: '1px solid #cccccc', background: 'none', cursor: 'pointer', color: '#6B7280' }}>
                         Edit
                       </button>
@@ -1437,8 +1471,9 @@ export default function AdminPage() {
                       <label style={lbl}>Cart resource email <span style={{ fontWeight: 400, color: '#9CA3AF' }}>(optional)</span></label>
                       <input style={{ ...inp, width: '100%' }} type="email" placeholder="cart-1@yourcompany.com" value={editDraft.gcal_resource_email ?? ''} onChange={e => setEditDraft((d: any) => ({ ...d, gcal_resource_email: e.target.value }))} />
                     </div>
+                    {roomModalError && <div style={{ fontSize: 12, color: BUSY, marginBottom: 10 }}>{roomModalError}</div>}
                     <div style={{ display: 'flex', gap: 8 }}>
-                      <button onClick={() => { setEditingRoom(null); setEditDraft(null) }}
+                      <button onClick={() => { setEditingRoom(null); setEditDraft(null); setRoomModalError('') }}
                         style={{ flex: 1, background: 'none', border: '1px solid #cccccc', borderRadius: 0, padding: '8px 0', fontSize: 13, cursor: 'pointer', color: '#6B7280' }}>
                         Cancel
                       </button>
@@ -1486,8 +1521,9 @@ export default function AdminPage() {
                         })}
                       </div>
                     </div>
+                    {roomModalError && <div style={{ fontSize: 12, color: BUSY, marginBottom: 10 }}>{roomModalError}</div>}
                     <div style={{ display: 'flex', gap: 8 }}>
-                      <button onClick={() => { setAddingRoom(false); setNewDraft({ name: '', room_type: '', capacity: '4', amenities: [] }) }}
+                      <button onClick={() => { setAddingRoom(false); setNewDraft({ name: '', room_type: '', capacity: '4', amenities: [] }); setRoomModalError('') }}
                         style={{ flex: 1, background: 'none', border: '1px solid #cccccc', borderRadius: 0, padding: '8px 0', fontSize: 13, cursor: 'pointer', color: '#6B7280' }}>
                         Cancel
                       </button>
@@ -1517,19 +1553,21 @@ export default function AdminPage() {
                       <label style={lbl}>Reason (optional)</label>
                       <input style={{ ...inp, width: '100%' }} placeholder="e.g. HVAC maintenance" value={blockReason} onChange={e => setBlockReason(e.target.value)} />
                     </div>
+                    {blockError && <div style={{ fontSize: 12, color: BUSY, marginBottom: 10 }}>{blockError}</div>}
                     <div style={{ display: 'flex', gap: 8 }}>
-                      <button onClick={() => setBlockingRoom(null)}
+                      <button onClick={() => { setBlockingRoom(null); setBlockError('') }}
                         style={{ flex: 1, background: 'none', border: '1px solid #cccccc', borderRadius: 0, padding: '8px 0', fontSize: 13, cursor: 'pointer', color: '#6B7280' }}>
                         Cancel
                       </button>
                       <button
                         disabled={!blockFrom || !blockTo}
                         onClick={async () => {
+                          setBlockError('')
                           const startIso = new Date(blockFrom).toISOString()
                           const endIso = new Date(blockTo).toISOString()
-                          const res = await fetch(`${api}/bookings/block?room_id=${blockingRoom.id}&start_time=${encodeURIComponent(startIso)}&end_time=${encodeURIComponent(endIso)}`)
-                          const data = await res.json()
-                          setBlockPreview(data)
+                          const result = await apiRequest(`${api}/bookings/block?room_id=${blockingRoom.id}&start_time=${encodeURIComponent(startIso)}&end_time=${encodeURIComponent(endIso)}`, undefined, 'Failed to check conflicts.')
+                          if (!result.ok) { setBlockError(result.error); return }
+                          setBlockPreview(result.data)
                           setBlockStep('confirm')
                         }}
                         style={{ flex: 1, background: NAVY, color: '#fff', border: 'none', borderRadius: 0, padding: '8px 0', fontSize: 13, fontWeight: 500, cursor: !blockFrom || !blockTo ? 'default' : 'pointer', opacity: !blockFrom || !blockTo ? 0.4 : 1 }}>
@@ -1574,8 +1612,9 @@ export default function AdminPage() {
                         </div>
                       </div>
                     )}
+                    {blockError && <div style={{ fontSize: 12, color: BUSY, marginBottom: 10 }}>{blockError}</div>}
                     <div style={{ display: 'flex', gap: 8, marginTop: 'auto' }}>
-                      <button onClick={() => setBlockStep('form')}
+                      <button onClick={() => { setBlockStep('form'); setBlockError('') }}
                         style={{ flex: 1, background: 'none', border: '1px solid #cccccc', borderRadius: 0, padding: '8px 0', fontSize: 13, cursor: 'pointer', color: '#6B7280' }}>
                         ← Go back
                       </button>
@@ -1583,25 +1622,26 @@ export default function AdminPage() {
                         disabled={blockSaving}
                         onClick={async () => {
                           setBlockSaving(true)
+                          setBlockError('')
                           const startIso = new Date(blockFrom).toISOString()
                           const endIso = new Date(blockTo).toISOString()
-                          const res = await fetch(`${api}/bookings/block`, {
+                          const result = await apiRequest(`${api}/bookings/block`, {
                             method: 'POST',
                             headers: { 'Content-Type': 'application/json' },
                             body: JSON.stringify({ room_id: blockingRoom.id, start_time: startIso, end_time: endIso, reason: blockReason || undefined }),
-                          })
-                          const data = await res.json()
+                          }, 'Failed to block room.')
                           setBlockSaving(false)
+                          if (!result.ok) { setBlockError(result.error); return }
                           setBlockingRoom(null)
-                          const moved = (data.rebooked ?? []).length
-                          const cancelled = (data.cancelled ?? []).length
+                          const moved = (result.data.rebooked ?? []).length
+                          const cancelled = (result.data.cancelled ?? []).length
                           if (moved === 0 && cancelled === 0) {
-                            setBlockToast('Room blocked — no conflicts.')
+                            setActionToast({ message: 'Room blocked — no conflicts.', kind: 'success' })
                           } else {
                             const parts = []
                             if (moved > 0) parts.push(`${moved} moved`)
                             if (cancelled > 0) parts.push(`${cancelled} cancelled`)
-                            setBlockToast(`Room blocked. ${parts.join(', ')}.`)
+                            setActionToast({ message: `Room blocked. ${parts.join(', ')}.`, kind: 'success' })
                           }
                         }}
                         style={{ flex: 1, background: '#e11d48', color: '#fff', border: 'none', borderRadius: 0, padding: '8px 0', fontSize: 13, fontWeight: 500, cursor: blockSaving ? 'default' : 'pointer', opacity: blockSaving ? 0.7 : 1 }}>
@@ -1752,16 +1792,7 @@ export default function AdminPage() {
                                 return (
                                   <select
                                     value={role ?? ''}
-                                    onChange={async e => {
-                                      const newRole = e.target.value
-                                      if (!newRole) {
-                                        await fetch(`${api}/admin/admins`, { method: 'DELETE', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ email: m.email }) })
-                                      } else {
-                                        await fetch(`${api}/admin/admins`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ email: m.email, role: newRole }) })
-                                      }
-                                      const res = await fetch(`${api}/admin/admins`).then(r => r.json())
-                                      setAdminList(res.admins ?? res)
-                                    }}
+                                    onChange={e => setAdminRole(m.email, e.target.value)}
                                     style={{ marginLeft: 6, fontSize: 11, border: '1px solid #dddddd', background: '#fff', padding: '2px 4px', cursor: 'pointer', color: '#374151', fontFamily: 'inherit' }}
                                   >
                                     <option value="">User</option>
@@ -1815,16 +1846,7 @@ export default function AdminPage() {
                             {myRole === 'super_admin' && (
                               <select
                                 value={a.role}
-                                onChange={async e => {
-                                  const newRole = e.target.value
-                                  if (!newRole) {
-                                    await fetch(`${api}/admin/admins`, { method: 'DELETE', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ email: a.email }) })
-                                  } else {
-                                    await fetch(`${api}/admin/admins`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ email: a.email, role: newRole }) })
-                                  }
-                                  const res = await fetch(`${api}/admin/admins`).then(r => r.json())
-                                  setAdminList(res.admins ?? res)
-                                }}
+                                onChange={e => setAdminRole(a.email, e.target.value)}
                                 style={{ marginLeft: 6, fontSize: 11, border: '1px solid #dddddd', background: '#fff', padding: '2px 4px', cursor: 'pointer', color: '#374151', fontFamily: 'inherit' }}
                               >
                                 <option value="">User</option>
@@ -1837,11 +1859,8 @@ export default function AdminPage() {
                           <td style={{ padding: '8px 12px', borderBottom: '1px solid #eeeeee', color: '#9CA3AF' }}>—</td>
                           <td style={{ padding: '6px 12px', borderBottom: '1px solid #eeeeee' }}>
                             {myRole === 'super_admin' && (
-                              <button onClick={async () => {
-                                await fetch(`${api}/admin/admins`, { method: 'DELETE', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ email: a.email }) })
-                                const res = await fetch(`${api}/admin/admins`).then(r => r.json())
-                                setAdminList(res.admins ?? res)
-                              }} style={{ fontSize: 11, padding: '3px 7px', borderRadius: 0, border: '1px solid #F0CACA', background: 'none', cursor: 'pointer', color: BUSY }}>
+                              <button onClick={() => setAdminRole(a.email, '')}
+                                style={{ fontSize: 11, padding: '3px 7px', borderRadius: 0, border: '1px solid #F0CACA', background: 'none', cursor: 'pointer', color: BUSY }}>
                                 Remove
                               </button>
                             )}
@@ -1865,7 +1884,7 @@ export default function AdminPage() {
                 <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
                   <input
                     value={wsName}
-                    onChange={e => { setWsName(e.target.value); setWsNameSaved(false) }}
+                    onChange={e => { setWsName(e.target.value); setWsNameSaved(false); setWsNameError('') }}
                     placeholder={workspace}
                     style={{ fontSize: 12, padding: '6px 8px', border: '1px solid #dddddd', borderRadius: 0, outline: 'none', fontFamily: 'inherit', flex: 1 }}
                   />
@@ -1873,14 +1892,17 @@ export default function AdminPage() {
                     disabled={wsNameSaving}
                     onClick={async () => {
                       setWsNameSaving(true)
-                      await fetch(`${api}/settings`, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ workspaceName: wsName.trim() }) })
+                      setWsNameError('')
+                      const result = await apiRequest(`${api}/settings`, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ workspaceName: wsName.trim() }) }, 'Failed to save.')
                       setWsNameSaving(false)
+                      if (!result.ok) { setWsNameError(result.error); return }
                       setWsNameSaved(true)
                     }}
                     style={{ fontSize: 12, padding: '6px 14px', borderRadius: 0, border: '1px solid #dddddd', background: 'none', cursor: 'pointer', whiteSpace: 'nowrap', color: '#374151' }}>
                     {wsNameSaving ? 'Saving…' : wsNameSaved ? 'Saved' : 'Save'}
                   </button>
                 </div>
+                {wsNameError && <div style={{ fontSize: 12, color: BUSY, marginTop: 6 }}>{wsNameError}</div>}
               </div>
 
               <EntryLinkCard workspace={workspace} adminEntryToken={adminEntryToken} />
@@ -1924,14 +1946,17 @@ export default function AdminPage() {
                         disabled={accentColorSaving}
                         onClick={async () => {
                           setAccentColorSaving(true)
-                          const res = await fetch(`${api}/settings`, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ accentColor }) })
+                          setAccentColorError('')
+                          const result = await apiRequest(`${api}/settings`, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ accentColor }) }, 'Failed to save.')
                           setAccentColorSaving(false)
-                          if (res.ok) { setAccentColorSaved(true); setTimeout(() => setAccentColorSaved(false), 2500) }
+                          if (!result.ok) { setAccentColorError(result.error); return }
+                          setAccentColorSaved(true); setTimeout(() => setAccentColorSaved(false), 2500)
                         }}
                         style={{ fontSize: 12, padding: '6px 14px', borderRadius: 0, border: `1px solid ${accentColorSaved ? '#a3d9a5' : '#dddddd'}`, background: accentColorSaved ? '#eef7f0' : 'none', cursor: accentColorSaving ? 'default' : 'pointer', whiteSpace: 'nowrap', color: accentColorSaved ? FREE : '#374151', transition: 'all .2s' }}>
                         {accentColorSaving ? 'Saving…' : accentColorSaved ? '✓ Saved' : 'Save'}
                       </button>
                       {accentColorSaved && <div style={{ fontSize: 11, color: '#9CA3AF' }}>Refresh the booking view to see the new color.</div>}
+                      {accentColorError && <div style={{ fontSize: 11, color: BUSY }}>{accentColorError}</div>}
                     </div>
                   </div>
                 )
@@ -2041,14 +2066,18 @@ export default function AdminPage() {
                     <button
                       onClick={async () => {
                         setDispSaving(true)
-                        await fetch(`${api}/settings`, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ displayHours: { start: dispStart, end: dispEnd } }) })
-                        setDispSaving(false); setDispSaved(true); setTimeout(() => setDispSaved(false), 2000)
+                        setDispError('')
+                        const result = await apiRequest(`${api}/settings`, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ displayHours: { start: dispStart, end: dispEnd } }) }, 'Failed to save.')
+                        setDispSaving(false)
+                        if (!result.ok) { setDispError(result.error); return }
+                        setDispSaved(true); setTimeout(() => setDispSaved(false), 2000)
                         fetchStats()
                       }}
                       disabled={dispSaving}
                       style={{ fontSize: 12, padding: '7px 14px', borderRadius: 0, border: `1px solid ${dispSaved ? '#a3d9a5' : SAGE}`, background: dispSaved ? '#eef7f0' : 'none', cursor: dispSaving ? 'default' : 'pointer', color: dispSaved ? FREE : SAGE }}>
                       {dispSaved ? 'Saved' : dispSaving ? 'Saving…' : 'Save'}
                     </button>
+                    {dispError && <div style={{ fontSize: 11, color: BUSY, marginTop: 8 }}>{dispError}</div>}
                   </div>
 
                   <div style={{ background: '#fff', border: '1px solid #dddddd', borderRadius: 0, padding: 16 }}>
@@ -2072,18 +2101,23 @@ export default function AdminPage() {
                     <button
                       onClick={async () => {
                         setBhSaving(true)
-                        await fetch(`${api}/settings`, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ bookingHours: { start: bhStart, end: bhEnd } }) })
-                        setBhSaving(false); setBhSaved(true); setTimeout(() => setBhSaved(false), 2000)
+                        setBhError('')
+                        const result = await apiRequest(`${api}/settings`, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ bookingHours: { start: bhStart, end: bhEnd } }) }, 'Failed to save.')
+                        setBhSaving(false)
+                        if (!result.ok) { setBhError(result.error); return }
+                        setBhSaved(true); setTimeout(() => setBhSaved(false), 2000)
                       }}
                       disabled={bhSaving}
                       style={{ fontSize: 12, padding: '7px 14px', borderRadius: 0, border: `1px solid ${bhSaved ? '#a3d9a5' : SAGE}`, background: bhSaved ? '#eef7f0' : 'none', cursor: bhSaving ? 'default' : 'pointer', color: bhSaved ? FREE : SAGE }}>
                       {bhSaved ? 'Saved' : bhSaving ? 'Saving…' : 'Save'}
                     </button>
+                    {bhError && <div style={{ fontSize: 11, color: BUSY, marginTop: 8 }}>{bhError}</div>}
                     <label style={{ display: 'flex', alignItems: 'center', gap: 10, marginTop: 14, cursor: 'pointer' }}>
                       <div onClick={async () => {
                         const next = !countWeekends
                         setCountWeekends(next)
-                        await fetch(`${api}/settings`, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ countWeekends: next }) })
+                        const result = await apiRequest(`${api}/settings`, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ countWeekends: next }) }, 'Failed to save.')
+                        if (!result.ok) { setCountWeekends(!next); setActionToast({ message: result.error, kind: 'error' }) }
                       }} style={{ width: 30, height: 17, borderRadius: 9, background: countWeekends ? SAGE : '#C8CDD4', position: 'relative', cursor: 'pointer', flexShrink: 0 }}>
                         <div style={{ position: 'absolute', width: 11, height: 11, borderRadius: '50%', background: '#fff', top: 3, left: countWeekends ? 16 : 3, transition: 'left .2s' }} />
                       </div>
@@ -2126,13 +2160,17 @@ export default function AdminPage() {
                 <button
                   onClick={async () => {
                     setVisSaving(true)
-                    await fetch(`${api}/settings`, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ bookingVisibility: { showTitle: visShowTitle, showOrganizer: visShowOrganizer, allowEditOthers: visAllowEditOthers } }) })
-                    setVisSaving(false); setVisSaved(true); setTimeout(() => setVisSaved(false), 2000)
+                    setVisError('')
+                    const result = await apiRequest(`${api}/settings`, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ bookingVisibility: { showTitle: visShowTitle, showOrganizer: visShowOrganizer, allowEditOthers: visAllowEditOthers } }) }, 'Failed to save.')
+                    setVisSaving(false)
+                    if (!result.ok) { setVisError(result.error); return }
+                    setVisSaved(true); setTimeout(() => setVisSaved(false), 2000)
                   }}
                   disabled={visSaving}
                   style={{ fontSize: 12, padding: '7px 14px', borderRadius: 0, border: `1px solid ${visSaved ? '#a3d9a5' : SAGE}`, background: visSaved ? '#eef7f0' : 'none', cursor: visSaving ? 'default' : 'pointer', color: visSaved ? FREE : SAGE }}>
                   {visSaved ? 'Saved' : visSaving ? 'Saving…' : 'Save'}
                 </button>
+                {visError && <div style={{ fontSize: 11, color: BUSY, marginTop: 8 }}>{visError}</div>}
               </div>
               {myRole === 'super_admin' && (
                 <div style={{ marginTop: 24, paddingTop: 20, borderTop: '1px solid #dddddd' }}>
@@ -2247,15 +2285,9 @@ export default function AdminPage() {
         </div>
       )}
 
-      {gcalToast && (
-        <div style={{ position: 'fixed', bottom: 24, left: '50%', transform: 'translateX(-50%)', background: NAVY, color: '#fff', fontSize: 13, padding: '10px 18px', borderRadius: 0, zIndex: 200, pointerEvents: 'none', whiteSpace: 'nowrap' }}>
-          {gcalToast}
-        </div>
-      )}
-
-      {blockToast && (
-        <div style={{ position: 'fixed', bottom: 24, left: '50%', transform: 'translateX(-50%)', background: NAVY, color: '#fff', fontSize: 13, padding: '10px 18px', borderRadius: 0, zIndex: 200, pointerEvents: 'none', whiteSpace: 'nowrap' }}>
-          {blockToast}
+      {actionToast && (
+        <div style={{ position: 'fixed', bottom: 24, left: '50%', transform: 'translateX(-50%)', background: actionToast.kind === 'error' ? BUSY : NAVY, color: '#fff', fontSize: 13, padding: '10px 18px', borderRadius: 0, zIndex: 200, pointerEvents: 'none', whiteSpace: 'nowrap' }}>
+          {actionToast.message}
         </div>
       )}
     </div>
