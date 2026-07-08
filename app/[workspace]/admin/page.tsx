@@ -527,12 +527,16 @@ export default function AdminPage() {
     fetchAllRooms()
   }
 
-  const loadRoomBlocks = async (roomId: string) => {
+  const refreshRoomBlocks = async (roomId: string) => {
     const today = new Date().toISOString().slice(0, 10)
     const future = new Date(Date.now() + 365 * 24 * 3600 * 1000).toISOString().slice(0, 10)
     const data = await fetch(`${api}/bookings?room_id=${roomId}&from=${today}&to=${future}`).then(r => r.json())
     const blocks = (Array.isArray(data) ? data : []).filter((b: any) => b.is_block && !b.cancelled_at)
     setRoomBlocks(prev => ({ ...prev, [roomId]: blocks }))
+  }
+
+  const loadRoomBlocks = async (roomId: string) => {
+    await refreshRoomBlocks(roomId)
     setExpandedBlocks(expandedBlocks === roomId ? null : roomId)
   }
 
@@ -543,11 +547,7 @@ export default function AdminPage() {
       body: JSON.stringify({ cancelled_at: new Date().toISOString() }),
     }, 'Failed to lift block.')
     if (!result.ok) { setActionToast({ message: result.error, kind: 'error' }); return }
-    const today = new Date().toISOString().slice(0, 10)
-    const future = new Date(Date.now() + 365 * 24 * 3600 * 1000).toISOString().slice(0, 10)
-    const data = await fetch(`${api}/bookings?room_id=${roomId}&from=${today}&to=${future}`).then(r => r.json())
-    const blocks = (Array.isArray(data) ? data : []).filter((b: any) => b.is_block && !b.cancelled_at)
-    setRoomBlocks(prev => ({ ...prev, [roomId]: blocks }))
+    await refreshRoomBlocks(roomId)
   }
 
   async function addMemberSubmit(e: React.FormEvent) {
@@ -1632,6 +1632,7 @@ export default function AdminPage() {
                           }, 'Failed to block room.')
                           setBlockSaving(false)
                           if (!result.ok) { setBlockError(result.error); return }
+                          await refreshRoomBlocks(blockingRoom.id)
                           setBlockingRoom(null)
                           const moved = (result.data.rebooked ?? []).length
                           const cancelled = (result.data.cancelled ?? []).length
