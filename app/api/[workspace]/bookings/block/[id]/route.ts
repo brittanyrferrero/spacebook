@@ -254,7 +254,10 @@ export async function PATCH(req: NextRequest, { params }: { params: { workspace:
     .eq('workspace_id', workspaceId)
     .select()
     .single()
-  if (patchError) return Response.json({ error: patchError.message }, { status: 500 })
+  if (patchError) {
+    console.error('[bookings/block/[id] PATCH] update failed:', patchError)
+    return Response.json({ error: patchError.details || patchError.message }, { status: 500 })
+  }
 
   return Response.json({ block: updatedBlock, rebooked, cancelled })
 }

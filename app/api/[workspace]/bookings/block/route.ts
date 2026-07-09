@@ -372,7 +372,10 @@ export async function POST(req: NextRequest, { params }: { params: { workspace: 
     .select()
     .single()
 
-  if (blockError) return Response.json({ error: blockError.message }, { status: 500 })
+  if (blockError) {
+    console.error('[bookings/block POST] insert failed:', blockError)
+    return Response.json({ error: blockError.details || blockError.message }, { status: 500 })
+  }
 
   return Response.json({ block, rebooked, cancelled }, { status: 201 })
 }
