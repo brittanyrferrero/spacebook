@@ -261,29 +261,9 @@ export async function POST(req: NextRequest, { params }: { params: { workspace: 
     .single()
   if (!room) return Response.json({ error: 'Room not found.' }, { status: 404 })
 
-  // Insert the block booking
-  const blockToken = crypto.randomUUID().replace(/-/g, '').slice(0, 64)
-  const { data: block, error: blockError } = await supabase
-    .from('bookings')
-    .insert({
-      room_id,
-      workspace_id: workspaceId,
-      booker_name: 'Room block',
-      booker_email: 'block@internal.local',
-      title: reason ?? 'Room unavailable',
-      start_time,
-      end_time,
-      is_block: true,
-      cancel_token: blockToken,
-      origin: 'desktop',
-      cancelled_at: null,
-    })
-    .select()
-    .single()
-
-  if (blockError) return Response.json({ error: blockError.message }, { status: 500 })
-
-  // Fetch conflicting bookings
+  // Resolve conflicting bookings first — the no_overlapping_bookings exclusion
+  // constraint applies to any non-cancelled row, so the block insert below would
+  // fail if a conflicting booking is still active when it runs.
   const { data: conflicts } = await supabase
     .from('bookings')
     .select('*')
@@ -371,6 +351,28 @@ export async function POST(req: NextRequest, { params }: { params: { workspace: 
       }).catch(() => {})
     }
   }
+
+  // Insert the block booking now that conflicting bookings are cancelled/moved
+  const blockToken = crypto.randomUUID().replace(/-/g, '').slice(0, 64)
+  const { data: block, error: blockError } = await supabase
+    .from('bookings')
+    .insert({
+      room_id,
+      workspace_id: workspaceId,
+      booker_name: 'Room block',
+      booker_email: 'block@internal.local',
+      title: reason ?? 'Room unavailable',
+      start_time,
+      end_time,
+      is_block: true,
+      cancel_token: blockToken,
+      origin: 'desktop',
+      cancelled_at: null,
+    })
+    .select()
+    .single()
+
+  if (blockError) return Response.json({ error: blockError.message }, { status: 500 })
 
   return Response.json({ block, rebooked, cancelled }, { status: 201 })
 }

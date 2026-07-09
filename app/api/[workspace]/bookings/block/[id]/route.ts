@@ -146,22 +146,10 @@ export async function PATCH(req: NextRequest, { params }: { params: { workspace:
   const newStart = start_time ? new Date(start_time) : oldStart
   const newEnd = end_time ? new Date(end_time) : oldEnd
 
-  // Update the block
-  const patch: Record<string, string> = {}
-  if (start_time) patch.start_time = newStart.toISOString()
-  if (end_time) patch.end_time = newEnd.toISOString()
-  if (reason !== undefined) patch.title = reason ?? 'Room unavailable'
-
-  const { data: updatedBlock, error: patchError } = await supabase
-    .from('bookings')
-    .update(patch)
-    .eq('id', params.id)
-    .eq('workspace_id', workspaceId)
-    .select()
-    .single()
-  if (patchError) return Response.json({ error: patchError.message }, { status: 500 })
-
-  // Find newly covered conflicts (overlaps new range but not old)
+  // Find newly covered conflicts (overlaps new range but not old) and resolve them
+  // before widening the block's time range — the no_overlapping_bookings exclusion
+  // constraint applies to any non-cancelled row, so updating the block first would
+  // fail while a newly-conflicting booking is still active.
   const { data: candidateConflicts } = await supabase
     .from('bookings')
     .select('*')
@@ -252,6 +240,21 @@ export async function PATCH(req: NextRequest, { params }: { params: { workspace:
       }).catch(() => {})
     }
   }
+
+  // Update the block now that newly-conflicting bookings are cancelled/moved
+  const patch: Record<string, string> = {}
+  if (start_time) patch.start_time = newStart.toISOString()
+  if (end_time) patch.end_time = newEnd.toISOString()
+  if (reason !== undefined) patch.title = reason ?? 'Room unavailable'
+
+  const { data: updatedBlock, error: patchError } = await supabase
+    .from('bookings')
+    .update(patch)
+    .eq('id', params.id)
+    .eq('workspace_id', workspaceId)
+    .select()
+    .single()
+  if (patchError) return Response.json({ error: patchError.message }, { status: 500 })
 
   return Response.json({ block: updatedBlock, rebooked, cancelled })
 }
