@@ -272,6 +272,15 @@ function DayView({ bookings, viewDate, onSlotClick, onBookingClick, pendingSlot,
             const topPx    = Math.max(0, gp(bs.getHours(), bs.getMinutes()) * gridH)
             const heightPx = Math.max(16, (gp(be.getHours(), be.getMinutes()) - gp(bs.getHours(), bs.getMinutes())) * gridH)
             const isPast   = now ? be < now : false
+            if (b.is_block) {
+              return (
+                <div key={b.id}
+                  onClick={e => e.stopPropagation()}
+                  style={{ position: 'absolute', top: topPx, left: 4, right: 4, height: heightPx, background: '#DADCE0', borderRadius: 0, cursor: 'default', border: '1px solid #B8BBC0', overflow: 'hidden' }}>
+                  {heightPx > 18 && <div style={{ padding: '2px 5px', fontSize: 11, color: '#5F6368', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', fontWeight: 500 }}>{b.title || 'UNAVAILABLE'}</div>}
+                </div>
+              )
+            }
             const blockBg     = isPast ? '#c0c5cc' : '#c8d2e0'
             const blockBorder = isPast ? '#9099a8' : BUSY_BAR
             const blockText   = isPast ? '#9ca3af' : BUSY_BAR
@@ -396,6 +405,15 @@ function WeekView({ bookings, weekDays, onSlotClick, onBookingClick, pendingSlot
                     const topPx    = Math.max(0, gp(bs.getHours(), bs.getMinutes()) * gridH)
                     const heightPx = Math.max(16, (gp(be.getHours(), be.getMinutes()) - gp(bs.getHours(), bs.getMinutes())) * gridH)
                     const isPast   = now ? be < now : false
+                    if (b.is_block) {
+                      return (
+                        <div key={b.id}
+                          onClick={e => e.stopPropagation()}
+                          style={{ position: 'absolute', top: topPx, left: 2, right: 2, height: heightPx, background: '#DADCE0', borderRadius: 0, cursor: 'default', border: '1px solid #B8BBC0', overflow: 'hidden' }}>
+                          {heightPx > 18 && <div style={{ padding: '2px 4px', fontSize: 9, color: '#5F6368', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', fontWeight: 500 }}>{b.title || 'UNAVAILABLE'}</div>}
+                        </div>
+                      )
+                    }
                     const blockBg     = isPast ? '#c0c5cc' : '#c8d2e0'
                     const blockBorder = isPast ? '#9099a8' : BUSY_BAR
                     const blockText   = isPast ? '#9ca3af' : BUSY_BAR
