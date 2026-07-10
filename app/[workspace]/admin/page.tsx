@@ -528,9 +528,12 @@ export default function AdminPage() {
   }
 
   const refreshRoomBlocks = async (roomId: string) => {
-    const today = new Date().toISOString().slice(0, 10)
+    // Search from a year in the past, not from today — the bookings query filters by
+    // start_time, so a block that started before today but hasn't ended yet (e.g. a
+    // multi-day block) would otherwise be invisible here despite still being active.
+    const past = new Date(Date.now() - 365 * 24 * 3600 * 1000).toISOString().slice(0, 10)
     const future = new Date(Date.now() + 365 * 24 * 3600 * 1000).toISOString().slice(0, 10)
-    const data = await fetch(`${api}/bookings?room_id=${roomId}&from=${today}&to=${future}`).then(r => r.json())
+    const data = await fetch(`${api}/bookings?room_id=${roomId}&from=${past}&to=${future}`).then(r => r.json())
     const blocks = (Array.isArray(data) ? data : []).filter((b: any) => b.is_block && !b.cancelled_at)
     setRoomBlocks(prev => ({ ...prev, [roomId]: blocks }))
   }
