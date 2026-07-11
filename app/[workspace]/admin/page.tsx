@@ -31,6 +31,31 @@ async function apiRequest<T = any>(url: string, init?: RequestInit, fallbackErro
   return { ok: true, data }
 }
 
+// Splits a (possibly multi-day) local time range into one same-day segment per calendar
+// day — the calendar rendering has no concept of a multi-day event, so every stored block
+// row needs to fit within a single day. Full days in between run exact midnight-to-midnight
+// so segments are back-to-back with no gap (matching the DB's half-open [start, end) range).
+function splitIntoDaySegments(from: Date, to: Date): { start: Date; end: Date }[] {
+  const startDay = new Date(from.getFullYear(), from.getMonth(), from.getDate())
+  const endDay = new Date(to.getFullYear(), to.getMonth(), to.getDate())
+  if (startDay.getTime() === endDay.getTime()) return [{ start: from, end: to }]
+
+  const segments: { start: Date; end: Date }[] = []
+  let cursor = startDay
+  let segStart = from
+  while (cursor.getTime() < endDay.getTime()) {
+    const nextMidnight = new Date(cursor.getFullYear(), cursor.getMonth(), cursor.getDate() + 1)
+    segments.push({ start: segStart, end: nextMidnight })
+    cursor = nextMidnight
+    segStart = nextMidnight
+  }
+  // Only add a trailing segment if there's actual time left to cover — an exact
+  // midnight-to-midnight range (e.g. two full days) would otherwise get a bogus
+  // zero-length segment here, since segStart already caught up to `to`.
+  if (segStart.getTime() < to.getTime()) segments.push({ start: segStart, end: to })
+  return segments
+}
+
 type Preset = '7d' | '30d' | 'month' | 'quarter'
 type Nav = 'Overview' | 'Bookings' | 'Rooms' | 'Members' | 'Settings'
 
@@ -139,7 +164,7 @@ export default function AdminPage() {
   const [blockPreview,   setBlockPreview]   = useState<{ conflictCount: number; conflicts: { id: string; bookerName: string; date: string; time: string; hasEquivalent: boolean; equivalentRoomName?: string }[] } | null>(null)
   const [blockSaving,    setBlockSaving]    = useState(false)
   const [blockError,     setBlockError]     = useState('')
-  const [roomBlocks,     setRoomBlocks]     = useState<Record<string, any[]>>({})
+  const [roomBlocks,     setRoomBlocks]     = useState<Record<string, { groupId: string; title: string; start_time: string; end_time: string; rowIds: string[] }[]>>({})
   const [expandedBlocks, setExpandedBlocks] = useState<string | null>(null)
 
   // Members tab
@@ -534,8 +559,25 @@ export default function AdminPage() {
     const past = new Date(Date.now() - 365 * 24 * 3600 * 1000).toISOString().slice(0, 10)
     const future = new Date(Date.now() + 365 * 24 * 3600 * 1000).toISOString().slice(0, 10)
     const data = await fetch(`${api}/bookings?room_id=${roomId}&from=${past}&to=${future}`).then(r => r.json())
-    const blocks = (Array.isArray(data) ? data : []).filter((b: any) => b.is_block && !b.cancelled_at)
-    setRoomBlocks(prev => ({ ...prev, [roomId]: blocks }))
+    const rows = (Array.isArray(data) ? data : []).filter((b: any) => b.is_block && !b.cancelled_at)
+
+    // A multi-day block is stored as one row per day, all sharing block_group_id — group
+    // them back into a single entry with a combined date range so the admin sees and
+    // manages it as one block, not N rows. Falls back to the row's own id as the group
+    // key for any pre-existing block created before block_group_id existed.
+    const groups: Record<string, { groupId: string; title: string; start_time: string; end_time: string; rowIds: string[] }> = {}
+    for (const row of rows) {
+      const key = row.block_group_id ?? row.id
+      const existing = groups[key]
+      if (!existing) {
+        groups[key] = { groupId: key, title: row.title, start_time: row.start_time, end_time: row.end_time, rowIds: [row.id] }
+      } else {
+        if (row.start_time < existing.start_time) existing.start_time = row.start_time
+        if (row.end_time > existing.end_time) existing.end_time = row.end_time
+        existing.rowIds.push(row.id)
+      }
+    }
+    setRoomBlocks(prev => ({ ...prev, [roomId]: Object.values(groups) }))
   }
 
   const loadRoomBlocks = async (roomId: string) => {
@@ -543,13 +585,14 @@ export default function AdminPage() {
     setExpandedBlocks(expandedBlocks === roomId ? null : roomId)
   }
 
-  async function liftBlock(blockId: string, roomId: string) {
-    const result = await apiRequest(`${api}/bookings/${blockId}`, {
+  async function liftBlock(rowIds: string[], roomId: string) {
+    const results = await Promise.all(rowIds.map(id => apiRequest(`${api}/bookings/${id}`, {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ cancelled_at: new Date().toISOString() }),
-    }, 'Failed to lift block.')
-    if (!result.ok) { setActionToast({ message: result.error, kind: 'error' }); return }
+    }, 'Failed to lift block.')))
+    const failed = results.filter(r => !r.ok).length
+    if (failed > 0) setActionToast({ message: `${failed} of ${rowIds.length} day${rowIds.length > 1 ? 's' : ''} could not be lifted.`, kind: 'error' })
     await refreshRoomBlocks(roomId)
   }
 
@@ -1406,8 +1449,8 @@ export default function AdminPage() {
                           <div style={{ fontSize: 12, color: '#9CA3AF', padding: '4px 0' }}>No active blocks.</div>
                         ) : (
                           <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
-                            {roomBlocks[r.id].map((block: any) => (
-                              <div key={block.id} style={{ display: 'flex', alignItems: 'center', gap: 10, fontSize: 12, color: '#374151' }}>
+                            {roomBlocks[r.id].map((block) => (
+                              <div key={block.groupId} style={{ display: 'flex', alignItems: 'center', gap: 10, fontSize: 12, color: '#374151' }}>
                                 <span style={{ color: '#6B7280' }}>
                                   {new Date(block.start_time).toLocaleDateString('en-AU', { day: 'numeric', month: 'short' })}
                                   {' – '}
@@ -1417,7 +1460,7 @@ export default function AdminPage() {
                                   <span style={{ color: '#9CA3AF' }}>{block.title}</span>
                                 )}
                                 <button
-                                  onClick={() => liftBlock(block.id, r.id)}
+                                  onClick={() => liftBlock(block.rowIds, r.id)}
                                   style={{ fontSize: 11, padding: '2px 7px', borderRadius: 0, border: '1px solid #F0CACA', background: 'none', cursor: 'pointer', color: BUSY, fontFamily: 'inherit' }}>
                                   Lift
                                 </button>
@@ -1592,6 +1635,14 @@ export default function AdminPage() {
                       {new Date(blockTo).toLocaleString('en-AU', { day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' })}
                       {blockReason && <span style={{ marginLeft: 8, color: '#9CA3AF' }}>· {blockReason}</span>}
                     </div>
+                    {(() => {
+                      const dayCount = splitIntoDaySegments(new Date(blockFrom), new Date(blockTo)).length
+                      return dayCount > 1 ? (
+                        <div style={{ fontSize: 12, color: '#92400E', background: '#FFFBEB', border: '1px solid #FDE68A', padding: '8px 10px', marginBottom: 10 }}>
+                          This spans multiple days — it will be created as {dayCount} separate day-blocks, shown and managed together as one block below.
+                        </div>
+                      ) : null
+                    })()}
                     {blockPreview.conflictCount === 0 ? (
                       <div style={{ fontSize: 13, color: '#374151', padding: '10px 0', marginBottom: 10 }}>No conflicts — proceed.</div>
                     ) : (
@@ -1626,27 +1677,39 @@ export default function AdminPage() {
                         onClick={async () => {
                           setBlockSaving(true)
                           setBlockError('')
-                          const startIso = new Date(blockFrom).toISOString()
-                          const endIso = new Date(blockTo).toISOString()
-                          const result = await apiRequest(`${api}/bookings/block`, {
-                            method: 'POST',
-                            headers: { 'Content-Type': 'application/json' },
-                            body: JSON.stringify({ room_id: blockingRoom.id, start_time: startIso, end_time: endIso, reason: blockReason || undefined }),
-                          }, 'Failed to block room.')
-                          setBlockSaving(false)
-                          if (!result.ok) { setBlockError(result.error); return }
-                          await refreshRoomBlocks(blockingRoom.id)
-                          setBlockingRoom(null)
-                          const moved = (result.data.rebooked ?? []).length
-                          const cancelled = (result.data.cancelled ?? []).length
-                          if (moved === 0 && cancelled === 0) {
-                            setActionToast({ message: 'Room blocked — no conflicts.', kind: 'success' })
-                          } else {
-                            const parts = []
-                            if (moved > 0) parts.push(`${moved} moved`)
-                            if (cancelled > 0) parts.push(`${cancelled} cancelled`)
-                            setActionToast({ message: `Room blocked. ${parts.join(', ')}.`, kind: 'success' })
+                          const segments = splitIntoDaySegments(new Date(blockFrom), new Date(blockTo))
+                          const groupId = crypto.randomUUID()
+                          let moved = 0, cancelled = 0, daysDone = 0
+                          let firstError: string | null = null
+
+                          for (const seg of segments) {
+                            const result = await apiRequest(`${api}/bookings/block`, {
+                              method: 'POST',
+                              headers: { 'Content-Type': 'application/json' },
+                              body: JSON.stringify({ room_id: blockingRoom.id, start_time: seg.start.toISOString(), end_time: seg.end.toISOString(), reason: blockReason || undefined, block_group_id: groupId }),
+                            }, 'Failed to block room.')
+                            if (!result.ok) {
+                              firstError = firstError ?? `${seg.start.toLocaleDateString('en-AU', { day: 'numeric', month: 'short' })}: ${result.error}`
+                              continue
+                            }
+                            daysDone++
+                            moved += (result.data.rebooked ?? []).length
+                            cancelled += (result.data.cancelled ?? []).length
                           }
+
+                          setBlockSaving(false)
+                          await refreshRoomBlocks(blockingRoom.id)
+
+                          if (daysDone === 0) { setBlockError(firstError ?? 'Failed to block room.'); return }
+                          setBlockingRoom(null)
+
+                          const parts = []
+                          if (segments.length > 1) parts.push(`${daysDone} of ${segments.length} day${segments.length !== 1 ? 's' : ''} blocked`)
+                          else parts.push('Room blocked')
+                          if (moved > 0) parts.push(`${moved} moved`)
+                          if (cancelled > 0) parts.push(`${cancelled} cancelled`)
+                          if (firstError) parts.push(`failed: ${firstError}`)
+                          setActionToast({ message: `${parts.join(', ')}.`, kind: firstError ? 'error' : 'success' })
                         }}
                         style={{ flex: 1, background: '#e11d48', color: '#fff', border: 'none', borderRadius: 0, padding: '8px 0', fontSize: 13, fontWeight: 500, cursor: blockSaving ? 'default' : 'pointer', opacity: blockSaving ? 0.7 : 1 }}>
                         {blockSaving ? 'Blocking…' : 'Confirm block'}

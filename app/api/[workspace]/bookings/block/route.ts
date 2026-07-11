@@ -135,17 +135,27 @@ export async function POST(req: NextRequest, { params }: { params: { workspace: 
   if (!cookieHeader?.value) return Response.json({ error: 'Forbidden.' }, { status: 403 })
 
   const body = await req.json()
-  const { room_id, start_time, end_time, reason } = body as {
+  const { room_id, start_time, end_time, reason, block_group_id } = body as {
     room_id?: string
     start_time?: string
     end_time?: string
     reason?: string
+    block_group_id?: string
   }
   if (!room_id || !start_time || !end_time)
     return Response.json({ error: 'Missing room_id, start_time, or end_time.' }, { status: 400 })
 
   const blockStart = new Date(start_time)
   const blockEnd = new Date(end_time)
+
+  // Defense-in-depth: a single block row must stay within one calendar day (the client
+  // splits any multi-day range into per-day calls before this ever fires). Duration-based
+  // rather than calendar-day-based since the server doesn't know the caller's timezone.
+  if (blockEnd.getTime() - blockStart.getTime() > 25 * 60 * 60 * 1000) {
+    return Response.json({ error: 'A single block can span at most 25 hours — multi-day ranges are split into one block per day automatically by the admin panel.' }, { status: 400 })
+  }
+
+  const groupId = block_group_id ?? crypto.randomUUID()
   const { sendBlockRebookedEmail, sendBlockCancelledEmail } = await import('@/lib/email')
 
   // ── MOCK_MODE path ────────────────────────────────────────────────────────
@@ -173,6 +183,7 @@ export async function POST(req: NextRequest, { params }: { params: { workspace: 
       created_at: new Date().toISOString(),
       origin: 'desktop' as const,
       is_block: true,
+      block_group_id: groupId,
     }
     store.bookings.push(block)
 
@@ -365,6 +376,7 @@ export async function POST(req: NextRequest, { params }: { params: { workspace: 
       start_time,
       end_time,
       is_block: true,
+      block_group_id: groupId,
       cancel_token: blockToken,
       origin: 'desktop',
       cancelled_at: null,

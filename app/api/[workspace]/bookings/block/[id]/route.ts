@@ -37,6 +37,10 @@ export async function PATCH(req: NextRequest, { params }: { params: { workspace:
     const newStart = start_time ? new Date(start_time) : oldStart
     const newEnd = end_time ? new Date(end_time) : oldEnd
 
+    if (newEnd.getTime() - newStart.getTime() > 25 * 60 * 60 * 1000) {
+      return Response.json({ error: 'A single block can span at most 25 hours — create a separate block for additional days instead of widening this one.' }, { status: 400 })
+    }
+
     // Update block fields
     if (start_time) block.start_time = newStart.toISOString()
     if (end_time) block.end_time = newEnd.toISOString()
@@ -145,6 +149,10 @@ export async function PATCH(req: NextRequest, { params }: { params: { workspace:
   const oldEnd = new Date(block.end_time)
   const newStart = start_time ? new Date(start_time) : oldStart
   const newEnd = end_time ? new Date(end_time) : oldEnd
+
+  if (newEnd.getTime() - newStart.getTime() > 25 * 60 * 60 * 1000) {
+    return Response.json({ error: 'A single block can span at most 25 hours — create a separate block for additional days instead of widening this one.' }, { status: 400 })
+  }
 
   // Find newly covered conflicts (overlaps new range but not old) and resolve them
   // before widening the block's time range — the no_overlapping_bookings exclusion

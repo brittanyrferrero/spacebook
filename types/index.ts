@@ -52,6 +52,7 @@ export interface Booking {
   created_at: string
   origin?: 'desktop' | 'tablet' | 'gcal'
   is_block?: boolean
+  block_group_id?: string | null
 }
 
 export interface BookingWithRoom extends Booking {
