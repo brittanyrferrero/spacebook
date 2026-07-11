@@ -77,11 +77,20 @@ Run the migrations in order against your Supabase project. Open the SQL Editor i
 005_booking_origin.sql
 006_enable_rls.sql
 007_workspace_name_length.sql
+008_room_blocks.sql
+009_room_gcal_resource.sql
+010_block_group_id.sql
 ```
 
 Migration `006_enable_rls.sql` enables Row Level Security on all tables. This is required — once RLS is on, the anon key (which is public in the browser) cannot directly read or write any table. All access goes through the server using `SUPABASE_SERVICE_ROLE_KEY`.
 
 Migration `007_workspace_name_length.sql` adds a CHECK constraint limiting workspace display names to 200 characters.
+
+Migration `008_room_blocks.sql` adds the `is_block` column on `bookings`, used by the room-blocking feature (Admin → Rooms → Block).
+
+Migration `009_room_gcal_resource.sql` adds the `gcal_resource_email` column on `rooms`, used for the optional GCal cart resource on a room.
+
+Migration `010_block_group_id.sql` adds the `block_group_id` column on `bookings`, used to tie together the same-day rows a multi-day room block gets split into. Every block creation (not just multi-day) writes this column, so it must be applied before deploying that code.
 
 ---
 

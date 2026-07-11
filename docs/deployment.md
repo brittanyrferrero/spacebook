@@ -100,11 +100,20 @@ Migrations are not run automatically. You must apply them manually via the Supab
 005_booking_origin.sql
 006_enable_rls.sql
 007_workspace_name_length.sql
+008_room_blocks.sql
+009_room_gcal_resource.sql
+010_block_group_id.sql
 ```
 
 Migration `006_enable_rls.sql` enables Row Level Security on all tables. This is required — once RLS is on, the anon key cannot directly read or write any table. All server-side access uses `SUPABASE_SERVICE_ROLE_KEY`.
 
 Migration `007_workspace_name_length.sql` adds a CHECK constraint limiting workspace display names to 200 characters. Apply this to any existing Supabase projects that are running migration 006 but not 007.
+
+Migration `008_room_blocks.sql` adds the `is_block` column on `bookings`, used by the room-blocking feature (Admin → Rooms → Block).
+
+Migration `009_room_gcal_resource.sql` adds the `gcal_resource_email` column on `rooms`, used for the optional GCal cart resource on a room. **This one is easy to miss** — the admin panel's room edit form always includes this field in its save payload, so if this migration hasn't been applied, every room save fails with a PostgREST "column not found" error.
+
+Migration `010_block_group_id.sql` adds the `block_group_id` column on `bookings`, used to tie together the same-day rows a multi-day room block gets split into. **Apply this before deploying the multi-day-block-split code** — the block-creation route inserts a `block_group_id` value on every block it creates (not just multi-day ones), so without this column, every room block creation fails with a PostgREST "column not found" error, the same failure mode as migration 009 above.
 
 Run new migration files in the same way as they are added to the repo.
 
