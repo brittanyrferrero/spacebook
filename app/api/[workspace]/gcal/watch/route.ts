@@ -45,15 +45,22 @@ export async function POST(req: NextRequest, { params }: { params: { workspace: 
   }
 
   try {
-    // Get initial sync token (start from now so we only process future changes)
-    const listResult = await calendar.events.list({
-      calendarId: room.google_calendar_id,
-      maxResults: 1,
-      showDeleted: true,
-      singleEvents: true,
-      orderBy: 'updated',
-    })
-    const syncToken = listResult.data.nextSyncToken
+    // Get initial sync token (start from now so we only process future changes).
+    // Google only includes nextSyncToken on the LAST page of results, so we have
+    // to page through everything before we can read it off — a single-page
+    // maxResults:1 call only works by coincidence, when the calendar has <=1 event.
+    let syncToken: string | null | undefined
+    let pageToken: string | undefined
+    do {
+      const listResult = await calendar.events.list({
+        calendarId: room.google_calendar_id,
+        pageToken,
+        showDeleted: true,
+        singleEvents: true,
+      })
+      pageToken = listResult.data.nextPageToken ?? undefined
+      if (!pageToken) syncToken = listResult.data.nextSyncToken
+    } while (pageToken)
     if (!syncToken) return Response.json({ error: 'Could not get sync token' }, { status: 500 })
 
     const channelId = `${params.workspace}-${room_id}-${Date.now()}`

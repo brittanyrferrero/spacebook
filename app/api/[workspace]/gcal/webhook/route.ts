@@ -68,9 +68,17 @@ async function processWebhook(channelId: string) {
       })
     } catch (err: any) {
       if (err?.response?.status === 410) {
-        // Sync token expired — reset
-        const fresh = await calendar.events.list({ calendarId: watchState.calendarId, maxResults: 1, showDeleted: true, singleEvents: true })
-        await saveWatchState(roomId, { ...watchState, syncToken: fresh.data.nextSyncToken ?? syncToken })
+        // Sync token expired — reset. nextSyncToken only appears on the LAST
+        // page, so page through fully before reading it (a single-page call
+        // only works by coincidence, when the calendar has <=1 event).
+        let freshToken: string | null | undefined
+        let freshPageToken: string | undefined
+        do {
+          const fresh = await calendar.events.list({ calendarId: watchState.calendarId, pageToken: freshPageToken, showDeleted: true, singleEvents: true })
+          freshPageToken = fresh.data.nextPageToken ?? undefined
+          if (!freshPageToken) freshToken = fresh.data.nextSyncToken
+        } while (freshPageToken)
+        await saveWatchState(roomId, { ...watchState, syncToken: freshToken ?? syncToken })
       }
       return
     }
