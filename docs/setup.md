@@ -57,11 +57,24 @@ Email is optional locally — if `RESEND_API_KEY` is missing, emails are silentl
 
 ### Google Calendar (optional)
 
+Calendar sync is **per-room OAuth**, not a service account — an admin connects each room individually by going through Google's consent flow from the admin panel. See [ADR-004](decisions/004-gcal-oauth-callback-global.md) and [architecture.md](architecture.md) for how the connection is stored and watched.
+
 | Variable | Description |
 |---|---|
-| `GOOGLE_SERVICE_ACCOUNT_KEY` | Full JSON service account key (paste as a single string) |
+| `GOOGLE_CLIENT_ID` | OAuth 2.0 client ID from Google Cloud Console |
+| `GOOGLE_CLIENT_SECRET` | OAuth 2.0 client secret (secret — server only) |
 
-To enable calendar sync, create a service account in Google Cloud Console with the Google Calendar API enabled, download the JSON key, and paste the entire JSON as the value of this variable.
+To enable calendar sync locally, create an OAuth 2.0 Client ID (type: **Web application**) in Google Cloud Console, add `http://localhost:3000/api/gcal/callback` as an authorized redirect URI, and copy the Client ID and Secret into `.env.local`. Without these set, the GCal connect flow in the admin panel returns a "not configured" error but the rest of the app works normally.
+
+### Google Sheets waitlist notify (optional)
+
+| Variable | Description |
+|---|---|
+| `GOOGLE_SERVICE_ACCOUNT_KEY` | Full JSON service account key, pasted as a single string |
+| `GOOGLE_SHEET_ID` | ID of the Google Sheet the waitlist form appends rows to |
+| `GOOGLE_SHEET_NAME` | Sheet/tab name (defaults to `Sheet1`) |
+
+Unrelated to calendar sync — this is a separate service account used only by `/api/notify` to log waitlist signups to a spreadsheet. Create a service account in Google Cloud Console with the Sheets API enabled, share the target sheet with its email, and paste the full JSON key as `GOOGLE_SERVICE_ACCOUNT_KEY`.
 
 ---
 

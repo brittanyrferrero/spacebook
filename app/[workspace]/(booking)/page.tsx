@@ -776,6 +776,34 @@ export default function BookingPage() {
   const [mDone,       setMDone]       = useState(false)
   const [mError,      setMError]      = useState('')
   const [recurFreq,   setRecurFreq]   = useState<'none' | 'weekly' | 'monthly'>('none')
+  const [copiedGcalAddr, setCopiedGcalAddr] = useState<string | null>(null)
+
+  function copyGcalAddr(address: string) {
+    navigator.clipboard.writeText(address).then(() => {
+      setCopiedGcalAddr(address)
+      setTimeout(() => setCopiedGcalAddr(null), 2000)
+    })
+  }
+
+  function gcalInviteNote(room: Room | null) {
+    if (!room?.gcal_connected || !room.google_calendar_id) return null
+    const addr = room.google_calendar_id
+    const copied = copiedGcalAddr === addr
+    return (
+      <div style={{ marginBottom: 12, padding: '8px 10px', background: dark ? 'rgba(255,255,255,0.03)' : '#f9f9f9', border: `1px solid ${T.borderFaint}`, fontSize: 11, color: T.textMuted }}>
+        <div style={{ marginBottom: 6 }}>Prefer booking from your own calendar? Invite this address as a guest on your event:</div>
+        <div style={{ display: 'flex', gap: 6 }}>
+          <div style={{ flex: 1, padding: '5px 8px', background: dark ? 'rgba(255,255,255,0.05)' : '#fff', border: `1px solid ${T.inputBorder}`, fontFamily: 'monospace', fontSize: 11, color: T.text, wordBreak: 'break-all' }}>
+            {addr}
+          </div>
+          <button type="button" onClick={() => copyGcalAddr(addr)}
+            style={{ padding: '5px 10px', borderRadius: 0, border: `1px solid ${T.inputBorder}`, background: copied ? (dark ? 'rgba(110,231,160,0.12)' : '#eef7f0') : 'none', cursor: 'pointer', fontSize: 11, color: copied ? (dark ? '#6ee7a0' : '#4a7c59') : T.text, whiteSpace: 'nowrap', fontFamily: 'inherit' }}>
+            {copied ? 'Copied!' : 'Copy'}
+          </button>
+        </div>
+      </div>
+    )
+  }
 
   // Feedback
   const [showFeedback,    setShowFeedback]    = useState(false)
@@ -1716,6 +1744,7 @@ export default function BookingPage() {
                 <div style={{ fontSize: 17, fontWeight: 700, marginBottom: 6, color: dark ? T.text : NAVY, letterSpacing: '-0.02em' }}>
                   {txt.bookNow} <span style={{ color: accentColor }}>·</span> {selectedRoom?.name}
                 </div>
+                {gcalInviteNote(selectedRoom)}
                 <div style={{ fontSize: 13, color: T.textMuted, marginBottom: 20 }}>How long do you need?</div>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
                   {[15, 30, 45, 60, 120].map(mins => (
@@ -1855,6 +1884,7 @@ export default function BookingPage() {
                     </div>
                   )
                 })()}
+                {gcalInviteNote(mRoom)}
                 {singleConflict ? (
                   <div style={{ marginBottom: 12, border: `1px solid #f5c6c6`, borderRadius: 0 }}>
                     {/* Header */}
