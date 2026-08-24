@@ -41,12 +41,14 @@ export async function GET(req: NextRequest) {
 
       // Register new channel
       const newChannelId = `${watchState.workspace}-${roomId}-${Date.now()}`
+      const webhookToken = crypto.randomUUID()
       const watchResult = await calendar.events.watch({
         calendarId: watchState.calendarId,
         requestBody: {
           id: newChannelId,
           type: 'web_hook',
           address: `${appUrl()}/api/${watchState.workspace}/gcal/webhook`,
+          token: webhookToken,
         },
       })
 
@@ -55,9 +57,13 @@ export async function GET(req: NextRequest) {
         channelId: newChannelId,
         resourceId: watchResult.data.resourceId!,
         expirationMs: Number(watchResult.data.expiration),
+        webhookToken,
       })
       renewed++
-    } catch { errors++ }
+    } catch (err) {
+      console.error('[gcal renew] failed to renew watch channel', { roomId, err })
+      errors++
+    }
   }
 
   return Response.json({ renewed, errors, total: roomIds.length })
