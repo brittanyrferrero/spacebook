@@ -427,8 +427,11 @@ export default function AdminPage() {
     setGcalPickRoomId(null)
     setGcalCalendars([])
     setGcalPickSaving(false)
-    if (!watchRes?.ok) setActionToast({ message: 'Calendar connected, but live sync could not be enabled. Check domain verification in Google Cloud Console.', kind: 'error' })
-    else setActionToast({ message: 'Google Calendar connected.', kind: 'success' })
+    if (!watchRes?.ok) {
+      const body = await watchRes?.json().catch(() => null)
+      const detail = body?.detail ?? body?.error
+      setActionToast({ message: detail ? `Calendar connected, but live sync could not be enabled: ${detail}` : 'Calendar connected, but live sync could not be enabled. Check domain verification in Google Cloud Console.', kind: 'error' })
+    } else setActionToast({ message: 'Google Calendar connected.', kind: 'success' })
   }
 
   function roomName(roomId: string) {
