@@ -44,40 +44,50 @@ export async function POST(req: NextRequest, { params }: { params: { workspace: 
     await removeWatchState(room_id, existing.channelId)
   }
 
-  // Get initial sync token (start from now so we only process future changes)
-  const listResult = await calendar.events.list({
-    calendarId: room.google_calendar_id,
-    maxResults: 1,
-    showDeleted: true,
-    singleEvents: true,
-    orderBy: 'updated',
-  })
-  const syncToken = listResult.data.nextSyncToken
-  if (!syncToken) return Response.json({ error: 'Could not get sync token' }, { status: 500 })
+  try {
+    // Get initial sync token (start from now so we only process future changes)
+    const listResult = await calendar.events.list({
+      calendarId: room.google_calendar_id,
+      maxResults: 1,
+      showDeleted: true,
+      singleEvents: true,
+      orderBy: 'updated',
+    })
+    const syncToken = listResult.data.nextSyncToken
+    if (!syncToken) return Response.json({ error: 'Could not get sync token' }, { status: 500 })
 
-  const channelId = `${params.workspace}-${room_id}-${Date.now()}`
-  const webhookToken = crypto.randomUUID()
-  const watchResult = await calendar.events.watch({
-    calendarId: room.google_calendar_id,
-    requestBody: {
-      id: channelId,
-      type: 'web_hook',
-      address: `${appUrl()}/api/${params.workspace}/gcal/webhook`,
-      token: webhookToken,
-    },
-  })
+    const channelId = `${params.workspace}-${room_id}-${Date.now()}`
+    const webhookToken = crypto.randomUUID()
+    const watchResult = await calendar.events.watch({
+      calendarId: room.google_calendar_id,
+      requestBody: {
+        id: channelId,
+        type: 'web_hook',
+        address: `${appUrl()}/api/${params.workspace}/gcal/webhook`,
+        token: webhookToken,
+      },
+    })
 
-  await saveWatchState(room_id, {
-    channelId,
-    resourceId: watchResult.data.resourceId!,
-    expirationMs: Number(watchResult.data.expiration),
-    syncToken,
-    calendarId: room.google_calendar_id,
-    workspace: params.workspace,
-    workspaceId,
-    roomId: room_id,
-    webhookToken,
-  })
+    await saveWatchState(room_id, {
+      channelId,
+      resourceId: watchResult.data.resourceId!,
+      expirationMs: Number(watchResult.data.expiration),
+      syncToken,
+      calendarId: room.google_calendar_id,
+      workspace: params.workspace,
+      workspaceId,
+      roomId: room_id,
+      webhookToken,
+    })
 
-  return Response.json({ ok: true })
+    return Response.json({ ok: true })
+  } catch (err: any) {
+    console.error('[gcal watch] failed to register watch channel', {
+      roomId: room_id,
+      workspace: params.workspace,
+      status: err?.response?.status,
+      googleError: err?.response?.data ?? err?.message,
+    })
+    return Response.json({ error: 'Could not register calendar watch', detail: err?.response?.data?.error?.message ?? err?.message }, { status: 500 })
+  }
 }
