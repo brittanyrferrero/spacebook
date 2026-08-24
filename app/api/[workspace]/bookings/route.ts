@@ -139,6 +139,7 @@ export async function POST(req: NextRequest, { params }: { params: { workspace: 
     const occurrences = generateOccurrenceDates(frequency, days_of_week ?? null, seriesStart, series_end)
 
     const conflictDates: string[] = []
+    const createdBookings: any[] = []
     let firstBooking = null
 
     for (const occ of occurrences) {
@@ -163,9 +164,29 @@ export async function POST(req: NextRequest, { params }: { params: { workspace: 
 
       if (bError) { conflictDates.push(occStart.toISOString().slice(0, 10)); continue }
       if (!firstBooking) firstBooking = b
+      createdBookings.push(b)
     }
 
     waitUntil(upsertMember())
+
+    waitUntil((async () => {
+      try {
+        const { createCalendarEvent } = await import('@/lib/google-calendar/client')
+        const { data: room } = await supabase.from('rooms').select('*').eq('id', payload.room_id).single()
+        if (!room) return
+        for (const b of createdBookings) {
+          try {
+            const eventId = await createCalendarEvent(b, room)
+            if (eventId) await supabase.from('bookings').update({ google_event_id: eventId }).eq('id', b.id)
+          } catch (err) {
+            console.error('[gcal write] failed to sync recurring occurrence', { bookingId: b.id, roomId: payload.room_id, err })
+          }
+        }
+      } catch (err) {
+        console.error('[gcal write] failed to sync recurring series', { roomId: payload.room_id, err })
+      }
+    })())
+
     return Response.json({ booking: firstBooking, series, conflictDates }, { status: 201 })
   }
 
@@ -188,7 +209,9 @@ export async function POST(req: NextRequest, { params }: { params: { workspace: 
         const eventId = await createCalendarEvent(booking, room)
         if (eventId) await supabase.from('bookings').update({ google_event_id: eventId }).eq('id', booking.id)
       }
-    } catch { /* non-fatal */ }
+    } catch (err) {
+      console.error('[gcal write] failed to sync booking to GCal', { bookingId: booking.id, roomId: payload.room_id, err })
+    }
   })())
 
   return Response.json({ booking }, { status: 201 })
