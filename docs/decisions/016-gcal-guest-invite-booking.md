@@ -1,0 +1,33 @@
+# ADR-016: Guest-invite booking from personal Google Calendars
+Date: 2026-08-24
+Status: Accepted. The booker-facing surface (booking modal shows the room's invitable calendar address and a copy button, gated on `room.gcal_connected && room.google_calendar_id`) and the admin-facing sharing reminder (GCal tooltip in the admin panel) are built. Tracked in #159; the private-event-visibility question is tracked separately in #160.
+
+## Context
+
+Two-way Google Calendar sync (per-room OAuth, [ADR-004](004-gcal-oauth-callback-global.md)) is live: a room's Google Calendar is watched via webhook, and external events created on it sync into Spacebook as bookings, with the room's conference cart resource auto-attached (`app/api/[workspace]/gcal/webhook/route.ts`, `processWebhook()`, lines 188–201).
+
+What's still missing is a way for someone to trigger a booking from their *own* Google Calendar, without creating the event directly on the room's calendar or going through Spacebook's UI first. The room's whole appeal in a coworking/cross-org context is that bookers are often not in the room's own Google Workspace domain at all.
+
+## Decision
+
+**Mechanism: guest-invite, not Location-field text.** A booker invites the room's calendar (by its address) as a guest on an event in their own calendar. Google mirrors that event (same event ID) onto the room's calendar, which Spacebook already watches — so the existing sync/conflict/cart-attach pipeline handles it with zero changes.
+
+We explicitly rejected parsing free text out of an event's Location field. Spacebook only ever has visibility into calendars it holds an active watch channel on (one per room). It cannot read an event that lives solely on someone else's personal calendar — there's no webhook, no granted API access, nothing to observe. The only way to get that visibility without guest-invite would be Google Workspace domain-wide delegation, which requires everyone to be in one Workspace org — directly at odds with supporting personal Google accounts and cross-org coworking bookers, which is the actual target use case (this is also why "Room Resources," Google's native Workspace-only room-booking primitive, was rejected earlier in favor of building two-way sync at all).
+
+**Sharing permission: manual, not automated.** For an outside invite to actually land on the room's calendar, that calendar needs to be shared with at least "make changes to events." Automating this via the Calendar ACL API was considered and rejected for now: the OAuth scopes currently requested (`app/api/[workspace]/gcal/auth/route.ts`) are only `calendar.events` and `calendar.readonly`, neither of which permits ACL writes. Requesting a broader scope would force every already-connected room to re-consent (old refresh tokens can't retroactively gain a new scope) and would likely re-trigger Google's OAuth app verification review — the same process just completed for the base sync feature. Instead, sharing is a one-time manual step the room admin performs directly in Google Calendar's own sharing UI, documented for admins rather than built into Spacebook. Revisit automation only if this manual step turns out to be a recurring support burden.
+
+**Default sharing scope: public (anyone with the calendar's address), not domain-restricted.** Because the target use case includes bookers outside the room's own org, a domain-restricted ACL would actively break the feature for them. This deliberately mirrors [ADR-001](001-slug-as-secret-auth.md)'s trust model: the workspace slug is already treated as a secret-like credential rather than gated by real per-user auth, and a room's Google Calendar ID is similarly unguessable. Granting `writer` (Calendar ACL's "make changes to events," never `owner`) to the public/default scope is consistent with a system that already treats "knowing the address" as the access control.
+
+## Consequences
+
+**What gets better:**
+- Booking works from a booker's own calendar with no Spacebook UI interaction, which is the natural workflow for anyone not already in the habit of visiting the room's booking link.
+- No new sync/conflict/cart logic needed — `processWebhook()` already does the right thing once an event lands on the room's calendar.
+
+**What gets worse / constraints to know:**
+- The room admin must remember to do a manual one-time sharing step per room; nothing in Spacebook enforces or verifies it's been done. A wrong or missing setting fails silently from Spacebook's perspective (the invite just never syncs) — this needs a clear support/runbook story once #159 ships, and would benefit from a "test your setup" check in the admin panel.
+- Once a room's calendar is shared this broadly, anything else already on that calendar becomes similarly exposed. Rooms should use a dedicated secondary calendar, never a personal/primary one, when connecting — currently guidance only, not enforced by `app/api/[workspace]/gcal/calendars/route.ts`, which lets an admin pick any calendar the connected account can write to.
+- Automating ACL setup remains blocked behind an OAuth scope expansion that has real re-consent and re-verification costs. This is a deliberate deferral, not a forgotten one — don't rediscover this constraint from scratch later.
+- Open and unverified: whether the Calendar API redacts a private (`visibility: private`) event's title when read by a guest calendar rather than the organizer. `processWebhook()` reads `event.summary` unconditionally today. Tracked as a spike (#160) — resolve before shipping #159 to a real user base, since a leaked private event title would be a genuine privacy regression introduced by this feature (today's private-event exposure is limited to the connecting account's own calendar; guest-invite adds calendars belonging to Google accounts Spacebook has no relationship with).
+
+**Operator runbook:** [gcal-guest-invite-setup.md](../runbooks/gcal-guest-invite-setup.md) covers the manual sharing step and how to verify it worked.

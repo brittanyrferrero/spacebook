@@ -110,6 +110,7 @@ The admin dashboard computes booking stats (total hours, utilisation %, concurre
 
 > See [ADR-004](decisions/004-gcal-oauth-callback-global.md) — why the GCal OAuth callback is a global route rather than workspace-scoped.
 > See [ADR-015](decisions/015-disable-room-leaves-gcal-connected.md) — why disabling a room doesn't touch its GCal connection.
+> See [ADR-016](decisions/016-gcal-guest-invite-booking.md) — booking via guest-invite from a personal calendar, and why that (not Location-field text) is the mechanism. See [gcal-guest-invite-setup.md](runbooks/gcal-guest-invite-setup.md) for the manual per-room sharing step this depends on.
 
 Each room can be linked to a Google Calendar ID. Sync is **per-room OAuth**, not a service account: an admin connects a room by going through Google's consent flow (`/api/[workspace]/gcal/auth`), and the resulting refresh token is stored per room in Redis (`gcal:tokens:{roomId}`, see [ADR-005](decisions/005-kv-vs-supabase.md)).
 
@@ -118,6 +119,7 @@ Each room can be linked to a Google Calendar ID. Sync is **per-room OAuth**, not
 - If an external event conflicts with an existing Spacebook booking, the event organiser is emailed and the conflict is rejected
 - **Spacebook is always the source of truth** — external events that conflict are not accepted
 - If the room is disabled (`is_active: false`), new external events are silently not mirrored into Spacebook at all — no conflict check, no email, and the calendar event itself is left untouched (ADR-015)
+- If a room's `gcal_resource_email` (conference cart) is set, it's auto-attached as a resource attendee to any inbound external event that doesn't already have it — this already covers bookings made via guest-invite (ADR-016) with no extra code needed
 
 ## Tablet display lifecycle
 
