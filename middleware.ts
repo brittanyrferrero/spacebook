@@ -19,6 +19,12 @@ function getWorkspaceSlug(pathname: string): string | null {
     // Entry/auth routes within a workspace are always public
     const route = parts[2]
     if (route && PUBLIC_WORKSPACE_ROUTES.has(route)) return null
+    // GCal's inbound webhook is called by Google with no session cookie — it
+    // verifies itself via its own token check (PR #72), not a workspace cookie.
+    // Other gcal/* sub-routes (watch, calendars, auth, disconnect) still need
+    // at least a workspace cookie here — see issue #129 for their separate
+    // missing admin-specific guard, which this must not also remove.
+    if (route === 'gcal' && parts[3] === 'webhook') return null
     return second
   }
 
