@@ -204,7 +204,13 @@ async function processWebhook(channelId: string) {
           requestBody: {
             attendees: [...(event.attendees ?? []), { email: room.gcal_resource_email, resource: true }],
           },
-        }).catch(() => {})
+        }).catch((err: any) => {
+          console.error('[gcal cart-attach] failed to add cart resource to inbound event', {
+            roomId, googleEventId,
+            status: err?.response?.status,
+            googleError: err?.response?.data?.error?.message ?? err?.message,
+          })
+        })
       }
     }
   }
