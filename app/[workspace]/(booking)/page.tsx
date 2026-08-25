@@ -1046,7 +1046,7 @@ export default function BookingPage() {
   }, [])
 
   useEffect(() => {
-    const id = setInterval(() => { fetchSidebar(); fetchRange(); fetchAllRoomsDay() }, 60_000)
+    const id = setInterval(() => { fetchSidebar(); fetchRange(); fetchAllRoomsDay() }, 15_000)
     return () => clearInterval(id)
   }, [fetchSidebar, fetchRange, fetchAllRoomsDay])
 
