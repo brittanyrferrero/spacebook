@@ -4,6 +4,7 @@ import { useState, useEffect, useCallback, useRef, useMemo } from 'react'
 import { useParams } from 'next/navigation'
 import type { Room, Booking } from '@/types'
 import { NameAutocomplete } from '@/components/NameAutocomplete'
+import { gcalSubscribeUrl } from '@/lib/utils'
 
 // ─── Design token presets ─────────────────────────────────────────────────────
 // Future: load activePresetId from workspace settings in DB
@@ -832,6 +833,9 @@ export default function BookingPage() {
   const [visShowOrganizer,   setVisShowOrganizer]   = useState(false)
   const [visAllowEditOthers, setVisAllowEditOthers] = useState(false)
 
+  // Google Calendar links popup
+  const [showGcalLinks, setShowGcalLinks] = useState(false)
+
   // My bookings panel
   const [showMyBookings,  setShowMyBookings]  = useState(false)
   const [myBkEmail,       setMyBkEmail]       = useState('')
@@ -1472,6 +1476,11 @@ export default function BookingPage() {
               style={{ background: 'transparent', color: dark ? '#ffffff' : '#111111', border: dark ? '1.5px solid rgba(255,255,255,0.5)' : '1.5px solid #111111', borderRadius: 0, padding: '7px 16px', fontSize: 10, fontWeight: 700, cursor: 'pointer', letterSpacing: '1.5px', textTransform: 'uppercase' as const, whiteSpace: 'nowrap', fontFamily: 'inherit' }}>
               + {lotr ? 'GATHER THE COUNCIL' : 'BOOK A ROOM'}
             </button>
+            <button
+              onClick={() => setShowGcalLinks(true)}
+              style={{ background: 'none', color: T.textMuted, border: `0.5px solid ${T.border}`, borderRadius: 0, padding: '6px 12px', fontSize: 9, fontWeight: 600, cursor: 'pointer', letterSpacing: '1px', textTransform: 'uppercase' as const, whiteSpace: 'nowrap', fontFamily: 'inherit' }}>
+              Google Calendar links
+            </button>
             {/* Theme toggle */}
             <div onClick={() => setTheme(t => t === 'light' ? 'dark' : 'light')}
               title={dark ? 'Light mode' : 'Dark mode'}
@@ -1949,6 +1958,39 @@ export default function BookingPage() {
           </div>
         </div>
       )}
+
+      {/* Google Calendar links modal */}
+      {showGcalLinks && (() => {
+        const linkableRooms = rooms.filter(r => r.is_active && r.gcal_connected && r.google_calendar_id)
+        return (
+          <div onClick={() => setShowGcalLinks(false)} style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 100 }}>
+            <div onClick={e => e.stopPropagation()} style={{ background: T.modalBg, borderRadius: 0, width: 440, maxHeight: '80vh', display: 'flex', flexDirection: 'column', border: `1px solid ${T.modalBorder}`, boxShadow: dark ? '0 24px 64px rgba(0,0,0,0.6)' : '0 12px 48px rgba(0,0,0,0.18)' }}>
+              {/* Header */}
+              <div style={{ padding: '20px 24px 16px', borderBottom: `1px solid ${T.borderFaint}`, display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexShrink: 0 }}>
+                <div style={{ fontSize: 16, fontWeight: 700, color: dark ? T.text : NAVY, letterSpacing: '-0.02em' }}>Google Calendar links</div>
+                <button onClick={() => setShowGcalLinks(false)} style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: 18, color: T.textMuted, lineHeight: 1, padding: '0 4px' }}>×</button>
+              </div>
+
+              <div style={{ padding: '8px 24px 20px', overflowY: 'auto' }}>
+                <div style={{ fontSize: 12, color: T.textMuted, margin: '8px 0 14px' }}>Add a room to your own Google Calendar to see its availability there.</div>
+                {linkableRooms.length === 0 ? (
+                  <div style={{ fontSize: 13, color: T.textMuted, padding: '12px 0' }}>No rooms are connected to Google Calendar yet.</div>
+                ) : (
+                  linkableRooms.map((r, i) => (
+                    <div key={r.id} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, padding: '10px 0', borderTop: i > 0 ? `1px solid ${T.borderFaint}` : 'none' }}>
+                      <div style={{ fontSize: 13, fontWeight: 500, color: T.text }}>{r.name}</div>
+                      <a href={gcalSubscribeUrl(r.google_calendar_id!)} target="_blank" rel="noopener noreferrer"
+                        style={{ fontSize: 11, fontWeight: 600, padding: '6px 12px', border: `1px solid ${T.inputBorder}`, color: T.text, textDecoration: 'none', whiteSpace: 'nowrap', flexShrink: 0 }}>
+                        Add to Google Calendar
+                      </a>
+                    </div>
+                  ))
+                )}
+              </div>
+            </div>
+          </div>
+        )
+      })()}
 
       {/* My bookings modal */}
       {showMyBookings && (() => {
