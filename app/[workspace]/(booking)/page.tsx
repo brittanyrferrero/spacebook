@@ -1470,27 +1470,31 @@ export default function BookingPage() {
           </div>
 
           {/* Right: + BOOK A ROOM + toggles */}
-          <div style={{ marginLeft: 'auto', display: 'flex', gap: 14, alignItems: 'center', zIndex: 1 }}>
-            <button
-              onClick={() => { setMDate(todayStr); setMTime(''); setMEndTime(''); setMTitle('Occupied'); setRecurFreq('none'); setMError(''); setMRoomId(selectedRoomId || (rooms[0]?.id ?? '')); setShowModal('later'); setMDone(false) }}
-              style={{ background: 'transparent', color: dark ? '#ffffff' : '#111111', border: dark ? '1.5px solid rgba(255,255,255,0.5)' : '1.5px solid #111111', borderRadius: 0, padding: '7px 16px', fontSize: 10, fontWeight: 700, cursor: 'pointer', letterSpacing: '1.5px', textTransform: 'uppercase' as const, whiteSpace: 'nowrap', fontFamily: 'inherit' }}>
-              + {lotr ? 'GATHER THE COUNCIL' : 'BOOK A ROOM'}
-            </button>
-            <button
-              onClick={() => setShowGcalLinks(true)}
-              style={{ background: 'none', color: T.textMuted, border: `0.5px solid ${T.border}`, borderRadius: 0, padding: '6px 12px', fontSize: 9, fontWeight: 600, cursor: 'pointer', letterSpacing: '1px', textTransform: 'uppercase' as const, whiteSpace: 'nowrap', fontFamily: 'inherit' }}>
-              Google Calendar links
-            </button>
-            {/* Theme toggle */}
-            <div onClick={() => setTheme(t => t === 'light' ? 'dark' : 'light')}
-              title={dark ? 'Light mode' : 'Dark mode'}
-              style={{ width: 30, height: 16, borderRadius: 0, background: dark ? 'rgba(255,255,255,0.15)' : 'rgba(0,0,0,0.10)', border: dark ? '0.5px solid rgba(255,255,255,0.22)' : '0.5px solid rgba(0,0,0,0.20)', cursor: 'pointer', position: 'relative', flexShrink: 0 }}>
-              <div style={{ position: 'absolute', top: 2, left: dark ? 14 : 2, width: 12, height: 12, borderRadius: 0, background: dark ? '#fff' : '#1c1510', transition: 'left .18s' }} />
+          <div style={{ marginLeft: 'auto', display: 'flex', gap: 10, alignItems: 'center', zIndex: 1 }}>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 6, alignItems: 'flex-end' }}>
+              <button
+                onClick={() => { setMDate(todayStr); setMTime(''); setMEndTime(''); setMTitle('Occupied'); setRecurFreq('none'); setMError(''); setMRoomId(selectedRoomId || (rooms[0]?.id ?? '')); setShowModal('later'); setMDone(false) }}
+                style={{ background: 'transparent', color: dark ? '#ffffff' : '#111111', border: dark ? '1.5px solid rgba(255,255,255,0.5)' : '1.5px solid #111111', borderRadius: 0, padding: '7px 16px', fontSize: 10, fontWeight: 700, cursor: 'pointer', letterSpacing: '1.5px', textTransform: 'uppercase' as const, whiteSpace: 'nowrap', fontFamily: 'inherit', width: '100%' }}>
+                + {lotr ? 'GATHER THE COUNCIL' : 'BOOK A ROOM'}
+              </button>
+              <button
+                onClick={() => setShowGcalLinks(true)}
+                style={{ background: 'none', color: T.textMuted, border: `0.5px solid ${T.border}`, borderRadius: 0, padding: '6px 12px', fontSize: 9, fontWeight: 600, cursor: 'pointer', letterSpacing: '1px', textTransform: 'uppercase' as const, whiteSpace: 'nowrap', fontFamily: 'inherit', width: '100%' }}>
+                Google Calendar links
+              </button>
             </div>
-            <span onClick={() => setLotr(l => !l)} title="One ring to rule them all"
-              style={{ cursor: 'pointer', fontSize: 14, opacity: lotr ? 1 : 0.25, transition: 'opacity .18s', userSelect: 'none' as const, lineHeight: 1 }}>
-              🧙
-            </span>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 8, alignItems: 'center' }}>
+              {/* Theme toggle */}
+              <div onClick={() => setTheme(t => t === 'light' ? 'dark' : 'light')}
+                title={dark ? 'Light mode' : 'Dark mode'}
+                style={{ width: 30, height: 16, borderRadius: 0, background: dark ? 'rgba(255,255,255,0.15)' : 'rgba(0,0,0,0.10)', border: dark ? '0.5px solid rgba(255,255,255,0.22)' : '0.5px solid rgba(0,0,0,0.20)', cursor: 'pointer', position: 'relative', flexShrink: 0 }}>
+                <div style={{ position: 'absolute', top: 2, left: dark ? 14 : 2, width: 12, height: 12, borderRadius: 0, background: dark ? '#fff' : '#1c1510', transition: 'left .18s' }} />
+              </div>
+              <span onClick={() => setLotr(l => !l)} title="One ring to rule them all"
+                style={{ cursor: 'pointer', fontSize: 14, opacity: lotr ? 1 : 0.25, transition: 'opacity .18s', userSelect: 'none' as const, lineHeight: 1 }}>
+                🧙
+              </span>
+            </div>
           </div>
         </div>
 
