@@ -16,3 +16,7 @@ export function formatDate(iso: string): string {
 export function durationMinutes(start: string, end: string): number {
   return (new Date(end).getTime() - new Date(start).getTime()) / 60_000
 }
+
+export function gcalSubscribeUrl(calendarId: string): string {
+  return `https://calendar.google.com/calendar/render?cid=${encodeURIComponent(calendarId)}`
+}
