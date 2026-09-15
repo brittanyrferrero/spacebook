@@ -31,7 +31,12 @@ async function getSupabase() {
 
 export async function getWorkspaceBySlug(slug: string): Promise<Workspace | null> {
   const supabase = await getSupabase()
-  const { data } = await supabase.from('workspaces').select('*').eq('slug', slug).single()
+  const { data, error } = await supabase.from('workspaces').select('*').eq('slug', slug).single()
+  // PGRST116 = no row found — a genuine "doesn't exist". Any other error (timeout,
+  // connection blip, rate limit) must not be treated the same way: doing so made a
+  // transient DB hiccup on a real workspace indistinguishable from "not found",
+  // which 404'd valid workspaces and crashed pages expecting an array response.
+  if (error && error.code !== 'PGRST116') throw error
   return data ?? null
 }
 

@@ -4,7 +4,7 @@ import { useState, useEffect, useCallback, useRef, useMemo } from 'react'
 import { useParams } from 'next/navigation'
 import type { Room, Booking } from '@/types'
 import { NameAutocomplete } from '@/components/NameAutocomplete'
-import { gcalSubscribeUrl } from '@/lib/utils'
+import { gcalSubscribeUrl, fetchJsonArray } from '@/lib/utils'
 
 // ─── Design token presets ─────────────────────────────────────────────────────
 // Future: load activePresetId from workspace settings in DB
@@ -960,28 +960,26 @@ export default function BookingPage() {
   }
 
   const fetchRooms = useCallback(() => {
-    fetch(`${api}/rooms`).then(r => r.json()).then((data: Room[]) => {
+    fetchJsonArray<Room>(`${api}/rooms`).then((data) => {
       setRooms(data)
       setSelectedRoomId(prev => prev || data[0]?.id || '')
     })
-    fetch(`${api}/room-types`).then(r => r.json()).then(setRoomTypes)
+    fetchJsonArray<string>(`${api}/room-types`).then(setRoomTypes)
   }, [])
 
   const fetchSidebar = useCallback(() => {
-    fetch(`${api}/bookings?date=${todayStr}`).then(r => r.json()).then(setSidebarBkgs)
+    fetchJsonArray<Booking>(`${api}/bookings?date=${todayStr}`).then(setSidebarBkgs)
   }, [todayStr])
 
   const fetchAllRoomsDay = useCallback(() => {
-    fetch(`${api}/bookings?from=${viewDateStr}&to=${viewDateStr}`)
-      .then(r => r.json()).then(setAllRoomsDayBkgs)
+    fetchJsonArray<Booking>(`${api}/bookings?from=${viewDateStr}&to=${viewDateStr}`).then(setAllRoomsDayBkgs)
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [viewDateStr])
 
   const fetchRange = useCallback(() => {
     if (!selectedRoomId) return
     const { from, to } = getRange()
-    fetch(`${api}/bookings?room_id=${selectedRoomId}&from=${from}&to=${to}`)
-      .then(r => r.json()).then(setRangeBkgs)
+    fetchJsonArray<Booking>(`${api}/bookings?room_id=${selectedRoomId}&from=${from}&to=${to}`).then(setRangeBkgs)
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedRoomId, calView, viewDateStr])
 
@@ -992,7 +990,7 @@ export default function BookingPage() {
   }, [api])
   useEffect(() => {
     if (showModal !== 'later' || !mDate) { setLaterDayBkgs([]); return }
-    fetch(`${api}/bookings?date=${mDate}`).then(r => r.json()).then(setLaterDayBkgs).catch(() => {})
+    fetchJsonArray<Booking>(`${api}/bookings?date=${mDate}`).then(setLaterDayBkgs)
   }, [showModal, mDate, api])
   useEffect(() => {
     fetch(`${api}/settings`).then(r => r.json()).then(d => {
@@ -1415,7 +1413,7 @@ export default function BookingPage() {
         const next = findNextAvailable(mDate, mTime, mEndTime, roomBkgs, gridEnd)
         const dur = toMins(mEndTime) - toMins(mTime)
         const nextAvail = next ? { startHHMM: next, endHHMM: fromMins(toMins(next) + dur) } : null
-        const allDayBkgs: Booking[] = laterDayBkgs.length > 0 ? laterDayBkgs : await fetch(`${api}/bookings?date=${mDate}`).then(r => r.json()).catch(() => [])
+        const allDayBkgs: Booking[] = laterDayBkgs.length > 0 ? laterDayBkgs : await fetchJsonArray<Booking>(`${api}/bookings?date=${mDate}`)
         const startMins = toMins(mTime), endMins = toMins(mEndTime)
         const altRooms = rooms
           .filter(r => r.id !== conflictRoomId && r.room_type && r.room_type === conflictRoom?.room_type)

@@ -20,3 +20,18 @@ export function durationMinutes(start: string, end: string): number {
 export function gcalSubscribeUrl(calendarId: string): string {
   return `https://calendar.google.com/calendar/render?cid=${encodeURIComponent(calendarId)}`
 }
+
+// Fetches JSON expected to be an array; resolves to [] on a non-ok response, a
+// non-array payload (e.g. an { error } object from a failed API route), or a
+// network error — so callers can pipe this straight into `.filter()` without
+// a transient failure crashing the page.
+export async function fetchJsonArray<T>(url: string): Promise<T[]> {
+  try {
+    const res = await fetch(url)
+    if (!res.ok) return []
+    const data = await res.json()
+    return Array.isArray(data) ? data : []
+  } catch {
+    return []
+  }
+}

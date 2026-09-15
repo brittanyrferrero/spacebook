@@ -4,6 +4,7 @@ import { useState, useEffect, useCallback, useRef } from 'react'
 import { useParams } from 'next/navigation'
 import type { Room, Booking } from '@/types'
 import { NameAutocomplete } from '@/components/NameAutocomplete'
+import { fetchJsonArray } from '@/lib/utils'
 
 // ─── Colours ──────────────────────────────────────────────────────────────────
 const SAGE = '#5C7A6B'
@@ -554,23 +555,20 @@ function RoomDisplayPageInner() {
   }
 
   const fetchRoom = useCallback(() => {
-    fetch(`${api}/rooms`).then(r => r.json()).then((rooms: Room[]) => {
+    fetchJsonArray<Room>(`${api}/rooms`).then((rooms) => {
       setAllRooms(rooms)
       setRoom(rooms.find(r => r.id === roomId) ?? rooms[0] ?? null)
     })
   }, [roomId])
 
   const fetchToday = useCallback(() => {
-    fetch(`${api}/bookings?room_id=${roomId}&date=${todayStr}`)
-      .then(r => r.json()).then(setTodayBkgs)
-    fetch(`${api}/bookings?date=${todayStr}`)
-      .then(r => r.json()).then(setAllTodayBkgs)
+    fetchJsonArray<Booking>(`${api}/bookings?room_id=${roomId}&date=${todayStr}`).then(setTodayBkgs)
+    fetchJsonArray<Booking>(`${api}/bookings?date=${todayStr}`).then(setAllTodayBkgs)
   }, [roomId, todayStr])
 
   const fetchRange = useCallback(() => {
     const { from, to } = getRange()
-    fetch(`${api}/bookings?room_id=${roomId}&from=${from}&to=${to}`)
-      .then(r => r.json()).then(setRangeBkgs)
+    fetchJsonArray<Booking>(`${api}/bookings?room_id=${roomId}&from=${from}&to=${to}`).then(setRangeBkgs)
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [roomId, calView, viewDateStr])
 
