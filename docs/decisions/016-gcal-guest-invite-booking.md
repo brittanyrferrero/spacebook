@@ -1,6 +1,6 @@
 # ADR-016: Guest-invite booking from personal Google Calendars
 Date: 2026-08-24
-Status: Accepted. The booker-facing surface (booking modal shows the room's invitable calendar address and a copy button, gated on `room.gcal_connected && room.google_calendar_id`) and the admin-facing sharing reminder (GCal tooltip in the admin panel) are built. Tracked in #159; the private-event-visibility question is tracked separately in #160.
+Status: Superseded (booker-facing UI removed 2026-09-16). The backend mechanism this ADR describes — an event landing on a room's watched calendar and flowing through `processWebhook()` — is unchanged and is still how a guest-invited event *would* reach Spacebook if the inbound webhook were healthy. What was removed is the booking modal's "invite this address as a guest" note and copy button, plus the matching admin tooltip, because the inbound webhook had been silently dead since ~2026-08-25 (see [gcal-not-syncing runbook](../runbooks/gcal-not-syncing.md)) — surfacing an invite address for a sync path that wasn't actually delivering was actively misleading. Re-add the UI once the webhook health issue is understood and there's a way to detect/alert on it going quiet again, rather than only discovering it via a support report. Originally tracked in #159; the private-event-visibility question is tracked separately in #160 and is still open regardless of this UI change.
 
 ## Context
 

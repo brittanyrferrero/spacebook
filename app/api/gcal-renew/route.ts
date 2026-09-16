@@ -1,6 +1,6 @@
 import { type NextRequest } from 'next/server'
 import { google } from 'googleapis'
-import { appUrl } from '@/lib/email'
+import { appUrl, sendGcalSyncHealthEmail } from '@/lib/email'
 
 // Vercel cron: runs daily at 2am UTC to renew expiring GCal webhooks
 export async function GET(req: NextRequest) {
@@ -14,6 +14,7 @@ export async function GET(req: NextRequest) {
   const roomIds = await getAllWatchedRooms()
   const TWO_DAYS_MS = 2 * 24 * 60 * 60 * 1000
   let renewed = 0, errors = 0
+  const failedRoomIds = new Set<string>()
 
   for (const roomId of roomIds) {
     const watchState = await getWatchState(roomId)
@@ -63,8 +64,58 @@ export async function GET(req: NextRequest) {
     } catch (err) {
       console.error('[gcal renew] failed to renew watch channel', { roomId, err })
       errors++
+      failedRoomIds.add(roomId)
     }
   }
 
-  return Response.json({ renewed, errors, total: roomIds.length })
+  const unhealthy = await checkSyncHealth(failedRoomIds)
+  if (unhealthy.length > 0) await notifyUnhealthy(unhealthy)
+
+  return Response.json({ renewed, errors, total: roomIds.length, unhealthyRooms: unhealthy.length })
+}
+
+// Cross-checks every GCal-connected room against its watch state — catches the
+// class of failure that renewal itself can't see: a room the app thinks is
+// connected but that never had a watch registered (or lost it) in the first
+// place, so it was never in `roomIds` above at all. This is what let a real
+// outage (plonk-mango-wizard, since ~2026-08-25) go unnoticed for three weeks —
+// see docs/runbooks/gcal-not-syncing.md.
+async function checkSyncHealth(failedRoomIds: Set<string>) {
+  const { getWatchState } = await import('@/lib/google-calendar/watchStore')
+  const { createClient } = await import('@/lib/supabase/server')
+  const supabase = await createClient()
+
+  const { data: rooms } = await supabase
+    .from('rooms')
+    .select('id, name, is_active, google_calendar_id, workspace_id, workspaces(slug, name)')
+    .not('google_calendar_id', 'is', null)
+  if (!rooms) return []
+
+  const unhealthy: { roomName: string; workspaceSlug: string; workspaceName: string | null; reason: string }[] = []
+
+  for (const room of rooms as any[]) {
+    if (!room.is_active) continue // disabled rooms deliberately don't sync — not a health issue
+    const workspaceSlug = room.workspaces?.slug ?? 'unknown'
+    const workspaceName = room.workspaces?.name ?? null
+
+    if (failedRoomIds.has(room.id)) {
+      unhealthy.push({ roomName: room.name, workspaceSlug, workspaceName, reason: 'watch-channel renewal failed today (see [gcal renew] logs)' })
+      continue
+    }
+    const watchState = await getWatchState(room.id)
+    if (!watchState) {
+      unhealthy.push({ roomName: room.name, workspaceSlug, workspaceName, reason: 'no watch channel registered — sync was never set up or was lost' })
+    } else if (watchState.expirationMs < Date.now()) {
+      unhealthy.push({ roomName: room.name, workspaceSlug, workspaceName, reason: 'watch channel expired and was not renewed' })
+    }
+  }
+
+  return unhealthy
+}
+
+async function notifyUnhealthy(rooms: { roomName: string; workspaceSlug: string; workspaceName: string | null; reason: string }[]) {
+  const admins = (process.env.PALANTIR_ADMINS ?? '').split(',').map(e => e.trim()).filter(Boolean)
+  for (const to of admins) {
+    try { await sendGcalSyncHealthEmail({ to, rooms }) } catch (err) { console.error('[gcal renew] failed to send sync health email', { to, err }) }
+  }
 }

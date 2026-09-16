@@ -102,6 +102,18 @@ Migration 007 added a 200-character limit on workspace names. This should never 
 
 ---
 
+## A transient Supabase error crashing a page with `.filter is not a function`
+
+**Symptom:** A client-side error report (Next.js error overlay, or an email if that's wired up) showing something like `E.filter is not a function` on the room detail page or the workspace booking index, for a workspace that definitely exists and usually works fine.
+
+**Cause:** `getWorkspaceBySlug` (`lib/workspace.ts`) distinguishes a genuine "no row found" (Postgres/PostgREST code `PGRST116`) from any other Supabase error — see [ADR-017](../decisions/017-workspace-lookup-error-vs-not-found.md). Before that fix, *any* error from the `workspaces` lookup (a timeout, a connection blip) was treated identically to "workspace doesn't exist," so a transient hiccup made a real workspace's API routes respond `404 { error: 'Workspace not found' }` for one request. The room/booking pages didn't check `response.ok` before setting state, so that error object landed where an array was expected, and the next render's `.filter()` call threw.
+
+**This class of bug should no longer be reproducible** — `getWorkspaceBySlug` now re-throws on a real error instead of returning `null`, and `fetchJsonArray` (`lib/utils.ts`) guards every array-returning fetch on the two booking-surface pages against a non-array response. If you see this error again:
+
+1. Check whether it's actually a genuine 404 (visit the URL directly, confirm the workspace truly doesn't exist) — if so, this isn't the bug, just a bad link.
+2. If the workspace does exist, check Vercel logs for an uncaught exception around the time of the report — `getWorkspaceBySlug` now throws real errors instead of swallowing them, so they should be visible server-side instead of silent.
+3. Check whether a *new* fetch was added to `room/[roomId]/page.tsx` or `(booking)/page.tsx` that bypasses `fetchJsonArray` (a raw `fetch(...).then(r => r.json())` feeding a `useState` setter directly) — that's the pattern to avoid for anything expected to be an array.
+
 ## Supabase free tier limits
 
 On the free tier, Supabase pauses databases that are inactive for more than 7 days. A paused database returns connection errors until the project is unpaused via the Supabase dashboard. If you're on the free tier and the app returns 500 errors after a period of no activity, check the Supabase dashboard first.

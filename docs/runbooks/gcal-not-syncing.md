@@ -12,6 +12,26 @@ The watch state (channel ID, resource ID, expiration, sync token, webhook token)
 
 ---
 
+## Step 0: Quick triage — how long has sync actually been dead?
+
+Before digging into Redis or Vercel logs, get a sense of scope with one query. `bookings.origin = 'gcal'` is only ever written by the inbound webhook (`processWebhook()` in `app/api/[workspace]/gcal/webhook/route.ts`), so its most recent `created_at` is a direct measure of "when did the webhook last actually fire, for any room in this workspace":
+
+```sql
+select id, title, room_id, start_time, origin, created_at
+from bookings
+where origin = 'gcal'
+order by created_at desc
+limit 5;
+```
+
+If the most recent row is days or weeks old — not just "since the last time someone happened to create a conflicting external event" — the webhook has likely been silently dead for that whole span, not intermittently flaky. This is a materially different problem to communicate than "sync seems slow": nothing has been coming through at all, and every external calendar change since then (including someone deleting an event, which is supposed to un-cancel/re-sync the corresponding booking) has been silently dropped. Go straight to Step 1 (Redis watch state) once you know this.
+
+**Known incident, still open as of 2026-09-16:** exactly this was found for the `plonk-mango-wizard` workspace — no `gcal`-origin booking since 2026-08-25, despite the room showing "✓ GCal" connected in the admin panel and new events genuinely landing on the room's Google Calendar. Root cause not yet confirmed (most likely the push-notification watch channel expired without the daily renewal cron successfully picking it up — see Step 3), but not yet fixed either. If you're investigating a report that sounds like this, check whether it's the same still-unresolved case before spending time re-diagnosing from scratch — the fix is the standard "Fix: Disconnect and reconnect" below, it just hasn't been applied to this workspace's affected room(s) yet.
+
+**This is now caught automatically (added 2026-09-16).** `GET /api/gcal-renew` — the same daily cron that renews watch channels — also cross-checks every GCal-connected, active room against its Redis watch state after each run (`checkSyncHealth` in that route). A room with no watch state at all, an expired-and-unrenewed watch, or a renewal that failed that run gets flagged, and if anything's flagged, one email goes out via `sendGcalSyncHealthEmail` (`lib/email.ts`) to every address in `PALANTIR_ADMINS`. Silence means healthy — it does not send a daily "all clear," only alerts when something needs attention. If a real outage isn't producing this email, check that `PALANTIR_ADMINS` and `RESEND_API_KEY` are actually set in Vercel production, and that the cron itself is running (Step 3).
+
+---
+
 ## Step 1: Check whether a watch state exists
 
 Open the Upstash console for your Redis database (or use any Redis client with your `KV_REST_API_URL` and `KV_REST_API_TOKEN`).
@@ -89,6 +109,12 @@ If the app URL changed and all rooms stopped syncing simultaneously, you need to
 Before reconnecting, verify `NEXT_PUBLIC_APP_URL` in Vercel is set to the new URL and has deployed. The reconnection will register webhooks against the current value of `NEXT_PUBLIC_APP_URL`.
 
 ---
+
+## Historical gap: recurring bookings created before 2026-08-24 never synced out to GCal at all
+
+Commit `187d985` (2026-08-24) was the first version of `POST /api/[workspace]/bookings` that called `createCalendarEvent` for recurring-series occurrences at all — before it, only one-off bookings synced. Because a recurring series inserts every occurrence row up front (all the way to `series_end`, capped at one year out), any series created before that commit has occurrence rows — including ones dated well into the future — that never had a GCal event created and never will, on their own. Nothing retroactively revisits old rows; there's no cron or resync mechanism, only the create-time write.
+
+`scripts/backfill-gcal-recurring.ts` is a one-time (not scheduled, not wired into the app) script written to fix this: dry-run by default, `--execute` to actually create the missing events. As of 2026-09-15 it has **not been run successfully** — it needs `SUPABASE_SERVICE_ROLE_KEY`, which is marked as a sensitive environment variable in this Vercel project, so `vercel env pull` writes it as an empty string instead of the real value. Revealing it requires either adjusting that variable's sensitivity in Vercel's dashboard or running the script from a context that already has legitimate access to the real value. Until it's run, expect to keep finding old-series occurrences with `google_event_id IS NULL` and no explanation beyond "it predates the fix."
 
 ## Known non-issues
 

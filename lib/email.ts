@@ -412,6 +412,46 @@ export async function sendFindMyWorkspacesEmail({
   })
 }
 
+export async function sendGcalSyncHealthEmail({
+  to,
+  rooms,
+}: {
+  to: string
+  rooms: { roomName: string; workspaceSlug: string; workspaceName: string | null; reason: string }[]
+}) {
+  const key = process.env.RESEND_API_KEY
+  if (!key) return
+  const resend = new Resend(key)
+
+  const rows = rooms.map(r => `
+  <div style="background:#FEF2F2;border-radius:8px;padding:14px 16px;margin:12px 0;font-size:13px;color:#374151">
+    <div style="margin-bottom:6px"><span style="color:#9CA3AF">Room</span> &nbsp; ${escapeHtml(r.roomName)}</div>
+    <div style="margin-bottom:6px"><span style="color:#9CA3AF">Workspace</span> &nbsp; ${escapeHtml(r.workspaceName ?? r.workspaceSlug)}</div>
+    <div><span style="color:#9CA3AF">Issue</span> &nbsp; ${escapeHtml(r.reason)}</div>
+  </div>`).join('')
+
+  await resend.emails.send({
+    from: FROM,
+    to,
+    subject: `spacebook: ${rooms.length} room${rooms.length === 1 ? '' : 's'} not syncing with Google Calendar`,
+    html: `
+<div style="font-family:sans-serif;max-width:520px;margin:0 auto;padding:24px">
+  <div style="font-size:18px;font-weight:600;color:#2C3E6B;margin-bottom:4px">spacebook</div>
+  <div style="font-size:13px;color:#9CA3AF;margin-bottom:24px">GCal sync health check</div>
+
+  <p style="font-size:14px;color:#374151">
+    The daily sync-health check found ${rooms.length} room${rooms.length === 1 ? '' : 's'} where Google Calendar sync looks broken — external calendar changes on these rooms are not reaching spacebook.
+  </p>
+
+  ${rows}
+
+  <p style="font-size:13px;color:#6B7280">
+    Standard fix: in each workspace's admin panel, disconnect and reconnect Google Calendar for the affected room. See the <code>gcal-not-syncing</code> runbook for diagnosis steps.
+  </p>
+</div>`,
+  })
+}
+
 export async function sendAdminRecoveryEmail({
   to,
   workspace,

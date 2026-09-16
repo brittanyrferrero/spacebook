@@ -116,6 +116,10 @@ If a user reports a conflict on a slot that appears free on the calendar:
 1. The calendar may be stale — it refreshes every 60 seconds. Wait and reload.
 2. A recurring booking may cover that slot without appearing individually on the calendar view. Check the admin panel for recurring series.
 3. There may be a timezone mismatch — check that the workspace's display timezone matches the user's local clock.
+4. Before assuming any of the above, query `bookings` directly for that `room_id` with no date filter and `cancelled_at IS NULL` — don't trust the calendar UI's own rendering to prove a slot is free or taken (see #5 and the note below on the "book later" modal's conflict badge).
+5. **Fixed 2026-09-16, but relevant if a similar report recurs:** the "book later" modal's room-picker used to flag a room "conflict" by comparing bookings across days using clock-time only, with no check that the booking was actually on the day being requested — so a real booking on a *different* day with a matching clock-time falsely flagged the room. See [ADR-018](../decisions/018-conflict-checks-must-filter-by-date.md). If you see this again, it's a regression of that fix, not a new class of bug — check that every availability computation in `(booking)/page.tsx` still filters by `dateStr(...) === mDate` before comparing times.
+
+**The "book later" modal's room-picker conflict badge is cosmetic, not authoritative.** `laterRoomAvailability`'s `taken` flag (the red "conflict" label shown next to a room while picking) is never read by `submitDisabled` — clicking Confirm on a room shown as "conflict" still calls the real API and can succeed. The reverse is also true: a room shown "available" is not a guarantee the submit will succeed (another booking could land in the gap between render and submit). Only the actual POST response is authoritative. Don't triage a "false conflict" report by trusting what the badge shows — reproduce the actual submit, or check the database.
 
 ---
 
