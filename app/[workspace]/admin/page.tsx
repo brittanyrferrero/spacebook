@@ -1378,7 +1378,7 @@ export default function AdminPage() {
                     <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                       {r.gcal_connected && r.google_calendar_id ? (
                         <button onClick={() => disconnectGcal(r.id)} disabled={disconnectingRoomId === r.id}
-                          title={`Calendar linked: ${r.google_calendar_id}\n\nFor people to book this room by inviting it as a guest from their own Google Calendar, share this calendar (in Google Calendar's own settings) as "Anyone with the link → Make changes to events." Spacebook does not set this automatically.\n\nClick the button to disconnect.`}
+                          title={`Calendar linked: ${r.google_calendar_id}\n\nClick the button to disconnect.`}
                           style={{ fontSize: 11, padding: '4px 9px', borderRadius: 0, border: '1px solid #C8E6C9', background: '#F1F8F2', cursor: 'pointer', color: FREE, whiteSpace: 'nowrap' }}>
                           {disconnectingRoomId === r.id ? '…' : '✓ GCal'}
                         </button>
