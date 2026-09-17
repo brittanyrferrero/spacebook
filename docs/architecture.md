@@ -65,10 +65,14 @@ This rule applies to **READ routes only** (GET). Write routes that already had a
 
 `/api/rooms` and `/api/bookings` are flat routes from before workspace scoping was introduced. They are now **mock-only**: in non-MOCK_MODE they return `410 Gone` with `{"error":"Use workspace-scoped endpoint"}`. Do not add production logic to these routes — use `/api/[workspace]/rooms` and `/api/[workspace]/bookings` instead.
 
-### Known gaps (filed, not yet fixed)
+### Known gaps
 
-- `GET /api/[workspace]/gcal/calendars` — no admin guard ([#129](https://github.com/brittanyrferrero/spacebook/issues/129))
-- `POST /api/[workspace]/gcal/watch` — no admin guard ([#129](https://github.com/brittanyrferrero/spacebook/issues/129))
+**Fixed 2026-09-17:**
+- `GET /api/[workspace]/gcal/calendars` — no admin guard ([#129](https://github.com/brittanyrferrero/spacebook/issues/129)) — now checks `admin_{workspace}`.
+- `POST /api/[workspace]/gcal/watch` — no admin guard ([#129](https://github.com/brittanyrferrero/spacebook/issues/129)) — now checks `admin_{workspace}`.
+- `DELETE /api/gcal/disconnect/[roomId]` (the global, Palantir-only variant — not the workspace-scoped one, which already had a guard) — no auth check at all, found during the #129 fix, was never filed separately. Now checks `palantir_session`.
+
+**Not yet fixed:** the `admin_{workspace}` / `palantir_session` cookies these guards check are plain, predictable role strings (`'admin'`, `'super_admin'`), not signed or random tokens — see [ADR-001](decisions/001-slug-as-secret-auth.md#notes). httpOnly + SameSite stop browser-based forgery, but a raw HTTP client presenting the right header isn't stopped by presence-checking alone. This is systemic (every admin-gated route in the app uses this same pattern) rather than specific to GCal, so fixing #129-style gaps by adding this check is still strictly better than not checking at all — but don't mistake "has an admin cookie check" for "is fully hardened" when reviewing new routes.
 
 ## Data model
 
