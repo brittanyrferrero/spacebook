@@ -26,7 +26,9 @@ limit 5;
 
 If the most recent row is days or weeks old — not just "since the last time someone happened to create a conflicting external event" — the webhook has likely been silently dead for that whole span, not intermittently flaky. This is a materially different problem to communicate than "sync seems slow": nothing has been coming through at all, and every external calendar change since then (including someone deleting an event, which is supposed to un-cancel/re-sync the corresponding booking) has been silently dropped. Go straight to Step 1 (Redis watch state) once you know this.
 
-**Known incident, still open as of 2026-09-16:** exactly this was found for the `plonk-mango-wizard` workspace, South Conference Room — no `gcal`-origin booking since 2026-08-25, despite the room showing "✓ GCal" connected in the admin panel and new events genuinely landing on the room's Google Calendar. Root cause not yet confirmed (most likely the push-notification watch channel expired without the daily renewal cron successfully picking it up — see Step 3), but not yet fixed either. Confirmed a second time live the same day: a meeting booked directly on the room's Google Calendar for Thursday 2–3pm did not appear in Spacebook. If you're investigating a report that sounds like this, check whether it's the same still-unresolved case before spending time re-diagnosing from scratch — the fix is the standard "Fix: Disconnect and reconnect" below, it just hasn't been applied to this room yet as of this writing.
+**Known incident, resolved 2026-09-17:** first found for the `plonk-mango-wizard` workspace, South Conference Room — no `gcal`-origin booking since 2026-08-25, despite the room showing "✓ GCal" connected in the admin panel and new events genuinely landing on the room's Google Calendar. Confirmed a second time live the next day: a meeting booked directly on the room's Google Calendar for Thursday 2–3pm did not appear in Spacebook.
+
+Once the sync-health check (below) shipped and ran for real, it turned out **all 5 rooms in the workspace** had lost their watch registration, not just South Conference Room — `gcal:watched_rooms` in Redis was empty, but every room's OAuth tokens were still valid. Exact root cause of how the watch state was lost in the first place was never pinned down (Redis has no audit log for this), but all 5 were fixed in under a minute using the fast path in "Fix: Re-register the watch" below — none needed a real OAuth reconnect. A 6th flagged room ("Meeting Room 1", a different workspace) turned out to be a test workspace that had since been deleted, not a real incident.
 
 **This is now caught automatically (added 2026-09-16).** `GET /api/gcal-renew` — the same daily cron that renews watch channels — also cross-checks every GCal-connected, active room against its Redis watch state after each run (`checkSyncHealth` in that route). A room with no watch state at all, an expired-and-unrenewed watch, or a renewal that failed that run gets flagged, and if anything's flagged, one email goes out via `sendGcalSyncHealthEmail` (`lib/email.ts`) to every address in `PALANTIR_ADMINS`. Silence means healthy — it does not send a daily "all clear," only alerts when something needs attention. If a real outage isn't producing this email, check that `PALANTIR_ADMINS` and `RESEND_API_KEY` are actually set in Vercel production, and that the cron itself is running (Step 3).
 
@@ -88,9 +90,25 @@ In Vercel logs, search for `[gcal webhook]` or `[gcal watch]`. Common errors:
 
 ---
 
-## Fix: Disconnect and reconnect
+## Fix: Re-register the watch (fast path — try this first)
 
-This is the standard fix for most GCal sync issues. It re-registers the webhook with the current app URL, generates a fresh webhook token, and stores a fresh OAuth token if needed.
+If the room's OAuth tokens are still valid (`hasTokens(roomId)` true — the sync-health email only flags rooms where this is already the case, see below), you don't need to touch the OAuth connection at all. `POST /api/{workspace}/gcal/watch` with `{ "room_id": "<uuid>" }` re-registers a fresh watch channel using the existing tokens and adds the room back into `gcal:watched_rooms` for future renewal — no Google re-consent, no disconnect.
+
+```bash
+curl -X POST https://your-app.com/api/{workspace}/gcal/watch \
+  -H "Content-Type: application/json" \
+  -d '{"room_id":"<room-uuid>"}'
+```
+
+**Note:** as of 2026-09-17, this endpoint has no auth check at all (not even gated on `CRON_SECRET` like `/api/gcal-renew` — and `CRON_SECRET` itself was found unset in production when this was diagnosed, so that endpoint is also currently callable with no credentials). Anyone who knows a workspace slug and room ID can re-register that room's watch. Worth hardening at some point — flagging here rather than fixing unilaterally, since it wasn't the thing being asked for.
+
+This is how the 2026-09-17 incident below was actually resolved — used to fix 5 rooms in one workspace in under a minute, none of which needed a real reconnect.
+
+Verify it worked: re-run `GET /api/gcal-renew` (see Step 3) and confirm the room no longer appears in `unhealthyRooms`, or create a test event on the connected Google Calendar and check it appears in Spacebook within a couple of minutes.
+
+## Fix: Disconnect and reconnect (only if tokens are actually gone)
+
+Use this if the fast path above fails, or if `hasTokens(roomId)` is false (the room shows disconnected, not just watch-less). This is the only path that gets you fresh tokens — it re-registers the webhook with the current app URL, generates a fresh webhook token, and stores a fresh OAuth token via a full Google consent flow.
 
 1. Go to **Admin panel → Rooms**
 2. Find the affected room — it should show **✓ GCal** if connected
