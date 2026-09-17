@@ -82,6 +82,7 @@ export async function GET(req: NextRequest) {
 // see docs/runbooks/gcal-not-syncing.md.
 async function checkSyncHealth(failedRoomIds: Set<string>) {
   const { getWatchState } = await import('@/lib/google-calendar/watchStore')
+  const { hasTokens } = await import('@/lib/google-calendar/tokenStore')
   const { createClient } = await import('@/lib/supabase/server')
   const supabase = await createClient()
 
@@ -95,6 +96,16 @@ async function checkSyncHealth(failedRoomIds: Set<string>) {
 
   for (const room of rooms as any[]) {
     if (!room.is_active) continue // disabled rooms deliberately don't sync — not a health issue
+
+    // `rooms.google_calendar_id` is never cleared on disconnect (see
+    // app/api/[workspace]/gcal/disconnect/[roomId]/route.ts) — it only removes
+    // tokens and watch state. So a room that was legitimately disconnected, or
+    // never finished connecting, still has google_calendar_id set. Only a room
+    // with live tokens is actually expected to have an active watch; check the
+    // same thing the app's own "gcal_connected" indicator checks, not just
+    // whether a calendar was ever picked.
+    if (!(await hasTokens(room.id))) continue
+
     const workspaceSlug = room.workspaces?.slug ?? 'unknown'
     const workspaceName = room.workspaces?.name ?? null
 
