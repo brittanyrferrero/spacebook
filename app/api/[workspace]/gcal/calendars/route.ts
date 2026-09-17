@@ -2,6 +2,9 @@ import { type NextRequest } from 'next/server'
 import { google } from 'googleapis'
 
 export async function GET(req: NextRequest, { params }: { params: { workspace: string } }) {
+  const adminRole = req.cookies.get(`admin_${params.workspace}`)?.value
+  if (!adminRole) return Response.json({ error: 'Admin required.' }, { status: 403 })
+
   const roomId = req.nextUrl.searchParams.get('room_id')
   if (!roomId) return Response.json({ error: 'room_id required' }, { status: 400 })
 

@@ -20,6 +20,9 @@ async function buildOAuthClient(roomId: string) {
 }
 
 export async function POST(req: NextRequest, { params }: { params: { workspace: string } }) {
+  const adminRole = req.cookies.get(`admin_${params.workspace}`)?.value
+  if (!adminRole) return Response.json({ error: 'Admin required.' }, { status: 403 })
+
   const { room_id } = await req.json()
   if (!room_id) return Response.json({ error: 'room_id required' }, { status: 400 })
 
