@@ -1187,6 +1187,7 @@ export default function BookingPage() {
 
   async function handleEditCancel() {
     if (!editBooking) return
+    if (!editBooking.cancel_token) { setEditError('Verify your email under "My Bookings" to cancel this booking from here.'); return }
     if (editBooking.recurring_series_id) {
       setConfirmCancel({ onConfirmScope: async (scope) => {
         setConfirmCancel(null)
