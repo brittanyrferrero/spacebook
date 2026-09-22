@@ -1162,6 +1162,7 @@ export default function BookingPage() {
         _editor_email: mEmail,
         _room_name: selectedRoom?.name ?? '',
         _scope: scope,
+        _cancel_token: editBooking.cancel_token,
       }),
     })
     if (!res.ok) {

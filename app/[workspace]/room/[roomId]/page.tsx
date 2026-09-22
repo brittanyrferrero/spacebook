@@ -788,6 +788,7 @@ function RoomDisplayPageInner() {
         _editor_name: mName,
         _editor_email: mEmail,
         _room_name: room?.name ?? '',
+        _cancel_token: editBooking.cancel_token,
       }),
     })
     if (!res.ok) {
