@@ -3,7 +3,7 @@ import { getWorkspaceId } from '@/lib/workspace'
 
 export async function PATCH(req: NextRequest, { params }: { params: { workspace: string; id: string } }) {
   const body = await req.json()
-  const { _editor_name, _editor_email, _room_name, _scope, ...patch } = body
+  const { _editor_name, _editor_email, _room_name, _scope, _cancel_token, ...patch } = body
 
   if (process.env.MOCK_MODE === 'true') {
     const [{ updateBooking, getBookingById }, { getSessionStore, saveSessionStore }] = await Promise.all([import('@/lib/mock/api'), import('@/lib/mock/store')])
@@ -65,7 +65,15 @@ export async function PATCH(req: NextRequest, { params }: { params: { workspace:
   const isAdmin = !!req.cookies.get(`admin_${params.workspace}`)?.value
   const mbEmail = req.cookies.get(`mb_${params.workspace}`)?.value
   const isOwner = mbEmail && mbEmail.toLowerCase() === before.booker_email.toLowerCase()
-  if (!isAdmin && !isOwner) return Response.json({ error: 'Forbidden.' }, { status: 403 })
+  // A client that holds this exact booking's own cancel_token (e.g. straight
+  // off the creation response, before any session/cookie exists) can prove
+  // ownership of *this one row* the same way /api/cancel/[token] already
+  // does — scoped to this booking only, not a broader identity claim like
+  // the mb_ cookie is, so it can't be used to reach any other booking.
+  const hasCancelToken = typeof _cancel_token === 'string' && _cancel_token === before.cancel_token
+  if (!isAdmin && !isOwner && !hasCancelToken) {
+    return Response.json({ error: "You don't have permission to edit this booking. Verify your email under My Bookings to manage it." }, { status: 403 })
+  }
 
   if (_scope === 'future' && before.recurring_series_id && patch.start_time && patch.end_time) {
     const newS = new Date(patch.start_time), newE = new Date(patch.end_time)
