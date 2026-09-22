@@ -2,13 +2,31 @@ import { type NextRequest } from 'next/server'
 import { cookies } from 'next/headers'
 import { getBookingsForDate, getBookingsForRange } from '@/lib/data'
 import { getWorkspaceId } from '@/lib/workspace'
-import type { CreateBookingPayload } from '@/types'
+import type { Booking, CreateBookingPayload } from '@/types'
 import { ratelimit, getIP } from '@/lib/ratelimit'
 import { isValidEmail } from '@/lib/email'
 import { waitUntil } from '@vercel/functions'
 import { getLimits } from '@/lib/prod-config'
 
 const rl = ratelimit(20, '1 m')
+
+// The general calendar feed has no per-booking access control — anyone who can
+// view the workspace (i.e. anyone with the ws_{workspace} cookie, which per
+// ADR-001 requires only knowing the slug) can call this. cancel_token is a
+// bearer credential (see app/api/cancel/[token]/route.ts, which cancels on
+// token match alone) — it must never appear in a row the requester doesn't
+// already have another way to prove ownership of, or any viewer could cancel
+// any booking in the workspace just by reading the calendar's own JSON.
+type ScrubbedBooking = Omit<Booking, 'cancel_token'> & { cancel_token?: string }
+
+function scrubCancelToken(bookings: Booking[], isAdmin: boolean, mbEmail: string | null): ScrubbedBooking[] {
+  if (isAdmin) return bookings
+  return bookings.map((b): ScrubbedBooking => {
+    if (mbEmail && mbEmail.toLowerCase() === b.booker_email.toLowerCase()) return b
+    const { cancel_token, ...rest } = b
+    return rest
+  })
+}
 
 export async function GET(req: NextRequest, { params }: { params: { workspace: string } }) {
   const { searchParams } = req.nextUrl
@@ -48,8 +66,12 @@ export async function GET(req: NextRequest, { params }: { params: { workspace: s
     return Response.json(data ?? [])
   }
 
-  if (from && to) return Response.json(await getBookingsForRange(from, to, roomId, workspaceId))
-  return Response.json(await getBookingsForDate(searchParams.get('date') ?? new Date().toISOString().slice(0, 10), roomId, workspaceId))
+  const cookieStore = await cookies()
+  const isAdmin = !!cookieStore.get(`admin_${params.workspace}`)?.value
+  const mbEmail = cookieStore.get(`mb_${params.workspace}`)?.value ?? null
+
+  if (from && to) return Response.json(scrubCancelToken(await getBookingsForRange(from, to, roomId, workspaceId), isAdmin, mbEmail))
+  return Response.json(scrubCancelToken(await getBookingsForDate(searchParams.get('date') ?? new Date().toISOString().slice(0, 10), roomId, workspaceId), isAdmin, mbEmail))
 }
 
 export async function POST(req: NextRequest, { params }: { params: { workspace: string } }) {

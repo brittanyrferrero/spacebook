@@ -809,6 +809,7 @@ function RoomDisplayPageInner() {
 
   async function handleEditCancel() {
     if (!editBooking) return
+    if (!editBooking.cancel_token) { setEditError('Verify your email under "My Bookings" to cancel this booking from here.'); return }
     setConfirmCancel({ onConfirm: async () => {
       setConfirmCancel(null)
       const cancelledAt = new Date().toISOString()

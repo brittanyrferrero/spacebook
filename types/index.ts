@@ -46,6 +46,12 @@ export interface Booking {
   title: string | null
   start_time: string        // ISO 8601
   end_time: string          // ISO 8601
+  // A freshly-read DB row always has this. The general calendar feed
+  // (app/api/[workspace]/bookings/route.ts GET) is the one exception: it
+  // strips this field from any row the requester doesn't own (admin, or
+  // verified mb_{workspace} match), so a viewer can't extract another
+  // booker's cancel link — client code reading a Booking that came from
+  // that endpoint must not assume this field is present.
   cancel_token: string
   google_event_id: string | null
   cancelled_at: string | null
