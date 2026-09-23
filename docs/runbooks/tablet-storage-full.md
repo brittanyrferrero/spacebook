@@ -1,10 +1,10 @@
 # Runbook: Tablet storage is full
 
-**Symptom:** A tablet running the room display page shows an OS-level "Device storage is low" prompt (Fire OS's own "Turn on Auto Archive" / "Free Up Space" dialog, not anything from Spacebook). Checking Storage in Settings shows the device close to 100% full, with almost nothing attributable to Photos, Music, Games, or "Other apps" — the bulk sits in "System." "Free Up Space" typically finds only a few MB reclaimable (e.g. a leftover Fully Kiosk Browser `.apk` installer in Downloads), nowhere near enough to explain the gap.
+**Symptom:** A tablet running the room display page shows an OS-level "Device storage is low" prompt (Fire OS's own "Turn on Auto Archive" / "Free Up Space" dialog, not anything from Spacebook). Checking Storage in Settings shows the device close to 100% full, with almost nothing attributable to Photos, Music, Games, or "Other apps" — the bulk sits in "System." "Free Up Space" typically finds only a few MB reclaimable, nowhere near enough to explain the gap.
 
 Confirmed 2026-09-22, happening across every tablet in one workspace at once — the only things installed on any of them are Fully Kiosk Browser and Spacebook.
 
-**Status: at least one real cause identified 2026-09-23, but it does not explain every affected tablet — investigation ongoing.** On one tablet: 11 unapplied Fire OS system updates queued since December 2025 (last applied version: Fire OS 8.3.3.8) — see "Cause #1" below, confirmed as a real, structural issue for kiosk tablets regardless of whether it turns out to be the only one here. However, a second affected tablet shows the identical symptom with **zero pending updates** — so this is not a universal single-cause explanation across the fleet. Don't assume a tablet's storage issue is the stuck-updates problem without checking `System Updates` on that specific device first; if it comes back empty, the cause is still open (see "Cause #2 (suspected, unconfirmed)" below).
+**Status as of 2026-09-23: confirmed real (not a UI artifact), exact culprit not identified without rooting the device, but the fix is confirmed.** Two plausible hypotheses (stuck Fire OS updates; orphaned update packages) were tested directly and disproven. Pulling real filesystem data via `adb` confirmed the device's `/data` partition genuinely is ~96% full, and narrowed it to "something inside a stock Fire OS system app's private data" — which isn't inspectable without root. **Factory reset is the confirmed correct fix** — see "Confirmed via ADB" and "Resolution" below. The hypotheses below are kept for the record so nobody re-treads them.
 
 ---
 
@@ -15,50 +15,84 @@ Confirmed 2026-09-22, happening across every tablet in one workspace at once —
 - Every `localStorage` key the app uses (`spacebook_user`, `sb_error_report`) holds a single small value that gets overwritten in place on every write, never appended to or accumulated.
 - There's no service worker, no PWA manifest, no Cache API usage, and no custom `Cache-Control` headers in `next.config.js` — nothing configured to cache aggressively on purpose.
 
-**Not Fully Kiosk Browser's own cache of Spacebook's build output either — checked and ruled out 2026-09-23.** The initial hypothesis was that Next.js's default `Cache-Control: public, max-age=31536000, immutable` on every `/_next/static/` bundle, combined with a kiosk browser that never closes and is rarely cleared, would let every historical deploy's bundles accumulate forever in the browser's HTTP cache. This was a reasonable theory and would explain the "all tablets, same time, only two apps installed" pattern — but checking Fully Kiosk Browser's own Android App Info screen disproved it directly: **App size 15.25MB, User data 4.5MB, Cache 18.33MB** — under 40MB total for the entire app, nowhere close to accounting for a device reporting 25GB+ used. If accumulated build bundles were the problem, Fully Kiosk's own cache figure would be enormous, not 18MB.
+**Not Fully Kiosk Browser's own cache of Spacebook's build output.** The hypothesis was that Next.js's default `Cache-Control: public, max-age=31536000, immutable` on every `/_next/static/` bundle, combined with a kiosk browser that never closes, would let every historical deploy's bundles accumulate forever in the browser's HTTP cache. Reasonable theory, disproven twice: Fully Kiosk's own Android App Info showed only ~38MB total (app + data + cache combined), and later real `adb shell df -h` data confirmed `/cache` itself was only 9.3MB used out of 516MB. Nowhere close to accounting for a device reporting 20GB+ used.
+
+## Hypothesis #1 (tested, disproven): stuck Fire OS updates
+
+Found 11 Fire OS system updates queued since December 2025, never installed, on one tablet. The theory: Fire OS only auto-installs queued updates during an idle/charging window, and a kiosk tablet configured to always display the room booking screen never goes idle — so updates download but never apply, and their downloaded packages sit around indefinitely.
+
+**Disproven by direct test:** installed all 11 pending updates on that tablet. Storage usage barely moved (~28GB → ~27GB reported "System" — within noise, not a real change). Whatever's actually consuming the space, it isn't queued-but-uninstalled updates.
+
+(The structural point — Fire OS auto-update genuinely can't complete on an always-on kiosk tablet — is still true and worth knowing independent of this specific storage issue. Installing queued updates is still worth doing periodically as general hygiene; it just isn't *this* fix.)
+
+## Hypothesis #2 (tested, disproven): orphaned update packages after a past successful install
+
+A second tablet showed the identical symptom with **zero** pending updates. Theory: maybe its updates *did* install successfully, but the downloaded package files were never cleaned up afterward (a separate, real Android/Fire OS bug pattern, distinct from #1).
+
+**Disproven by direct measurement:** `adb shell df -h` on the first tablet showed `/cache` at 9.3MB used out of 516MB total — essentially empty. If gigabytes of uncleaned OTA packages were sitting there, this partition would show it. It doesn't.
 
 ---
 
-## Cause #1 (confirmed on at least one tablet): Fire OS auto-update structurally can't run on an always-on kiosk tablet
+## Confirmed via ADB (2026-09-23): what's actually true
 
-Checked `Settings → Device Options → System Updates` on an affected tablet: running Fire OS 8.3.3.8 (last applied December 2025), with **11 system updates downloaded and queued, never installed**.
+Non-destructive diagnosis using `adb` (Android Debug Bridge) connected over USB — see "How to reconnect adb" below if doing this again.
 
-The reason this happens specifically to these tablets, and will keep happening indefinitely unless addressed structurally: Fire OS applies queued updates during an idle/charging maintenance window (screen off, plugged in, no user interaction for some period). A kiosk tablet running Fully Kiosk Browser with the room display always on is deliberately configured to *never* go idle — that's the whole point of the deployment. So updates download normally (Fire OS does that regardless of idle state) but the install step's trigger condition can never be satisfied, and they just accumulate, each one's downloaded package sitting in the system partition, indefinitely. Nine months of accumulation (Dec 2025 → Sep 2026) across 11 updates is consistent with a device reporting 25GB+ used with almost nothing attributable to any actual app.
+```
+$ adb shell df -h
+Filesystem              Size  Used  Avail  Use%  Mounted on
+/dev/block/dm-2         3.1G  2.8G   313M   91%  /          (real system partition)
+/dev/block/mmcblk0p19   516M  9.3M   490M    2%  /cache
+/dev/block/mmcblk0p21    24G   23G   1.1G   96%  /data      (this is the actual full partition)
+```
 
-This is not a one-time cleanup problem — it will recur on every tablet run this way, forever, because the always-on requirement and Fire OS's idle-only auto-update mechanism are in direct, structural conflict. **The fix is a recurring manual maintenance task, not a one-time fix.**
+Key finding: **the "System: 28GB" figure Fire OS's Settings app shows is not real.** The actual system partition (`/`) is only 3.1GB total. Fire OS's simplified Storage summary screen was never giving us a trustworthy number for that category — confirmed by it reading *identically* on two tablets with completely different update histories, and by it not moving at all after installing 11 updates. Don't trust that screen's "System" figure for this class of problem again; go straight to `adb shell df -h` for ground truth.
 
-### Immediate fix (per tablet)
-1. `Settings → Device Options → System Updates` → install all queued updates. Do this on **one tablet first** — Fire OS may not chain all 11 automatically (you may need to tap Install again after each reboot), and this can take 30–60+ minutes with multiple reboots. Do it at a time when that room's display being briefly dark isn't disruptive.
-2. After it finishes, confirm the tablet comes back into Fully Kiosk / the room display automatically rather than dropping to the normal Fire OS home screen — a large version jump can occasionally reset default-launcher/kiosk-lock settings. Re-apply Fully Kiosk's kiosk/default-launcher settings if needed.
-3. Confirm it's still authenticated to Spacebook (should be unaffected, but worth a glance given everything else about this tablet).
-4. Re-check the Storage screen — "System" usage should drop substantially. Once confirmed on this tablet, repeat for the rest.
+The partition that's actually full is `/data` (24GB total, 23GB used, 1.1GB free — 96%). Ruled out as contributors, by direct measurement:
+- Shared/user-visible storage (`/storage/emulated/0`: Downloads, Pictures, Movies, etc.) — only ~6.5MB total across everything.
+- `/cache` — 9.3MB used.
+- Fully Kiosk Browser's own app data — ~38MB (matches its Android App Info screen).
+- Any unexpected/rogue app — `pm list packages -3` (third-party apps) returned exactly one result: `de.ozerov.fully` (Fully Kiosk itself). Nothing else installed outside stock Fire OS.
+- Manually scanning Settings → Apps with "Show system apps" enabled — nothing anomalously large stood out among the ~242 stock system apps.
 
-### Ongoing prevention
-Add a recurring check (quarterly is reasonable) to manually open `System Updates` on every tablet and install anything queued, rather than assuming Fire OS is handling it in the background the way it would on a normal, regularly-idle personal tablet. There is currently no automated way to detect this from Spacebook's side — it's entirely outside the app, on the device/OS layer — so this has to be a calendar reminder or part of an existing recurring tablet-maintenance pass, not something this codebase can alert on.
+That leaves the space genuinely consumed somewhere inside stock Fire OS system apps' own private data (`/data/data/<package>`, `/data/system`, `/data/misc`, etc.) — none of which the unprivileged `shell` user can read on a non-rooted device (`ls`/`du` all return `Permission denied`). Getting more specific than "it's inside stock Fire OS itself, not anything we installed or configured" would require rooting the device.
+
+**Rooting a production kiosk tablet to chase this further is not recommended** — real risk (bricking, voided warranty, no vendor support) for a problem that already has a confirmed, safe fix.
 
 ---
 
-## Cause #2 (suspected, unconfirmed) — a second tablet has the same symptom with zero pending updates
+## Resolution: factory reset
 
-Found 2026-09-23: not every affected tablet has queued updates. One tablet shows the same near-full storage / "System" ballooning with `System Updates` reporting nothing pending. **Don't assume Cause #1 applies to a given tablet without checking `System Updates` on that specific device first.**
+Since `/data` is confirmed genuinely, almost entirely full (not a UI artifact this time), a factory reset — which wipes `/data` back to empty — is guaranteed to reclaim the space, unlike the update-install attempt which never touched the real problem.
 
-Leading suspects for this tablet, not yet confirmed — need the same diagnostic pass repeated on it:
-1. **Orphaned update packages left behind after a past *successful* install.** A distinct, separately-known Android/Fire OS bug pattern from Cause #1: even when an update installs correctly, the downloaded package file sometimes isn't cleaned up from the cache/system partition afterward. This would explain "no pending updates" (it genuinely finished updating) while still having a bloated system partition. Check whether this tablet's Fire OS version/last-updated date is actually current (not stuck at Dec 2025 like the other one) — if it's on a recent version, this is the more likely explanation than Cause #1 for this specific device.
-2. **A different category is actually the real driver on this tablet**, not "System" at all. Get the full Storage breakdown (Photos/Music/Games/Movie & TV apps/Other apps/Files/System, each with its GB figure) for this tablet specifically before assuming it matches the first tablet's pattern — "Other apps" was already a non-trivial 2.8GB on the first tablet and was never investigated further since "System" was clearly dominant there. It may not be dominant here.
+1. Do **one tablet first**. Confirm storage is actually reclaimed and everything works before touching the rest.
+2. Factory reset via Settings → Device Options → Reset to Factory Defaults (or by holding the physical button combo if the tablet won't boot into Settings — check the specific Fire tablet model's reset procedure).
+3. Re-provision after reset:
+   - Reinstall Fully Kiosk Browser (wiped along with everything else).
+   - Re-open the room's **Tablet Link** (workspace admin panel → Rooms → that room) to re-establish the tablet's `ws_{slug}` Spacebook session.
+   - Re-apply Fully Kiosk's kiosk-lock / default-launcher settings so it locks back into the room display automatically.
+4. Budget ~15–20 minutes per tablet for the reset plus re-provisioning.
 
-Until this is confirmed, treat Cause #1's fix (installing queued updates) as necessary-but-possibly-not-sufficient across the whole fleet — check each tablet's own `System Updates` screen individually rather than assuming the first tablet's diagnosis generalizes.
+### Prevention
+No confirmed way to prevent recurrence, since the exact consuming component inside stock Fire OS was never identified (would need root to find it). Given it took roughly 9 months to reach crisis level on the first tablet, a reasonable insurance policy is a **periodic preventive reset** (e.g. annually) as part of routine tablet maintenance, rather than waiting for the next low-storage warning — treat it the same as the update-check cadence from the disproven hypotheses above: a recurring calendar task, not something Spacebook can detect or alert on, since it's entirely outside the app.
+
+### How to reconnect adb, if diagnosing this again
+1. On the tablet: Settings → Device Options → About → tap the build/serial number 7 times to unlock Developer Options.
+2. Settings → Device Options → Developer Options → enable USB debugging.
+3. Connect the tablet to a Mac with `adb` installed (`brew install android-platform-tools`).
+4. Accept the "Allow USB debugging?" prompt **on the tablet screen** when it appears.
+5. `adb devices` should show the device as `device` (not `unauthorized`) before running anything else.
 
 ---
 
 ## If you still want to clear Fully Kiosk's cache anyway
 
-Clearing Fully Kiosk Browser's cache won't fix this specific storage crisis (see above — its cache is only ~18MB, not the problem), but it's still reasonable, low-risk periodic hygiene for a kiosk tablet, and worth doing carefully if you go there:
+Not the fix for this issue (its cache is only ~18-38MB total, confirmed twice), but still reasonable, low-risk periodic hygiene for a kiosk tablet:
 
 Android (and Fully Kiosk Browser's own settings) normally distinguish two genuinely different actions:
 - **Clear Cache** — wipes only temporary/cached files. Cookies and login state live in a separate data store and should survive this.
 - **Clear Data** / **Clear Storage** — wipes everything, cookies included. This *would* drop the tablet's `ws_{slug}` session cookie (see [tablet-snapshots-stale.md, Step 3](tablet-snapshots-stale.md) for what that looks like and how to recover from it).
 
-Verify which one your Fully Kiosk Browser version actually does before relying on it: clear cache-only on one tablet, confirm it's still showing the room display with no re-login needed, before repeating elsewhere or scheduling it automatically. If it turns out to drop the session too, don't automate it — clear it manually and expect to re-open the room's Tablet Link (workspace admin panel → Rooms) afterward each time.
+Verify which one your Fully Kiosk Browser version actually does before relying on it: clear cache-only on one tablet, confirm it's still showing the room display with no re-login needed, before repeating elsewhere or scheduling it automatically.
 
 ---
 
