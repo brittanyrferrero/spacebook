@@ -8,7 +8,7 @@ export async function GET(req: NextRequest) {
     return Response.json({ error: 'Unauthorized' }, { status: 401 })
   }
 
-  const { getAllWatchedRooms, getWatchState, saveWatchState, removeWatchState } = await import('@/lib/google-calendar/watchStore')
+  const { getAllWatchedRooms, getWatchState, saveWatchState } = await import('@/lib/google-calendar/watchStore')
   const { getTokens, saveTokens } = await import('@/lib/google-calendar/tokenStore')
 
   const roomIds = await getAllWatchedRooms()
@@ -23,7 +23,18 @@ export async function GET(req: NextRequest) {
 
     try {
       const tokens = await getTokens(roomId)
-      if (!tokens) { await removeWatchState(roomId, watchState.channelId); continue }
+      if (!tokens) {
+        // Don't delete watch state here: a falsy result can't distinguish "tokens
+        // were genuinely revoked" from a transient KV/network hiccup, and this path
+        // runs for every watch on the same day whenever they were all registered
+        // together (e.g. via the fast-path re-register), so a single bad read wipes
+        // every room in a workspace at once. Real disconnects already clean up their
+        // own watch state (see gcal/disconnect route) — just skip and report.
+        console.error('[gcal renew] no tokens found for room with an active watch — skipping renewal, not deleting watch state', { roomId })
+        errors++
+        failedRoomIds.add(roomId)
+        continue
+      }
 
       const oauth2Client = new google.auth.OAuth2(process.env.GOOGLE_CLIENT_ID, process.env.GOOGLE_CLIENT_SECRET)
       oauth2Client.setCredentials({
