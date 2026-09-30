@@ -24,8 +24,13 @@ The idea came out of the Linen tablet redesign mockups (Design canvas
 - While a booking is in progress, show a **Finish early** button on the bottom
   left of the display, on the same line as "Book for later". Hidden when the
   room is free.
-- Two-tap confirm: first tap turns the button into "Tap to confirm"; it reverts
-  after 4 seconds if not confirmed. A shared hallway tablet gets stray taps.
+- Confirm in a pop-up: "Finish this meeting now?" naming the meeting and its
+  booked end, with **Keep meeting** / **Yes, finish now**. Tapping outside
+  keeps the meeting. A shared hallway tablet gets stray taps, so one tap must
+  never end a meeting.
+  - An earlier version used a two-tap button ("Tap to confirm" in place, reverting
+    after 4s). In testing on the tablet the second step was easy to miss, so
+    it became a pop-up (2026-09-29).
 - On confirm the room flips straight back to Available, with a short
   "Freed early · thank you" note under the status.
 
