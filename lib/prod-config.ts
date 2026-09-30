@@ -148,6 +148,13 @@ export async function setAccentColor(workspaceId: string, color: string): Promis
   await kv().set(k(workspaceId, 'cfg:accentColor'), color)
 }
 
+export async function getTabletDesign(workspaceId: string): Promise<string | null> {
+  return kv().get<string>(k(workspaceId, 'cfg:tabletDesign'))
+}
+export async function setTabletDesign(workspaceId: string, design: string): Promise<void> {
+  await kv().set(k(workspaceId, 'cfg:tabletDesign'), design)
+}
+
 // ─── Recovery nonces ──────────────────────────────────────────────────────────
 // Short-lived one-time tokens used in recovery emails. Each nonce expires after
 // 1 hour and is consumed on first use, preventing replay via email/browser history.

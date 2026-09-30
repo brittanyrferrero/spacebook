@@ -7,6 +7,7 @@ import { DndContext, closestCenter, PointerSensor, useSensor, useSensors } from 
 import type { DragEndEvent } from '@dnd-kit/core'
 import { SortableContext, verticalListSortingStrategy, useSortable, arrayMove } from '@dnd-kit/sortable'
 import { CSS } from '@dnd-kit/utilities'
+import { DEFAULT_TABLET_DESIGN, isTabletDesign, type TabletDesign } from '@/lib/tablet-design'
 
 const SAGE = '#5C7A6B'; const SAGE_LIGHT = '#eef7f1'
 const NAVY = '#111111'; const NAVY_LIGHT = '#f0f0f0'
@@ -231,6 +232,12 @@ export default function AdminPage() {
   const [accentColorSaving, setAccentColorSaving] = useState(false)
   const [accentColorError, setAccentColorError] = useState('')
 
+  // Tablet design (ADR-021) — saved as soon as an option is picked
+  const [tabletDesign,       setTabletDesign]       = useState<TabletDesign>(DEFAULT_TABLET_DESIGN)
+  const [tabletDesignSaving, setTabletDesignSaving] = useState(false)
+  const [tabletDesignSaved,  setTabletDesignSaved]  = useState(false)
+  const [tabletDesignError,  setTabletDesignError]  = useState('')
+
   // Booking visibility
   const [visShowTitle,       setVisShowTitle]       = useState(false)
   const [visShowOrganizer,   setVisShowOrganizer]   = useState(false)
@@ -307,6 +314,7 @@ export default function AdminPage() {
       if (d.adminEntryToken) setAdminEntryToken(d.adminEntryToken)
       if (d.workspaceName != null) setWsName(d.workspaceName)
       if (d.accentColor) setAccentColor(d.accentColor)
+      if (isTabletDesign(d.tabletDesign)) setTabletDesign(d.tabletDesign)
       if (d.limits?.is_trial) { setTrialLimits(d.limits); setTrialUsage(d.trial_usage ?? null) }
     }).catch(() => {})
   }, [])
@@ -2031,6 +2039,48 @@ export default function AdminPage() {
                   </div>
                 )
               })()}
+
+              {/* ── Tablet design ── */}
+              <div style={{ background: '#fff', border: '1px solid #dddddd', borderRadius: 0, padding: 16, marginBottom: 10 }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 4 }}>
+                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#9CA3AF" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <rect x="5" y="2" width="14" height="20" rx="2" />
+                    <path d="M12 18h.01" />
+                  </svg>
+                  <div style={{ fontSize: 12, fontWeight: 500, color: '#374151' }}>Tablet design</div>
+                </div>
+                <div style={{ fontSize: 12, color: '#9CA3AF', marginBottom: 12 }}>
+                  What the room tablets show. Tablets switch within about 2 minutes — no need to touch them. You can switch back at any time.
+                </div>
+                <div style={{ display: 'flex', gap: 6, marginBottom: 8, flexWrap: 'wrap' }}>
+                  {([['classic', 'Classic', 'The original display'], ['linen', 'Linen', 'Warm, glanceable redesign']] as const).map(([value, label, hint]) => {
+                    const on = tabletDesign === value
+                    return (
+                      <button key={value}
+                        disabled={tabletDesignSaving}
+                        onClick={async () => {
+                          if (on) return
+                          const prev = tabletDesign
+                          setTabletDesign(value); setTabletDesignSaving(true); setTabletDesignError(''); setTabletDesignSaved(false)
+                          const result = await apiRequest(`${api}/settings`, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ tabletDesign: value }) }, 'Failed to save.')
+                          setTabletDesignSaving(false)
+                          if (!result.ok) { setTabletDesign(prev); setTabletDesignError(result.error); return }
+                          setTabletDesignSaved(true); setTimeout(() => setTabletDesignSaved(false), 2500)
+                        }}
+                        style={{ flex: '1 1 160px', textAlign: 'left', padding: '10px 12px', borderRadius: 0, border: on ? '2px solid #111111' : '1px solid #dddddd', background: on ? '#f7f7f5' : '#fff', cursor: tabletDesignSaving ? 'default' : 'pointer', color: '#374151' }}>
+                        <div style={{ fontSize: 13, fontWeight: 600, color: '#111111' }}>{label}</div>
+                        <div style={{ fontSize: 11, color: '#6B7280', marginTop: 2 }}>{hint}</div>
+                      </button>
+                    )
+                  })}
+                </div>
+                <div style={{ fontSize: 11, color: '#9CA3AF' }}>
+                  To try a design on one tablet first, add <code>?design=linen</code> or <code>?design=classic</code> to that tablet&apos;s address.
+                </div>
+                {tabletDesignSaving && <div style={{ fontSize: 11, color: '#9CA3AF', marginTop: 6 }}>Saving…</div>}
+                {tabletDesignSaved && <div style={{ fontSize: 11, color: FREE, marginTop: 6 }}>✓ Saved — tablets will switch within about 2 minutes.</div>}
+                {tabletDesignError && <div style={{ fontSize: 11, color: BUSY, marginTop: 6 }}>{tabletDesignError}</div>}
+              </div>
 
               <div style={{ background: '#fff', border: '1px solid #f5c6c6', borderRadius: 0, padding: 16, marginBottom: 10 }}>
                 <div style={{ fontSize: 12, fontWeight: 500, color: '#374151', marginBottom: 4 }}>Rename workspace URL</div>
