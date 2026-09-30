@@ -7,6 +7,22 @@ const DEFAULT_DISPLAY_HOURS = { start: 8, end: 20 }
 const DEFAULT_BOOKING_HOURS = { start: 6, end: 22 }
 
 export async function GET(req: NextRequest, { params }: { params: { workspace: string } }) {
+  // Lightweight path for the room tablets, which re-check their design every 2 minutes
+  // (ADR-021): one cached workspace lookup and one KV read, instead of the full settings
+  // payload (six KV reads, plus two count queries for trial workspaces).
+  if (new URL(req.url).searchParams.get('only') === 'tabletDesign') {
+    if (process.env.MOCK_MODE === 'true') {
+      const { getSessionStore } = await import('@/lib/mock/store')
+      const store = await getSessionStore()
+      return Response.json({ tabletDesign: isTabletDesign(store.tabletDesign) ? store.tabletDesign : DEFAULT_TABLET_DESIGN })
+    }
+    const workspaceId = await getWorkspaceId(params.workspace)
+    if (!workspaceId) return Response.json({ error: 'Workspace not found' }, { status: 404 })
+    const { getTabletDesign } = await import('@/lib/prod-config')
+    const stored = await getTabletDesign(workspaceId)
+    return Response.json({ tabletDesign: isTabletDesign(stored) ? stored : DEFAULT_TABLET_DESIGN })
+  }
+
   const isAdmin = !!req.cookies.get(`admin_${params.workspace}`)?.value
   if (process.env.MOCK_MODE === 'true') {
     const { getSessionStore } = await import('@/lib/mock/store')

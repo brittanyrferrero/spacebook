@@ -23,7 +23,7 @@ export default function RoomDisplayPage() {
     let cancelled = false
     async function check() {
       try {
-        const res = await fetch(`/api/${workspace}/settings`)
+        const res = await fetch(`/api/${workspace}/settings?only=tabletDesign`)
         if (!res.ok) throw new Error(`settings ${res.status}`)
         const d = await res.json()
         if (!cancelled) setDesign(resolveTabletDesign(d.tabletDesign, override))
