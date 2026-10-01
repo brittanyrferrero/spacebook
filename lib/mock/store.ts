@@ -23,6 +23,7 @@ export interface MockStore {
   bookingVisibility: { showTitle: boolean; showOrganizer: boolean; allowEditOthers: boolean }
   countWeekends: boolean
   accentColor?: string
+  tabletDesign?: string
   workspaceName?: string
   tzOffset?: number
   gcalTokens: Record<string, GcalTokens>   // room_id → tokens

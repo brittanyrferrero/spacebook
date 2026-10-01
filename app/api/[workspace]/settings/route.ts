@@ -1,11 +1,28 @@
 import { type NextRequest } from 'next/server'
 import { getWorkspaceId } from '@/lib/workspace'
+import { isTabletDesign, DEFAULT_TABLET_DESIGN } from '@/lib/tablet-design'
 
 const DEFAULT_VISIBILITY = { showTitle: false, showOrganizer: false, allowEditOthers: false }
 const DEFAULT_DISPLAY_HOURS = { start: 8, end: 20 }
 const DEFAULT_BOOKING_HOURS = { start: 6, end: 22 }
 
 export async function GET(req: NextRequest, { params }: { params: { workspace: string } }) {
+  // Lightweight path for the room tablets, which re-check their design every 2 minutes
+  // (ADR-021): one cached workspace lookup and one KV read, instead of the full settings
+  // payload (six KV reads, plus two count queries for trial workspaces).
+  if (new URL(req.url).searchParams.get('only') === 'tabletDesign') {
+    if (process.env.MOCK_MODE === 'true') {
+      const { getSessionStore } = await import('@/lib/mock/store')
+      const store = await getSessionStore()
+      return Response.json({ tabletDesign: isTabletDesign(store.tabletDesign) ? store.tabletDesign : DEFAULT_TABLET_DESIGN })
+    }
+    const workspaceId = await getWorkspaceId(params.workspace)
+    if (!workspaceId) return Response.json({ error: 'Workspace not found' }, { status: 404 })
+    const { getTabletDesign } = await import('@/lib/prod-config')
+    const stored = await getTabletDesign(workspaceId)
+    return Response.json({ tabletDesign: isTabletDesign(stored) ? stored : DEFAULT_TABLET_DESIGN })
+  }
+
   const isAdmin = !!req.cookies.get(`admin_${params.workspace}`)?.value
   if (process.env.MOCK_MODE === 'true') {
     const { getSessionStore } = await import('@/lib/mock/store')
@@ -16,6 +33,7 @@ export async function GET(req: NextRequest, { params }: { params: { workspace: s
       bookingVisibility: store.bookingVisibility ?? DEFAULT_VISIBILITY,
       countWeekends: store.countWeekends ?? false,
       accentColor: store.accentColor ?? null,
+      tabletDesign: isTabletDesign(store.tabletDesign) ? store.tabletDesign : DEFAULT_TABLET_DESIGN,
       workspaceName: store.workspaceName ?? 'Intelligence',
       ...(isAdmin && { adminEntryToken: 'mock-token' }),
     })
@@ -24,15 +42,17 @@ export async function GET(req: NextRequest, { params }: { params: { workspace: s
   const workspace = await getWorkspaceBySlug(params.workspace)
   if (!workspace) return Response.json({ error: 'Workspace not found' }, { status: 404 })
   const workspaceId = workspace.id
-  const { getBookingHours, getDisplayHours, getBookingVisibility, getCountWeekends, getLimits, getAccentColor } = await import('@/lib/prod-config')
-  const [bookingHours, displayHours, bookingVisibility, countWeekends, limits, accentColor] = await Promise.all([
+  const { getBookingHours, getDisplayHours, getBookingVisibility, getCountWeekends, getLimits, getAccentColor, getTabletDesign } = await import('@/lib/prod-config')
+  const [bookingHours, displayHours, bookingVisibility, countWeekends, limits, accentColor, storedTabletDesign] = await Promise.all([
     getBookingHours(workspaceId),
     getDisplayHours(workspaceId),
     getBookingVisibility(workspaceId),
     getCountWeekends(workspaceId),
     getLimits(workspaceId),
     getAccentColor(workspaceId),
+    getTabletDesign(workspaceId),
   ])
+  const tabletDesign = isTabletDesign(storedTabletDesign) ? storedTabletDesign : DEFAULT_TABLET_DESIGN
 
   let trial_usage = null
   if (limits?.is_trial) {
@@ -46,7 +66,7 @@ export async function GET(req: NextRequest, { params }: { params: { workspace: s
   }
 
   return Response.json({
-    bookingHours, displayHours, bookingVisibility, countWeekends, accentColor,
+    bookingHours, displayHours, bookingVisibility, countWeekends, accentColor, tabletDesign,
     workspaceName: workspace.name,
     limits, trial_usage,
     ...(isAdmin && { adminEntryToken: workspace.admin_entry_token }),
@@ -149,6 +169,24 @@ export async function PATCH(req: NextRequest, { params }: { params: { workspace:
     const { setAccentColor } = await import('@/lib/prod-config')
     await setAccentColor(workspaceId, color)
     return Response.json({ accentColor: color })
+  }
+
+  if (body.tabletDesign !== undefined) {
+    if (!isTabletDesign(body.tabletDesign)) {
+      return Response.json({ error: 'Invalid tablet design. Expected "classic" or "linen".' }, { status: 400 })
+    }
+    if (process.env.MOCK_MODE === 'true') {
+      const { getSessionStore, saveSessionStore } = await import('@/lib/mock/store')
+      const store = await getSessionStore()
+      store.tabletDesign = body.tabletDesign
+      await saveSessionStore(store)
+      return Response.json({ tabletDesign: body.tabletDesign })
+    }
+    const workspaceId = await getWorkspaceId(params.workspace)
+    if (!workspaceId) return Response.json({ error: 'Workspace not found' }, { status: 404 })
+    const { setTabletDesign } = await import('@/lib/prod-config')
+    await setTabletDesign(workspaceId, body.tabletDesign)
+    return Response.json({ tabletDesign: body.tabletDesign })
   }
 
   if (body.workspaceName !== undefined) {
