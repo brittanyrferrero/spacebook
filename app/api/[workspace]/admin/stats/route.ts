@@ -1,6 +1,7 @@
 import { type NextRequest } from 'next/server'
 import { subDays, format } from 'date-fns'
 import { getWorkspaceId } from '@/lib/workspace'
+import { readAdminRole } from '@/lib/auth-cookies'
 
 export async function GET(req: NextRequest, { params }: { params: { workspace: string } }) {
   const { searchParams } = req.nextUrl
@@ -17,7 +18,7 @@ export async function GET(req: NextRequest, { params }: { params: { workspace: s
     return Response.json(getAdminStats(store, from, to, roomId, roomType))
   }
 
-  const adminRole = req.cookies.get(`admin_${params.workspace}`)?.value
+  const adminRole = await readAdminRole(req.cookies, params.workspace)
   if (!adminRole) return Response.json({ error: 'Admin required.' }, { status: 403 })
 
   const workspaceId = await getWorkspaceId(params.workspace)

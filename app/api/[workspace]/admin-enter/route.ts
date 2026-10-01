@@ -3,6 +3,7 @@ import { cookies } from 'next/headers'
 import { getWorkspaceBySlug } from '@/lib/workspace'
 import { ratelimit, getIP } from '@/lib/ratelimit'
 import { isValidEmail } from '@/lib/email'
+import { setAdminCookie } from '@/lib/auth-cookies'
 
 const rl = ratelimit(10, '15 m')
 
@@ -20,9 +21,7 @@ export async function POST(req: NextRequest, { params }: { params: { workspace: 
 
   if (process.env.MOCK_MODE === 'true') {
     const cookieStore = await cookies()
-    cookieStore.set(`admin_${params.workspace}`, 'super_admin', {
-      httpOnly: true, secure: process.env.NODE_ENV === 'production', sameSite: 'lax', path: '/', maxAge: 60 * 60 * 24 * 7,
-    })
+    await setAdminCookie(cookieStore, params.workspace, 'super_admin')
     return NextResponse.json({ role: 'super_admin', claimed: true, entryToken: token })
   }
 
@@ -66,9 +65,7 @@ export async function POST(req: NextRequest, { params }: { params: { workspace: 
 
     const cookieStore = await cookies()
     const secure = process.env.NODE_ENV === 'production'
-    cookieStore.set(`admin_${params.workspace}`, 'super_admin', {
-      httpOnly: true, secure, sameSite: 'lax', path: '/', maxAge: 60 * 60 * 24 * 7,
-    })
+    await setAdminCookie(cookieStore, params.workspace, 'super_admin')
     cookieStore.set(`ws_${params.workspace}`, entryToken, {
       httpOnly: true, secure, sameSite: 'lax', path: '/', maxAge: 60 * 60 * 24 * 365,
     })
@@ -87,9 +84,7 @@ export async function POST(req: NextRequest, { params }: { params: { workspace: 
 
   const cookieStore = await cookies()
   const secure = process.env.NODE_ENV === 'production'
-  cookieStore.set(`admin_${params.workspace}`, role, {
-    httpOnly: true, secure, sameSite: 'lax', path: '/', maxAge: 60 * 60 * 24 * 7,
-  })
+  await setAdminCookie(cookieStore, params.workspace, role)
   const wsToken = await getWorkspaceToken(workspaceId)
   if (wsToken) {
     cookieStore.set(`ws_${params.workspace}`, wsToken, {

@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server'
 import type { NextRequest } from 'next/server'
+import { readAdminRole, readPalantirSession } from '@/lib/auth-cookies'
 
 // Non-workspace top-level path segments
 const PUBLIC_SEGMENTS = new Set(['enter', 'admin-enter', 'demo', 'demo-admin', 'landing', 'landing2', 'home', 'cancel', 'privacy', 'terms', 'generate', 'palantir', 'palantir-enter'])
@@ -69,15 +70,15 @@ export async function middleware(request: NextRequest) {
   const slug = getWorkspaceSlug(pathname)
   if (!slug) return pass()
 
-  // Workspace route — require ws_[slug] or admin_[slug] cookie
+  // Workspace route — require ws_[slug] or a validly signed admin_[slug] cookie.
+  // ws_ is presence-only on purpose: knowing the slug is the workspace
+  // credential (ADR-001), so a forged ws_ grants nothing the slug doesn't.
   const wsToken = request.cookies.get(`ws_${slug}`)?.value
-  const adminToken = request.cookies.get(`admin_${slug}`)?.value
-
-  if (wsToken || adminToken) return pass()
+  if (wsToken) return pass()
+  if (await readAdminRole(request.cookies, slug)) return pass()
 
   // Palantir superadmin bypass — allows the overlord tablet preview to load workspace routes
-  const palantirSession = request.cookies.get('palantir_session')?.value
-  if (palantirSession) return pass()
+  if (await readPalantirSession(request.cookies)) return pass()
 
   // No valid cookie — redirect to the entry page for this workspace
   // (But let admin-enter and enter routes through regardless)

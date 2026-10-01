@@ -1,11 +1,12 @@
 import { type NextRequest } from 'next/server'
 import { getWorkspaceId } from '@/lib/workspace'
+import { readAdminRole } from '@/lib/auth-cookies'
 
 export async function PATCH(req: NextRequest, { params }: { params: { workspace: string; id: string } }) {
   const { name, email } = await req.json()
   if (!name?.trim() || !email?.trim())
     return Response.json({ error: 'Name and email are required.' }, { status: 400 })
-  const adminRole = req.cookies.get(`admin_${params.workspace}`)?.value
+  const adminRole = await readAdminRole(req.cookies, params.workspace)
   if (!adminRole) return Response.json({ error: 'Admin required.' }, { status: 403 })
   if (process.env.MOCK_MODE === 'true') {
     const [{ updateMember }, { getSessionStore, saveSessionStore }] = await Promise.all([import('@/lib/mock/api'), import('@/lib/mock/store')])
@@ -33,7 +34,7 @@ export async function PATCH(req: NextRequest, { params }: { params: { workspace:
 }
 
 export async function DELETE(req: NextRequest, { params }: { params: { workspace: string; id: string } }) {
-  const adminRole = req.cookies.get(`admin_${params.workspace}`)?.value
+  const adminRole = await readAdminRole(req.cookies, params.workspace)
   if (!adminRole) return Response.json({ error: 'Admin required.' }, { status: 403 })
   if (process.env.MOCK_MODE === 'true') {
     const [{ removeMember }, { getSessionStore, saveSessionStore }] = await Promise.all([import('@/lib/mock/api'), import('@/lib/mock/store')])

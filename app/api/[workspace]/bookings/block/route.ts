@@ -1,5 +1,6 @@
 import { type NextRequest } from 'next/server'
 import { getWorkspaceId } from '@/lib/workspace'
+import { readAdminRole } from '@/lib/auth-cookies'
 
 // ─── Shared conflict-detection helpers ───────────────────────────────────────
 
@@ -11,8 +12,8 @@ function overlapsInterval(bStart: Date, bEnd: Date, start: Date, end: Date): boo
 // ─── GET — preview (dry run) ──────────────────────────────────────────────────
 
 export async function GET(req: NextRequest, { params }: { params: { workspace: string } }) {
-  const cookieHeader = req.cookies.get(`admin_${params.workspace}`)
-  if (!cookieHeader?.value) return Response.json({ error: 'Forbidden.' }, { status: 403 })
+  const adminRole = await readAdminRole(req.cookies, params.workspace)
+  if (!adminRole) return Response.json({ error: 'Forbidden.' }, { status: 403 })
 
   const { searchParams } = req.nextUrl
   const roomId = searchParams.get('room_id')
@@ -131,8 +132,8 @@ export async function GET(req: NextRequest, { params }: { params: { workspace: s
 // ─── POST — commit block ──────────────────────────────────────────────────────
 
 export async function POST(req: NextRequest, { params }: { params: { workspace: string } }) {
-  const cookieHeader = req.cookies.get(`admin_${params.workspace}`)
-  if (!cookieHeader?.value) return Response.json({ error: 'Forbidden.' }, { status: 403 })
+  const adminRole = await readAdminRole(req.cookies, params.workspace)
+  if (!adminRole) return Response.json({ error: 'Forbidden.' }, { status: 403 })
 
   const body = await req.json()
   const { room_id, start_time, end_time, reason, block_group_id } = body as {

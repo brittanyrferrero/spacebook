@@ -1,9 +1,10 @@
 import { type NextRequest, NextResponse } from 'next/server'
 import { google } from 'googleapis'
 import { appUrl } from '@/lib/email'
+import { readAdminRole } from '@/lib/auth-cookies'
 
 export async function GET(req: NextRequest, { params }: { params: { workspace: string } }) {
-  const adminRole = req.cookies.get(`admin_${params.workspace}`)?.value
+  const adminRole = await readAdminRole(req.cookies, params.workspace)
   if (!adminRole) return Response.json({ error: 'Admin required.' }, { status: 403 })
 
   const roomId = req.nextUrl.searchParams.get('room_id')

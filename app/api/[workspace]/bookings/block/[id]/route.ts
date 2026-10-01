@@ -1,5 +1,6 @@
 import { type NextRequest } from 'next/server'
 import { getWorkspaceId } from '@/lib/workspace'
+import { readAdminRole } from '@/lib/auth-cookies'
 
 function overlapsInterval(bStart: Date, bEnd: Date, start: Date, end: Date): boolean {
   return bStart < end && bEnd > start
@@ -8,8 +9,8 @@ function overlapsInterval(bStart: Date, bEnd: Date, start: Date, end: Date): boo
 // ─── PATCH — edit block (update times/reason, handle new conflicts) ───────────
 
 export async function PATCH(req: NextRequest, { params }: { params: { workspace: string; id: string } }) {
-  const cookieHeader = req.cookies.get(`admin_${params.workspace}`)
-  if (!cookieHeader?.value) return Response.json({ error: 'Forbidden.' }, { status: 403 })
+  const adminRole = await readAdminRole(req.cookies, params.workspace)
+  if (!adminRole) return Response.json({ error: 'Forbidden.' }, { status: 403 })
 
   const body = await req.json()
   const { start_time, end_time, reason } = body as {

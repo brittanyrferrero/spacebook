@@ -1,12 +1,13 @@
 import { type NextRequest } from 'next/server'
 import { getWorkspaceId } from '@/lib/workspace'
+import { readAdminRole } from '@/lib/auth-cookies'
 
 const DEFAULT_VISIBILITY = { showTitle: false, showOrganizer: false, allowEditOthers: false }
 const DEFAULT_DISPLAY_HOURS = { start: 8, end: 20 }
 const DEFAULT_BOOKING_HOURS = { start: 6, end: 22 }
 
 export async function GET(req: NextRequest, { params }: { params: { workspace: string } }) {
-  const isAdmin = !!req.cookies.get(`admin_${params.workspace}`)?.value
+  const isAdmin = !!await readAdminRole(req.cookies, params.workspace)
   if (process.env.MOCK_MODE === 'true') {
     const { getSessionStore } = await import('@/lib/mock/store')
     const store = await getSessionStore()
@@ -55,7 +56,7 @@ export async function GET(req: NextRequest, { params }: { params: { workspace: s
 
 export async function PATCH(req: NextRequest, { params }: { params: { workspace: string } }) {
   const body = await req.json()
-  const adminRole = req.cookies.get(`admin_${params.workspace}`)?.value
+  const adminRole = await readAdminRole(req.cookies, params.workspace)
   if (!adminRole) return Response.json({ error: 'Admin required.' }, { status: 403 })
   if (body.bookingHours !== undefined) {
     const { start, end } = body.bookingHours ?? {}

@@ -1,9 +1,10 @@
 import { type NextRequest } from 'next/server'
 import { cookies } from 'next/headers'
+import { readPalantirSession } from '@/lib/auth-cookies'
 
 async function requirePalantir() {
   const cookieStore = await cookies()
-  return cookieStore.get('palantir_session')?.value ?? null
+  return readPalantirSession(cookieStore)
 }
 
 export async function PATCH(req: NextRequest, { params }: { params: { id: string } }) {

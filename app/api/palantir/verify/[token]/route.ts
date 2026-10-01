@@ -1,5 +1,6 @@
 import { type NextRequest, NextResponse } from 'next/server'
 import { cookies } from 'next/headers'
+import { setPalantirCookie } from '@/lib/auth-cookies'
 
 async function kv() {
   const { Redis } = await import('@upstash/redis')
@@ -14,13 +15,7 @@ export async function GET(_req: NextRequest, { params }: { params: { token: stri
   await r.del(`palantir:token:${params.token}`)
 
   const cookieStore = await cookies()
-  cookieStore.set('palantir_session', email, {
-    httpOnly: true,
-    secure: process.env.NODE_ENV === 'production',
-    sameSite: 'lax',
-    path: '/',
-    maxAge: 60 * 60 * 12,
-  })
+  await setPalantirCookie(cookieStore, email)
 
   return NextResponse.redirect(new URL('/palantir', _req.url))
 }

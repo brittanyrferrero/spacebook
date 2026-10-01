@@ -1,5 +1,6 @@
 import { type NextRequest } from 'next/server'
 import { getWorkspaceId } from '@/lib/workspace'
+import { readAdminRole } from '@/lib/auth-cookies'
 
 export async function PATCH(req: NextRequest, { params }: { params: { workspace: string; id: string } }) {
   const body = await req.json()
@@ -62,7 +63,7 @@ export async function PATCH(req: NextRequest, { params }: { params: { workspace:
   const { data: before } = await supabase.from('bookings').select('*, room:rooms(*)').eq('id', params.id).eq('workspace_id', workspaceId).single()
   if (!before) return Response.json({ error: 'Booking not found' }, { status: 404 })
 
-  const isAdmin = !!req.cookies.get(`admin_${params.workspace}`)?.value
+  const isAdmin = !!await readAdminRole(req.cookies, params.workspace)
   const mbEmail = req.cookies.get(`mb_${params.workspace}`)?.value
   const isOwner = mbEmail && mbEmail.toLowerCase() === before.booker_email.toLowerCase()
   // A client that holds this exact booking's own cancel_token (e.g. straight
@@ -169,7 +170,7 @@ export async function DELETE(req: NextRequest, { params }: { params: { workspace
   const { data: booking } = await supabase.from('bookings').select('*, room:rooms(*)').eq('id', params.id).eq('workspace_id', workspaceId).single()
   if (!booking) return Response.json({ error: 'Not found' }, { status: 404 })
 
-  const isAdmin = !!req.cookies.get(`admin_${params.workspace}`)?.value
+  const isAdmin = !!await readAdminRole(req.cookies, params.workspace)
   const mbEmail = req.cookies.get(`mb_${params.workspace}`)?.value
   const isOwner = mbEmail && mbEmail.toLowerCase() === booking.booker_email.toLowerCase()
   if (!isAdmin && !isOwner) return Response.json({ error: 'Forbidden.' }, { status: 403 })

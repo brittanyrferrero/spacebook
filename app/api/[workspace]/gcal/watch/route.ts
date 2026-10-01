@@ -2,6 +2,7 @@ import { type NextRequest } from 'next/server'
 import { google } from 'googleapis'
 import { getWorkspaceId } from '@/lib/workspace'
 import { appUrl } from '@/lib/email'
+import { readAdminRole } from '@/lib/auth-cookies'
 
 async function buildOAuthClient(roomId: string) {
   const { getTokens, saveTokens } = await import('@/lib/google-calendar/tokenStore')
@@ -20,7 +21,7 @@ async function buildOAuthClient(roomId: string) {
 }
 
 export async function POST(req: NextRequest, { params }: { params: { workspace: string } }) {
-  const adminRole = req.cookies.get(`admin_${params.workspace}`)?.value
+  const adminRole = await readAdminRole(req.cookies, params.workspace)
   if (!adminRole) return Response.json({ error: 'Admin required.' }, { status: 403 })
 
   const { room_id } = await req.json()

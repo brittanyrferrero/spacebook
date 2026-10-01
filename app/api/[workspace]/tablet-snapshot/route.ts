@@ -1,4 +1,5 @@
 import { type NextRequest } from 'next/server'
+import { readAdminRole, readPalantirSession } from '@/lib/auth-cookies'
 
 export async function POST(req: NextRequest, { params }: { params: { workspace: string } }) {
   const wsToken = req.cookies.get(`ws_${params.workspace}`)?.value
@@ -30,8 +31,8 @@ export async function POST(req: NextRequest, { params }: { params: { workspace: 
 
 export async function GET(req: NextRequest, { params }: { params: { workspace: string } }) {
   const wsToken      = req.cookies.get(`ws_${params.workspace}`)?.value
-  const adminToken   = req.cookies.get(`admin_${params.workspace}`)?.value
-  const palantir     = req.cookies.get('palantir_session')?.value
+  const adminToken   = await readAdminRole(req.cookies, params.workspace)
+  const palantir     = await readPalantirSession(req.cookies)
   if (!wsToken && !adminToken && !palantir) {
     return Response.json({ error: 'Unauthorized' }, { status: 401 })
   }

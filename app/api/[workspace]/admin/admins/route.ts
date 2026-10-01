@@ -1,18 +1,19 @@
 import { type NextRequest } from 'next/server'
 import { cookies } from 'next/headers'
 import { getWorkspaceId } from '@/lib/workspace'
+import { readAdminRole } from '@/lib/auth-cookies'
 
 async function requireSuperAdmin(workspace: string) {
   if (process.env.MOCK_MODE === 'true') return true
   const cookieStore = await cookies()
-  const role = cookieStore.get(`admin_${workspace}`)?.value
+  const role = await readAdminRole(cookieStore, workspace)
   return role === 'super_admin'
 }
 
 export async function GET(_req: NextRequest, { params }: { params: { workspace: string } }) {
   if (process.env.MOCK_MODE === 'true') return Response.json({ admins: [], myRole: 'super_admin' })
   const cookieStore = await cookies()
-  const myRole = cookieStore.get(`admin_${params.workspace}`)?.value ?? null
+  const myRole = await readAdminRole(cookieStore, params.workspace)
   const workspaceId = await getWorkspaceId(params.workspace)
   if (!workspaceId) return Response.json({ error: 'Workspace not found' }, { status: 404 })
   const { getAdmins } = await import('@/lib/prod-config')

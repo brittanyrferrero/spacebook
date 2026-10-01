@@ -7,6 +7,7 @@ import { ratelimit, getIP } from '@/lib/ratelimit'
 import { isValidEmail } from '@/lib/email'
 import { waitUntil } from '@vercel/functions'
 import { getLimits } from '@/lib/prod-config'
+import { readAdminRole } from '@/lib/auth-cookies'
 
 const rl = ratelimit(20, '1 m')
 
@@ -48,7 +49,7 @@ export async function GET(req: NextRequest, { params }: { params: { workspace: s
 
   if (email) {
     const cookieStore = await cookies()
-    const isAdmin = !!cookieStore.get(`admin_${params.workspace}`)?.value
+    const isAdmin = !!await readAdminRole(cookieStore, params.workspace)
     const mbEmail = cookieStore.get(`mb_${params.workspace}`)?.value ?? null
     const isSelf = mbEmail && mbEmail.toLowerCase() === email.trim().toLowerCase()
     if (!isAdmin && !isSelf) {
@@ -67,7 +68,7 @@ export async function GET(req: NextRequest, { params }: { params: { workspace: s
   }
 
   const cookieStore = await cookies()
-  const isAdmin = !!cookieStore.get(`admin_${params.workspace}`)?.value
+  const isAdmin = !!await readAdminRole(cookieStore, params.workspace)
   const mbEmail = cookieStore.get(`mb_${params.workspace}`)?.value ?? null
 
   if (from && to) return Response.json(scrubCancelToken(await getBookingsForRange(from, to, roomId, workspaceId), isAdmin, mbEmail))
