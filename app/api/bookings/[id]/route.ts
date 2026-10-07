@@ -1,3 +1,4 @@
+import { workspaceTimeZone } from '@/lib/time-zone'
 import { type NextRequest } from 'next/server'
 
 export async function PATCH(req: NextRequest, { params }: { params: { id: string } }) {
@@ -15,6 +16,7 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
     if (before && _editor_email && _editor_email !== before.booker_email) {
       const { sendBookingEditedEmail } = await import('@/lib/email')
       sendBookingEditedEmail({
+        timeZone: await workspaceTimeZone((before as { workspace_id?: string }).workspace_id),
         to: before.booker_email,
         bookerName: before.booker_name,
         editorName: _editor_name ?? 'Someone',
@@ -42,6 +44,7 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
   if (before && _editor_email && _editor_email !== before.booker_email) {
     const { sendBookingEditedEmail } = await import('@/lib/email')
     sendBookingEditedEmail({
+      timeZone: await workspaceTimeZone((before as { workspace_id?: string }).workspace_id),
       to: before.booker_email,
       bookerName: before.booker_name,
       editorName: _editor_name ?? 'Someone',

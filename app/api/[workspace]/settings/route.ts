@@ -34,6 +34,7 @@ export async function GET(req: NextRequest, { params }: { params: { workspace: s
       countWeekends: store.countWeekends ?? false,
       accentColor: store.accentColor ?? null,
       tabletDesign: isTabletDesign(store.tabletDesign) ? store.tabletDesign : DEFAULT_TABLET_DESIGN,
+      timeZone: store.timeZone ?? null,
       workspaceName: store.workspaceName ?? 'Intelligence',
       ...(isAdmin && { adminEntryToken: 'mock-token' }),
     })
@@ -42,8 +43,8 @@ export async function GET(req: NextRequest, { params }: { params: { workspace: s
   const workspace = await getWorkspaceBySlug(params.workspace)
   if (!workspace) return Response.json({ error: 'Workspace not found' }, { status: 404 })
   const workspaceId = workspace.id
-  const { getBookingHours, getDisplayHours, getBookingVisibility, getCountWeekends, getLimits, getAccentColor, getTabletDesign } = await import('@/lib/prod-config')
-  const [bookingHours, displayHours, bookingVisibility, countWeekends, limits, accentColor, storedTabletDesign] = await Promise.all([
+  const { getBookingHours, getDisplayHours, getBookingVisibility, getCountWeekends, getLimits, getAccentColor, getTabletDesign, getTimeZone } = await import('@/lib/prod-config')
+  const [bookingHours, displayHours, bookingVisibility, countWeekends, limits, accentColor, storedTabletDesign, timeZone] = await Promise.all([
     getBookingHours(workspaceId),
     getDisplayHours(workspaceId),
     getBookingVisibility(workspaceId),
@@ -51,6 +52,7 @@ export async function GET(req: NextRequest, { params }: { params: { workspace: s
     getLimits(workspaceId),
     getAccentColor(workspaceId),
     getTabletDesign(workspaceId),
+    getTimeZone(workspaceId),
   ])
   const tabletDesign = isTabletDesign(storedTabletDesign) ? storedTabletDesign : DEFAULT_TABLET_DESIGN
 
@@ -67,6 +69,7 @@ export async function GET(req: NextRequest, { params }: { params: { workspace: s
 
   return Response.json({
     bookingHours, displayHours, bookingVisibility, countWeekends, accentColor, tabletDesign,
+    timeZone: timeZone ?? null,
     workspaceName: workspace.name,
     limits, trial_usage,
     ...(isAdmin && { adminEntryToken: workspace.admin_entry_token }),
@@ -77,6 +80,23 @@ export async function PATCH(req: NextRequest, { params }: { params: { workspace:
   const body = await req.json()
   const adminRole = req.cookies.get(`admin_${params.workspace}`)?.value
   if (!adminRole) return Response.json({ error: 'Admin required.' }, { status: 403 })
+
+  if (body.timeZone !== undefined) {
+    const { isValidTimeZone } = await import('@/lib/time-zone')
+    if (!isValidTimeZone(body.timeZone)) return Response.json({ error: 'Invalid time zone.' }, { status: 400 })
+    if (process.env.MOCK_MODE === 'true') {
+      const { getSessionStore, saveSessionStore } = await import('@/lib/mock/store')
+      const store = await getSessionStore()
+      store.timeZone = body.timeZone
+      await saveSessionStore(store)
+      return Response.json({ timeZone: body.timeZone })
+    }
+    const workspaceId = await getWorkspaceId(params.workspace)
+    if (!workspaceId) return Response.json({ error: 'Workspace not found' }, { status: 404 })
+    const { setTimeZone } = await import('@/lib/prod-config')
+    await setTimeZone(workspaceId, body.timeZone)
+    return Response.json({ timeZone: body.timeZone })
+  }
   if (body.bookingHours !== undefined) {
     const { start, end } = body.bookingHours ?? {}
     if (typeof start !== 'number' || typeof end !== 'number' || end - start < 2 || start < 0 || end > 24) {

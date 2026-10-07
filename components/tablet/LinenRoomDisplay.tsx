@@ -8,7 +8,8 @@ import { fetchJsonArray } from '@/lib/utils'
 import { LINEN_CSS } from './linen/styles'
 import { playTap, playConfirm, hapticTap, hapticConfirm } from './linen/sounds'
 import { DayView, WeekView, MonthView } from './linen/LinenCalendar'
-import { ScheduleModal, EditModal, ConfirmCancelModal, type ScheduleForm, type EditForm } from './linen/LinenModals'
+import { reportTimeZone } from '@/lib/report-time-zone'
+import { ScheduleModal, EditModal, ConfirmCancelModal, OthersBookingModal, type ScheduleForm, type EditForm, type AskForm } from './linen/LinenModals'
 import {
   addDays, dateStr, durationConflicts, fmtClock, fmtDur, hhmm, hourAfter, isoMonday, roomStatus,
   DAYS_SHORT, MONTHS, MONTHS_LONG,
@@ -58,7 +59,10 @@ export function LinenRoomDisplay() {
   const [editError,     setEditError]     = useState<string | null>(null)
   const [editSaving,    setEditSaving]    = useState(false)
   const [confirmCancel, setConfirmCancel] = useState<(() => void) | null>(null)
-  const lastBooker = useRef<{ name: string; email: string }>({ name: '', email: '' })
+  const [others,        setOthers]        = useState<{ booking: Booking; action: 'cancel' | 'change' } | null>(null)
+  const [othersBusy,    setOthersBusy]    = useState(false)
+  const [othersError,   setOthersError]   = useState<string | null>(null)
+  const [othersSent,    setOthersSent]    = useState(false)
 
   const todayStr = dateStr(now)
   const viewDateStr = dateStr(viewDate)
@@ -101,6 +105,7 @@ export function LinenRoomDisplay() {
       setGridStart(d.displayHours?.start ?? 8)
       setGridEnd(d.displayHours?.end ?? 20)
       setShowTitle(d.bookingVisibility?.showTitle ?? false)
+      reportTimeZone(api, d.timeZone)
     }).catch(() => {})
   }, [api])
 
@@ -151,7 +156,7 @@ export function LinenRoomDisplay() {
       clearTimeout(timer)
       timer = setTimeout(() => {
         setCalView('day'); setViewDate(new Date())
-        setSched(null); setSchedDone(false); setEditBooking(null); setConfirmCancel(null)
+        setSched(null); setSchedDone(false); setEditBooking(null); setConfirmCancel(null); setOthers(null)
       }, 2 * 60 * 1000)
     }
     reset()
@@ -285,7 +290,6 @@ export function LinenRoomDisplay() {
     })
     if (res.ok) {
       try { localStorage.setItem('spacebook_user', JSON.stringify({ name: sched.name, email: sched.email, savedAt: Date.now() })) } catch {}
-      lastBooker.current = { name: sched.name, email: sched.email }
       const data = await res.json()
       addLocal(data.booking ?? (data.id ? data : undefined))
       setCalView('day'); setViewDate(new Date(`${sched.date}T12:00:00`))
@@ -306,49 +310,92 @@ export function LinenRoomDisplay() {
     setEditError(null)
   }
 
-  async function handleEditSave() {
+  // Someone else's booking (ADR-023): the server says whether this tablet must
+  // give a reason. A booking added locally (just made here) has no flag and is direct.
+  const needsReason = (b: Booking) => b.access === 'needs-reason'
+
+  async function handleEditSave(reason?: 'mine' | 'permission', actorName = '') {
     if (!editBooking) return
-    setEditSaving(true); setEditError(null)
+    const b = editBooking
+    if (needsReason(b) && !reason) { openOthers(b, 'change'); return }
+    setEditSaving(true); setEditError(null); setOthersBusy(true); setOthersError(null)
     const [y, mo, d] = editForm.date.split('-').map(Number)
     const [sh, sm] = editForm.start.split(':').map(Number)
     const [eh, em] = editForm.end.split(':').map(Number)
-    const res = await fetch(`${api}/bookings/${editBooking.id}`, {
+    const res = await fetch(`${api}/bookings/${b.id}`, {
       method: 'PATCH', headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        booker_name: editForm.name, booker_email: editForm.email,
+        // Who a booking belongs to can only be changed with direct access
+        ...(needsReason(b) ? {} : { booker_name: editForm.name, booker_email: editForm.email }),
         start_time: new Date(y, mo - 1, d, sh, sm).toISOString(), end_time: new Date(y, mo - 1, d, eh, em).toISOString(),
-        _editor_name: lastBooker.current.name, _editor_email: lastBooker.current.email,
-        _room_name: room?.name ?? '', _cancel_token: editBooking.cancel_token,
+        _room_name: room?.name ?? '',
+        ...(reason ? { _reason: reason, _actor_name: actorName } : {}),
       }),
     })
+    setEditSaving(false); setOthersBusy(false)
     if (!res.ok) {
       const err = await res.json().catch(() => ({}))
-      setEditError(err.error ?? 'Save failed. Please try again.')
-      setEditSaving(false)
+      // The 5-minute window ran out since the calendar last refreshed
+      if (err.code === 'reason_required' && !reason) { openOthers({ ...b, access: 'needs-reason' }, 'change'); return }
+      const msg = err.error ?? 'Save failed. Please try again.'
+      if (others) setOthersError(msg); else setEditError(msg)
       return
     }
     const updated: Booking = await res.json()
-    const swap = (p: Booking[]) => p.map(b => b.id === editBooking.id ? updated : b)
+    const swap = (p: Booking[]) => p.map(x => x.id === b.id ? { ...updated, access: x.access } : x)
     setRangeBkgs(swap); setTodayBkgs(swap); setAllTodayBkgs(swap)
-    setEditBooking(null); setEditSaving(false)
+    setEditBooking(null); setOthers(null)
     showToast('Booking updated')
     fetchRange(); fetchToday()
   }
 
   function handleEditCancel() {
     if (!editBooking) return
-    if (!editBooking.cancel_token) { setEditError('Verify your email under "My Bookings" to cancel this booking from here.'); return }
     const b = editBooking
-    setConfirmCancel(() => async () => {
-      setConfirmCancel(null)
-      const at = new Date().toISOString()
-      const mark = (p: Booking[]) => p.map(x => x.id === b.id ? { ...x, cancelled_at: at } : x)
-      setRangeBkgs(mark); setTodayBkgs(mark); setAllTodayBkgs(mark)
-      setEditBooking(null)
-      await fetch(`/api/cancel/${b.cancel_token}`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ scope: 'this' }) })
-      showToast('Booking cancelled')
-      fetchRange(); fetchToday()
+    if (needsReason(b)) { openOthers(b, 'cancel'); return }
+    setConfirmCancel(() => () => { setConfirmCancel(null); cancelBooking(b) })
+  }
+
+  async function cancelBooking(b: Booking, reason?: 'mine' | 'permission', actorName = '') {
+    setOthersBusy(true); setOthersError(null)
+    const res = await fetch(`${api}/bookings/${b.id}/cancel`, {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ scope: 'this', ...(reason ? { reason, actorName } : {}) }),
     })
+    setOthersBusy(false)
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}))
+      if (err.code === 'reason_required' && !reason) { openOthers({ ...b, access: 'needs-reason' }, 'cancel'); return }
+      const msg = err.error ?? 'Could not cancel. Please try again.'
+      if (others) setOthersError(msg); else showToast(msg, true)
+      return
+    }
+    const at = new Date().toISOString()
+    const mark = (p: Booking[]) => p.map(x => x.id === b.id ? { ...x, cancelled_at: at } : x)
+    setRangeBkgs(mark); setTodayBkgs(mark); setAllTodayBkgs(mark)
+    setEditBooking(null); setOthers(null)
+    showToast('Booking cancelled')
+    fetchRange(); fetchToday()
+  }
+
+  function openOthers(b: Booking, action: 'cancel' | 'change') {
+    setOthers({ booking: b, action }); setOthersError(null); setOthersSent(false)
+  }
+
+  async function sendRequest(form: AskForm) {
+    if (!others) return
+    setOthersBusy(true); setOthersError(null)
+    const res = await fetch(`${api}/bookings/${others.booking.id}/request`, {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ ...form, kind: others.action }),
+    })
+    setOthersBusy(false)
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}))
+      setOthersError(err.error ?? 'Could not send. Please try again.')
+      return
+    }
+    setOthersSent(true); setEditBooking(null)
   }
 
   // ── Calendar navigation ───────────────────────────────────────────────────
@@ -512,9 +559,19 @@ export function LinenRoomDisplay() {
         <EditModal
           booking={editBooking} roomName={room?.name ?? ''} workspace={workspace}
           form={editForm} onChange={p => setEditForm(f => ({ ...f, ...p }))}
-          isOthers={!!lastBooker.current.email && editBooking.booker_email !== lastBooker.current.email}
+          isOthers={needsReason(editBooking)}
           submitting={editSaving} error={editError}
-          onSave={handleEditSave} onCancelBooking={handleEditCancel} onClose={() => setEditBooking(null)}
+          onSave={() => handleEditSave()} onCancelBooking={handleEditCancel} onClose={() => setEditBooking(null)}
+        />
+      )}
+      {others && (
+        <OthersBookingModal
+          key={others.booking.id + others.action}
+          booking={others.booking} action={others.action}
+          submitting={othersBusy} error={othersError} sent={othersSent}
+          onDoNow={(reason, name) => others.action === 'cancel' ? cancelBooking(others.booking, reason, name) : handleEditSave(reason, name)}
+          onAsk={sendRequest}
+          onClose={() => setOthers(null)}
         />
       )}
       {confirmCancel && (

@@ -24,6 +24,7 @@ export interface MockStore {
   countWeekends: boolean
   accentColor?: string
   tabletDesign?: string
+  timeZone?: string
   workspaceName?: string
   tzOffset?: number
   gcalTokens: Record<string, GcalTokens>   // room_id → tokens

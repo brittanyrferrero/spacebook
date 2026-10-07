@@ -1,6 +1,8 @@
 'use client'
 
+import { useState } from 'react'
 import type { Booking } from '@/types'
+import { isPlaceholderEmail } from '@/lib/booking-access'
 import { NameAutocomplete } from '@/components/NameAutocomplete'
 import { DAYS_LONG, DAYS_SHORT, MONTHS, fmtHour, pad } from './time'
 
@@ -178,17 +180,24 @@ export function EditModal({ booking, roomName, workspace, form, onChange, isOthe
       </div>
       {isOthers && (
         <div className="ln-others">
-          <b>Not your booking.</b> This belongs to <b>{booking.booker_name}</b>. They will receive an email if you save changes.
+          {isPlaceholderEmail(booking.booker_email)
+            ? <>This is a <b>walk-in</b>. When you save or cancel, you’ll be asked whether it’s yours or you have permission.</>
+            : <>This is <b>{booking.booker_name}</b>’s booking. When you save or cancel, you’ll be asked whether it’s yours or you have their permission, and they’ll get an email.</>}
         </div>
       )}
-      <div className="ln-field">
-        <label className="ln-lbl">Your name</label>
-        <NameAutocomplete value={form.name} onChange={v => onChange({ name: v })} onSelect={u => onChange({ name: u.name, email: u.email })} workspace={workspace} style={inputStyle} />
-      </div>
-      <div className="ln-field">
-        <label className="ln-lbl" htmlFor="ln-eemail">Email</label>
-        <input id="ln-eemail" className="ln-inp" type="email" value={form.email} onChange={e => onChange({ email: e.target.value })} />
-      </div>
+      {/* Who a booking belongs to can only be changed by its booker (ADR-023) */}
+      {!isOthers && (
+        <>
+          <div className="ln-field">
+            <label className="ln-lbl">Your name</label>
+            <NameAutocomplete value={form.name} onChange={v => onChange({ name: v })} onSelect={u => onChange({ name: u.name, email: u.email })} workspace={workspace} style={inputStyle} />
+          </div>
+          <div className="ln-field">
+            <label className="ln-lbl" htmlFor="ln-eemail">Email</label>
+            <input id="ln-eemail" className="ln-inp" type="email" value={form.email} onChange={e => onChange({ email: e.target.value })} />
+          </div>
+        </>
+      )}
       <div className="ln-field">
         <label className="ln-lbl" htmlFor="ln-edate">Date</label>
         <input id="ln-edate" className="ln-inp" type="date" value={form.date} onChange={e => onChange({ date: e.target.value })} />
@@ -219,6 +228,118 @@ export function ConfirmCancelModal({ onYes, onNo }: { onYes: () => void; onNo: (
         <button className="ln-mbtn ln-mcancel" onClick={onNo}>No, go back</button>
         <button className="ln-mbtn ln-mdanger" onClick={onYes}>Yes, cancel it</button>
       </div>
+    </Overlay>
+  )
+}
+
+// ─── Someone else's booking (ADR-023) ───────────────────────────────────────
+
+export type OthersChoice = 'mine' | 'permission' | 'ask'
+export interface AskForm { name: string; email: string; note: string }
+
+/** Cancelling or changing a booking that isn't verifiably yours: say why, or
+ *  ask the booker instead. `action` is what the person was about to do. */
+export function OthersBookingModal({ booking, action, submitting, error, sent, onDoNow, onAsk, onClose }: {
+  booking: Booking
+  action: 'cancel' | 'change'
+  submitting: boolean
+  error: string | null
+  sent: boolean
+  onDoNow: (reason: 'mine' | 'permission', actorName: string) => void
+  onAsk: (form: AskForm) => void
+  onClose: () => void
+}) {
+  const [step, setStep] = useState<OthersChoice | null>(null)
+  const [actorName, setActorName] = useState('')
+  const [ask, setAsk] = useState<AskForm>({ name: '', email: '', note: '' })
+  // A walk-in's booker is unknown: same questions, but nobody to email or ask
+  const walkIn = isPlaceholderEmail(booking.booker_email)
+  const first = walkIn ? 'the walk-in' : booking.booker_name.split(' ')[0]
+  const verb = action === 'cancel' ? 'Cancel booking' : 'Save changes'
+
+  if (sent) {
+    return (
+      <Overlay onClose={onClose}>
+        <div className="ln-done">
+          <div className="ln-tick"><svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M5 12.5l4.5 4.5L19 7.5" /></svg></div>
+          <h2 className="ln-mtitle">Request sent</h2>
+          <div className="ln-msub" style={{ marginTop: 8 }}>We emailed {first}. You’ll get a copy, and another email if they cancel or move it.</div>
+          <div className="ln-mactions"><button className="ln-mbtn ln-mconfirm" onClick={onClose}>Done</button></div>
+        </div>
+      </Overlay>
+    )
+  }
+
+  return (
+    <Overlay onClose={onClose}>
+      <div className="ln-mhead">
+        <div>
+          <h2 className="ln-mtitle">{action === 'cancel' ? 'Cancel' : 'Change'} {walkIn ? 'this walk-in' : `${first}’s booking`}?</h2>
+          <div className="ln-msub">{walkIn
+            ? `Someone booked this at the tablet without leaving their name. Only ${action === 'cancel' ? 'cancel' : 'change'} it if it’s yours or you have their permission.`
+            : `Booked by ${booking.booker_name}. They’ll get an email either way.`}</div>
+        </div>
+        <CloseX onClick={onClose} />
+      </div>
+
+      {step === null && (
+        <div className="ln-choices">
+          <button className="ln-choice" disabled={submitting} onClick={() => onDoNow('mine', '')}>
+            <b>This was my meeting</b><span>{action === 'cancel' ? 'Cancel it now.' : 'Save the changes now.'}{!walkIn && ` ${first} will get an email saying “you ${action === 'cancel' ? 'cancelled' : 'changed'} this”.`}</span>
+          </button>
+          <button className="ln-choice" onClick={() => setStep('permission')}>
+            <b>I have their permission</b><span>{action === 'cancel' ? 'Cancel it now.' : 'Save the changes now.'}{walkIn ? ' We’ll note your name.' : ` ${first} will get an email with your name.`}</span>
+          </button>
+          {!walkIn && (
+            <button className="ln-choice" onClick={() => setStep('ask')}>
+              <b>Ask {first} to {action === 'cancel' ? 'cancel' : 'change'} it</b><span>Nothing changes yet. We’ll email them your note, and tell you if the time frees up.</span>
+            </button>
+          )}
+          {walkIn && <div className="ln-msub" style={{ marginTop: 4 }}>If neither is true, leave it as it is.</div>}
+        </div>
+      )}
+
+      {step === 'permission' && (
+        <>
+          <div className="ln-field" style={{ marginTop: 20 }}>
+            <label className="ln-lbl" htmlFor="ln-actor">Your name {!walkIn && <span className="ln-hint">{first} will see this</span>}</label>
+            <input id="ln-actor" className="ln-inp" value={actorName} onChange={e => setActorName(e.target.value)} />
+          </div>
+          {error && <div className="ln-merr">{error}</div>}
+          <div className="ln-mactions">
+            <button className="ln-mbtn ln-mcancel" onClick={() => setStep(null)}>Back</button>
+            <button className={`ln-mbtn ${action === 'cancel' ? 'ln-mdanger' : 'ln-mconfirm'}`} disabled={submitting || !actorName.trim()} onClick={() => onDoNow('permission', actorName.trim())}>
+              {submitting ? 'Working…' : verb}
+            </button>
+          </div>
+        </>
+      )}
+
+      {step === 'ask' && (
+        <>
+          <div className="ln-field" style={{ marginTop: 20 }}>
+            <label className="ln-lbl" htmlFor="ln-askname">Your name</label>
+            <input id="ln-askname" className="ln-inp" value={ask.name} onChange={e => setAsk({ ...ask, name: e.target.value })} />
+          </div>
+          <div className="ln-field">
+            <label className="ln-lbl" htmlFor="ln-askemail">Your email <span className="ln-hint">So {first} can reply</span></label>
+            <input id="ln-askemail" className="ln-inp" type="email" placeholder="you@example.com" value={ask.email} onChange={e => setAsk({ ...ask, email: e.target.value })} />
+          </div>
+          <div className="ln-field" style={{ marginBottom: 0 }}>
+            <label className="ln-lbl" htmlFor="ln-asknote">Note <span className="ln-hint">Optional</span></label>
+            <textarea id="ln-asknote" className="ln-ta" maxLength={500} placeholder="e.g. Could we swap? I need the room at 2." value={ask.note} onChange={e => setAsk({ ...ask, note: e.target.value })} />
+          </div>
+          {error && <div className="ln-merr">{error}</div>}
+          <div className="ln-mactions">
+            <button className="ln-mbtn ln-mcancel" onClick={() => setStep(null)}>Back</button>
+            <button className="ln-mbtn ln-mconfirm" disabled={submitting || !ask.name.trim() || !ask.email.trim()} onClick={() => onAsk({ ...ask, name: ask.name.trim(), email: ask.email.trim() })}>
+              {submitting ? 'Sending…' : 'Send request'}
+            </button>
+          </div>
+        </>
+      )}
+
+      {step === null && error && <div className="ln-merr">{error}</div>}
     </Overlay>
   )
 }
