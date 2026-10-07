@@ -165,6 +165,26 @@ function fmtHour(h: number) {
   return h < 12 ? `${h} AM` : `${h - 12} PM`
 }
 
+/** "8a", "12p" — fits the narrow hour columns on phones */
+function fmtHourShort(h: number) {
+  return `${h % 12 || 12}${h < 12 ? 'a' : 'p'}`
+}
+
+// Phones get a stacked header, a sideways-scrolling day grid and no sidebar.
+// Wider screens keep the desktop layout unchanged.
+const MOBILE_QUERY = '(max-width: 640px)'
+function useIsMobile() {
+  const [mobile, setMobile] = useState(false)
+  useEffect(() => {
+    const mq = window.matchMedia(MOBILE_QUERY)
+    const update = () => setMobile(mq.matches)
+    update()
+    mq.addEventListener('change', update)
+    return () => mq.removeEventListener('change', update)
+  }, [])
+  return mobile
+}
+
 function ordinal(n: number) { return ['1st','2nd','3rd','4th','5th'][n - 1] ?? `${n}th` }
 
 function contrastColor(hex: string): '#ffffff' | '#111111' {
@@ -602,16 +622,22 @@ function FloorplanIcon({ type }: { type?: string | null }) {
 const ROOM_COL_W = 180
 const TRACK_H    = 88
 
-function AllRoomsDayView({ bookings, rooms, viewDate, onRoomSlotClick, onBookingClick, now, dark, myEmail, gridStart = GRID_START, gridEnd = GRID_END, visShowTitle = false, visShowOrganizer = false, rose = ROSE }: {
+const ROOM_COL_W_COMPACT = 104
+const HOUR_W_COMPACT     = 64   // px per hour on phones; the grid scrolls sideways
+
+function AllRoomsDayView({ bookings, rooms, viewDate, onRoomSlotClick, onBookingClick, now, dark, myEmail, gridStart = GRID_START, gridEnd = GRID_END, visShowTitle = false, visShowOrganizer = false, rose = ROSE, compact = false }: {
   bookings: Booking[]; rooms: Room[]; viewDate: Date
   onRoomSlotClick: (roomId: string, date: Date, time: string) => void
   onBookingClick: (b: Booking) => void
   now: Date; dark?: boolean; myEmail?: string
   gridStart?: number; gridEnd?: number
   visShowTitle?: boolean; visShowOrganizer?: boolean; rose?: string
+  compact?: boolean   // phone layout: narrow pinned room column, wider scrollable timeline
 }) {
   const T = mkT(dark ?? false)
   const gridHours = gridEnd - gridStart
+  const colW = compact ? ROOM_COL_W_COMPACT : ROOM_COL_W
+  const scrollRef = useRef<HTMLDivElement>(null)
   const gp = (h: number, m: number) => (h + m / 60 - gridStart) / gridHours
   const viewDateStr = dateStr(viewDate)
   const nowDateStr  = dateStr(now)
@@ -636,13 +662,23 @@ function AllRoomsDayView({ bookings, rooms, viewDate, onRoomSlotClick, onBooking
 
   const hourTicks = Array.from({ length: gridHours + 1 }, (_, i) => gridStart + i)
 
+  // On phones the timeline is wider than the screen: open it scrolled to the current time
+  useEffect(() => {
+    const el = scrollRef.current
+    if (!compact || !el || !isToday) return
+    const trackW = el.scrollWidth - colW
+    el.scrollLeft = Math.max(0, nowPct * trackW - HOUR_W_COMPACT)
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [compact, viewDateStr])
+
   return (
-    <div style={{ overflowX: 'auto', userSelect: 'none' }}>
+    <div ref={scrollRef} style={{ overflowX: 'auto', userSelect: 'none' }}>
+     <div style={compact ? { minWidth: colW + gridHours * HOUR_W_COMPACT } : undefined}>
       {/* Time axis header */}
-      <div style={{ display: 'flex', marginLeft: ROOM_COL_W, borderBottom: `1px solid ${T.border}` }}>
+      <div style={{ display: 'flex', marginLeft: colW, borderBottom: `1px solid ${T.border}` }}>
         {hourTicks.slice(0, -1).map(h => (
-          <div key={h} style={{ flex: 1, fontSize: 9, color: T.textMuted, padding: '5px 0 5px 4px', letterSpacing: '0.05em' }}>
-            {fmtHour(h)}
+          <div key={h} style={{ flex: 1, fontSize: 9, color: T.textMuted, padding: '5px 0 5px 4px', letterSpacing: '0.05em', whiteSpace: 'nowrap' }}>
+            {compact ? fmtHourShort(h) : fmtHour(h)}
           </div>
         ))}
       </div>
@@ -655,17 +691,19 @@ function AllRoomsDayView({ bookings, rooms, viewDate, onRoomSlotClick, onBooking
         return (
           <div key={room.id} style={{ display: 'flex', borderBottom: `1px solid ${T.borderFaint}` }}>
             {/* Room label */}
-            <div style={{ width: ROOM_COL_W, flexShrink: 0, display: 'flex', alignItems: 'center', height: TRACK_H, borderRight: `1px solid ${T.border}`, background: T.cardBg }}>
+            <div style={{ width: colW, flexShrink: 0, display: 'flex', alignItems: 'center', height: TRACK_H, borderRight: `1px solid ${T.border}`, background: T.cardBg, ...(compact ? { position: 'sticky' as const, left: 0, zIndex: 6 } : {}) }}>
               {/* Floorplan icon zone */}
+              {!compact && (
               <div style={{ width: 52, flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', borderRight: `1px solid ${T.borderFaint}`, height: '100%' }}>
                 <FloorplanIcon type={room.room_type} />
               </div>
+              )}
               {/* Room text */}
-              <div style={{ flex: 1, padding: '0 12px', display: 'flex', flexDirection: 'column', justifyContent: 'center' }}>
+              <div style={{ flex: 1, minWidth: 0, padding: compact ? '0 8px' : '0 12px', display: 'flex', flexDirection: 'column', justifyContent: 'center', overflowWrap: 'anywhere' }}>
                 <div style={{ fontSize: 10, fontWeight: 700, letterSpacing: workspaceTheme.roomNameSpacing, textTransform: workspaceTheme.roomNameTransform, color: T.text, marginBottom: 2 }}>
                   {room.name}
                 </div>
-                {room.room_type && <div style={{ fontSize: 9, color: T.textMuted }}>{room.room_type}</div>}
+                {room.room_type && !compact && <div style={{ fontSize: 9, color: T.textMuted }}>{room.room_type}</div>}
                 <div style={{ fontSize: 9, color: T.textFaint }}>{room.capacity} people</div>
               </div>
             </div>
@@ -731,6 +769,7 @@ function AllRoomsDayView({ bookings, rooms, viewDate, onRoomSlotClick, onBooking
           </div>
         )
       })}
+     </div>
     </div>
   )
 }
@@ -738,6 +777,7 @@ function AllRoomsDayView({ bookings, rooms, viewDate, onRoomSlotClick, onBooking
 // ─── Main Page ────────────────────────────────────────────────────────────────
 export default function BookingPage() {
   const { workspace } = useParams<{ workspace: string }>()
+  const isMobile = useIsMobile()
   const api = `/api/${workspace}`
   const [rooms,          setRooms]         = useState<Room[]>([])
   const [roomTypes,      setRoomTypes]     = useState<string[]>([])
@@ -1415,16 +1455,48 @@ export default function BookingPage() {
   const toggleBtn: React.CSSProperties = { background: 'rgba(255,255,255,0.1)', border: '0.5px solid rgba(255,255,255,0.18)', borderRadius: 0, padding: '5px 11px', cursor: 'pointer', fontSize: 13, color: 'rgba(255,255,255,0.85)', lineHeight: 1 }
 
   return (
-    <div style={{ background: dark ? '#0d0d0d' : '#eeece8', height: '100vh', display: 'flex', flexDirection: 'column', overflow: 'hidden', padding: '24px' }}>
+    <div style={{ background: dark ? '#0d0d0d' : '#eeece8', height: isMobile ? '100dvh' : '100vh', display: 'flex', flexDirection: 'column', overflow: 'hidden', padding: isMobile ? '8px' : '24px' }}>
       <style dangerouslySetInnerHTML={{ __html: `@import url('https://fonts.googleapis.com/css2?family=Spectral:ital,wght@0,400;0,500;0,600;1,400&display=swap');@import url('https://fonts.googleapis.com/css2?family=Uncial+Antiqua&display=block');*{transition:background-color 0.25s ease,color 0.2s ease,border-color 0.2s ease,box-shadow 0.2s ease}@keyframes tabShine{0%,100%{border-bottom-color:rgba(219,149,171,0.6)}50%{border-bottom-color:rgba(219,149,171,1)}}@keyframes chronoFlash{0%{opacity:0;transform:translateY(3px)}12%{opacity:1;transform:translateY(0)}70%{opacity:1}100%{opacity:0}}` }} />
 
       {/* Calendar card */}
       <div style={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column', background: T.pageBg, borderRadius: '12px', overflow: 'hidden', border: dark ? '1px solid rgba(255,255,255,0.08)' : '1px solid rgba(0,0,0,0.13)' }}>
 
       {/* Top bar */}
-      <div style={{ background: T.navBg, padding: '20px 20px 12px', borderBottom: T.navBorder, position: 'relative' }}>
+      <div style={{ background: T.navBg, padding: isMobile ? '14px 14px 12px' : '20px 20px 12px', borderBottom: T.navBorder, position: 'relative' }}>
+
+        {/* Phone header: stacked rows so nothing overlaps */}
+        {isMobile && (
+          <>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+              <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: '2px', color: T.navText, flex: 1, minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', userSelect: 'none' as const }}>
+                {lotr ? '🧙 THE FELLOWSHIP' : (workspaceName || workspace).toUpperCase().replace(/-/g, ' ')}
+              </div>
+              <button onClick={() => { setShowFeedback(true); setFbDone(false) }}
+                style={{ background: 'none', border: 'none', padding: '6px 2px', fontSize: 11, color: T.textMuted, cursor: 'pointer', fontFamily: 'inherit', textDecoration: 'underline' }}>
+                feedback
+              </button>
+              <div onClick={() => setTheme(t => t === 'light' ? 'dark' : 'light')}
+                title={dark ? 'Light mode' : 'Dark mode'}
+                style={{ width: 30, height: 16, borderRadius: 0, background: dark ? 'rgba(255,255,255,0.15)' : 'rgba(0,0,0,0.10)', border: dark ? '0.5px solid rgba(255,255,255,0.22)' : '0.5px solid rgba(0,0,0,0.20)', cursor: 'pointer', position: 'relative', flexShrink: 0 }}>
+                <div style={{ position: 'absolute', top: 2, left: dark ? 14 : 2, width: 12, height: 12, borderRadius: 0, background: dark ? '#fff' : '#1c1510', transition: 'left .18s' }} />
+              </div>
+              <span onClick={() => setLotr(l => !l)} title="One ring to rule them all"
+                style={{ cursor: 'pointer', fontSize: 14, opacity: lotr ? 1 : 0.25, transition: 'opacity .18s', userSelect: 'none' as const, lineHeight: 1 }}>
+                🧙
+              </span>
+            </div>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, marginTop: 14 }}>
+              <button onClick={() => shiftView(-1)} aria-label="Previous" style={{ background: 'none', border: `0.5px solid ${T.border}`, borderRadius: 0, padding: '8px 12px', cursor: 'pointer', fontSize: 14, color: T.textMuted, lineHeight: 1 }}>‹</button>
+              <span style={{ fontSize: 13, fontWeight: 500, flex: 1, textAlign: 'center', color: T.navText }}>
+                {navLabel()}
+              </span>
+              <button onClick={() => shiftView(1)} aria-label="Next" style={{ background: 'none', border: `0.5px solid ${T.border}`, borderRadius: 0, padding: '8px 12px', cursor: 'pointer', fontSize: 14, color: T.textMuted, lineHeight: 1 }}>›</button>
+            </div>
+          </>
+        )}
 
         {/* Row 1: workspace name | date + arrows | right controls */}
+        {!isMobile && (
         <div style={{ display: 'flex', alignItems: 'center' }}>
 
           {/* Left: workspace name */}
@@ -1470,8 +1542,10 @@ export default function BookingPage() {
           </div>
         </div>
 
+        )}
+
         {/* Row 2: view pills centered */}
-        <div style={{ display: 'flex', justifyContent: 'center', marginTop: 10 }}>
+        <div style={{ display: 'flex', justifyContent: 'center', marginTop: isMobile ? 12 : 10 }}>
           <div style={{ display: 'flex', borderRadius: '999px', overflow: 'hidden', border: dark ? '1.5px solid rgba(255,255,255,0.18)' : '1.5px solid rgba(0,0,0,0.18)' }}>
             {(['day', 'week', 'month'] as CalView[]).map((v, i) => (
               <button key={v} onClick={() => { setCalView(v); setViewDate(new Date()) }}
@@ -1481,12 +1555,28 @@ export default function BookingPage() {
             ))}
           </div>
         </div>
+
+        {/* Phone: book + calendar links as a full-width row */}
+        {isMobile && (
+          <div style={{ display: 'flex', gap: 8, marginTop: 12 }}>
+            <button
+              onClick={() => { setMDate(todayStr); setMTime(''); setMEndTime(''); setMTitle('Occupied'); setRecurFreq('none'); setMError(''); setMRoomId(selectedRoomId || (rooms[0]?.id ?? '')); setShowModal('later'); setMDone(false) }}
+              style={{ flex: 1, background: 'transparent', color: dark ? '#ffffff' : '#111111', border: dark ? '1.5px solid rgba(255,255,255,0.5)' : '1.5px solid #111111', borderRadius: 0, padding: '12px 10px', fontSize: 11, fontWeight: 700, cursor: 'pointer', letterSpacing: '1.5px', textTransform: 'uppercase' as const, whiteSpace: 'nowrap', fontFamily: 'inherit' }}>
+              + {lotr ? 'GATHER THE COUNCIL' : 'BOOK A ROOM'}
+            </button>
+            <button
+              onClick={() => setShowGcalLinks(true)}
+              style={{ background: 'none', color: T.textMuted, border: `0.5px solid ${T.border}`, borderRadius: 0, padding: '12px 10px', fontSize: 9, fontWeight: 600, cursor: 'pointer', letterSpacing: '1px', textTransform: 'uppercase' as const, whiteSpace: 'nowrap', fontFamily: 'inherit' }}>
+              Calendar links
+            </button>
+          </div>
+        )}
       </div>
 
-      <div style={{ flex: 1, minHeight: 0, display: 'grid', gridTemplateColumns: calView === 'day' ? '1fr' : '200px 1fr', gridTemplateRows: '1fr auto' }}>
+      <div style={{ flex: 1, minHeight: 0, display: 'grid', gridTemplateColumns: calView === 'day' || isMobile ? '1fr' : '200px 1fr', gridTemplateRows: '1fr auto' }}>
 
         {/* Sidebar — hidden in day view */}
-        <div style={{ background: T.cardBg, overflowY: 'auto', display: calView === 'day' ? 'none' : 'flex', flexDirection: 'column' }}>
+        <div style={{ background: T.cardBg, overflowY: 'auto', display: calView === 'day' || isMobile ? 'none' : 'flex', flexDirection: 'column' }}>
           {pendingReschedules.length > 0 && (
             <div style={{ padding: '9px 12px', borderBottom: `1px solid ${dark ? 'rgba(253,211,77,0.25)' : '#FDE68A'}`, background: dark ? 'rgba(251,191,36,0.08)' : '#FFFBEB', flexShrink: 0 }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
@@ -1551,31 +1641,40 @@ export default function BookingPage() {
 
         {/* Calendar area */}
         <div ref={calRef} style={{ overflow: 'auto', display: 'flex', flexDirection: 'column' }}>
+          {/* Phone: the sidebar's room list becomes a picker (week/month show one room) */}
+          {isMobile && calView !== 'day' && rooms.length > 0 && (
+            <div style={{ padding: '10px 12px 0', flexShrink: 0 }}>
+              <select aria-label="Room" value={selectedRoomId} onChange={e => setSelectedRoomId(e.target.value)}
+                style={{ width: '100%', fontSize: 14, padding: '10px 12px', border: `1px solid ${T.inputBorder}`, borderRadius: 0, background: T.inputBg, color: T.inpText, fontFamily: 'inherit', colorScheme: dark ? 'dark' : 'light' }}>
+                {rooms.map(r => <option key={r.id} value={r.id}>{r.name}{r.room_type ? ` · ${r.room_type}` : ''}</option>)}
+              </select>
+            </div>
+          )}
           {/* Filter chips — day view only, above grid */}
           {calView === 'day' && roomTypes.length > 0 && (
-            <div style={{ padding: '10px 20px 0', display: 'flex', alignItems: 'center', gap: 6, flexShrink: 0 }}>
-              <span style={{ fontSize: 9, fontWeight: 600, letterSpacing: '1.5px', color: T.textMuted, textTransform: 'uppercase' as const, marginRight: 4 }}>Filter</span>
+            <div style={{ padding: isMobile ? '10px 12px 2px' : '10px 20px 0', display: 'flex', alignItems: 'center', gap: 6, flexShrink: 0, overflowX: 'auto' }}>
+              <span style={{ fontSize: 9, fontWeight: 600, letterSpacing: '1.5px', color: T.textMuted, textTransform: 'uppercase' as const, marginRight: 4, flexShrink: 0 }}>Filter</span>
               <button onClick={() => setFilterRoomType('')}
-                style={{ fontSize: 10, padding: '4px 10px', borderRadius: 0, border: `1px solid ${!filterRoomType ? accentColor : T.border}`, background: !filterRoomType ? accentColor : 'transparent', cursor: 'pointer', color: !filterRoomType ? contrastColor(accentColor) : T.textMuted, fontFamily: 'inherit', fontWeight: 600 }}>
+                style={{ fontSize: 10, padding: '4px 10px', borderRadius: 0, whiteSpace: 'nowrap', flexShrink: 0, border: `1px solid ${!filterRoomType ? accentColor : T.border}`, background: !filterRoomType ? accentColor : 'transparent', cursor: 'pointer', color: !filterRoomType ? contrastColor(accentColor) : T.textMuted, fontFamily: 'inherit', fontWeight: 600 }}>
                 All spaces
               </button>
               {roomTypes.map(t => (
                 <button key={t} onClick={() => setFilterRoomType(filterRoomType === t ? '' : t)}
-                  style={{ fontSize: 10, padding: '4px 10px', borderRadius: 0, border: `1px solid ${filterRoomType === t ? accentColor : T.border}`, background: filterRoomType === t ? accentColor : 'transparent', cursor: 'pointer', color: filterRoomType === t ? contrastColor(accentColor) : T.textMuted, fontFamily: 'inherit', fontWeight: filterRoomType === t ? 600 : 400 }}>
+                  style={{ fontSize: 10, padding: '4px 10px', borderRadius: 0, whiteSpace: 'nowrap', flexShrink: 0, border: `1px solid ${filterRoomType === t ? accentColor : T.border}`, background: filterRoomType === t ? accentColor : 'transparent', cursor: 'pointer', color: filterRoomType === t ? contrastColor(accentColor) : T.textMuted, fontFamily: 'inherit', fontWeight: filterRoomType === t ? 600 : 400 }}>
                   {t}
                 </button>
               ))}
             </div>
           )}
-          <div style={{ flex: 1, padding: '16px 20px', overflow: 'auto' }}>
-            {calView === 'day'   && <AllRoomsDayView bookings={allRoomsDayBkgs} rooms={filteredRooms} viewDate={viewDate} onRoomSlotClick={(roomId, date, time) => openScheduleLater(date, time, roomId)} onBookingClick={openEdit} now={now} dark={dark} myEmail={mEmail} gridStart={gridStart} gridEnd={gridEnd} visShowTitle={visShowTitle} visShowOrganizer={visShowOrganizer} rose={accentColor} />}
-            {calView === 'week'  && <WeekView  bookings={rangeBkgs}   weekDays={weekDays} onSlotClick={openScheduleLater} onBookingClick={openEdit} pendingSlot={pendingSlot} now={now} dark={dark} myEmail={mEmail} hourH={dynHourH} gridStart={gridStart} gridEnd={gridEnd} visShowTitle={visShowTitle} visShowOrganizer={visShowOrganizer} visAllowEditOthers={visAllowEditOthers} rose={accentColor} />}
+          <div style={{ flex: 1, padding: isMobile ? '10px 8px' : '16px 20px', overflow: 'auto' }}>
+            {calView === 'day'   && <AllRoomsDayView bookings={allRoomsDayBkgs} rooms={filteredRooms} viewDate={viewDate} onRoomSlotClick={(roomId, date, time) => openScheduleLater(date, time, roomId)} onBookingClick={openEdit} compact={isMobile} now={now} dark={dark} myEmail={mEmail} gridStart={gridStart} gridEnd={gridEnd} visShowTitle={visShowTitle} visShowOrganizer={visShowOrganizer} rose={accentColor} />}
+            {calView === 'week'  && (isMobile ? <div style={{ minWidth: 560 }}><WeekView  bookings={rangeBkgs}   weekDays={weekDays} onSlotClick={openScheduleLater} onBookingClick={openEdit} pendingSlot={pendingSlot} now={now} dark={dark} myEmail={mEmail} hourH={dynHourH} gridStart={gridStart} gridEnd={gridEnd} visShowTitle={visShowTitle} visShowOrganizer={visShowOrganizer} visAllowEditOthers={visAllowEditOthers} rose={accentColor} /></div> : <WeekView  bookings={rangeBkgs}   weekDays={weekDays} onSlotClick={openScheduleLater} onBookingClick={openEdit} pendingSlot={pendingSlot} now={now} dark={dark} myEmail={mEmail} hourH={dynHourH} gridStart={gridStart} gridEnd={gridEnd} visShowTitle={visShowTitle} visShowOrganizer={visShowOrganizer} visAllowEditOthers={visAllowEditOthers} rose={accentColor} />)}
             {calView === 'month' && <MonthView bookings={rangeBkgs}   viewDate={viewDate} onDayClick={d => { setViewDate(d); setCalView('day') }} dark={dark} rose={accentColor} />}
           </div>
         </div>
 
         {/* Bottom bar — spans full width */}
-        <div style={{ background: T.cardBg, padding: '12px 24px 28px', display: calView === 'day' ? 'none' : 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, gridColumn: '1 / -1', borderTop: `1px solid ${T.borderFaint}` }}>
+        <div style={{ background: T.cardBg, padding: isMobile ? '10px 12px 14px' : '12px 24px 28px', flexWrap: 'wrap', display: calView === 'day' ? 'none' : 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, gridColumn: '1 / -1', borderTop: `1px solid ${T.borderFaint}` }}>
           <div style={{ display: 'flex', gap: 10, flexShrink: 0 }}>
             <div style={{ position: 'relative' }}>
               <button
@@ -1610,7 +1709,7 @@ export default function BookingPage() {
       {/* Modal */}
       {showModal && (
         <div onClick={() => { setShowModal(null); setSingleConflict(null) }} style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 100 }}>
-          <div ref={modalCardRef} onClick={e => e.stopPropagation()} style={{ background: T.modalBg, borderRadius: 0, padding: 28, width: mDone && bookingConflicts.length > 0 ? 580 : 370, maxHeight: '85vh', overflowY: 'auto', border: `1px solid ${T.modalBorder}`, boxShadow: dark ? '0 24px 64px rgba(0,0,0,0.6)' : '0 12px 48px rgba(0,0,0,0.18)', transition: 'width 0.2s ease' }}>
+          <div ref={modalCardRef} onClick={e => e.stopPropagation()} style={{ background: T.modalBg, borderRadius: 0, padding: 28, width: mDone && bookingConflicts.length > 0 ? 580 : 370, maxWidth: 'calc(100vw - 24px)', maxHeight: '85vh', overflowY: 'auto', border: `1px solid ${T.modalBorder}`, boxShadow: dark ? '0 24px 64px rgba(0,0,0,0.6)' : '0 12px 48px rgba(0,0,0,0.18)', transition: 'width 0.2s ease' }}>
             {mDone ? (
               <div style={{ textAlign: 'center', position: 'relative' }}>
                 {lotr && (
@@ -1938,7 +2037,7 @@ export default function BookingPage() {
         const linkableRooms = rooms.filter(r => r.is_active && r.gcal_connected && r.google_calendar_id)
         return (
           <div onClick={() => setShowGcalLinks(false)} style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 100 }}>
-            <div onClick={e => e.stopPropagation()} style={{ background: T.modalBg, borderRadius: 0, width: 440, maxHeight: '80vh', display: 'flex', flexDirection: 'column', border: `1px solid ${T.modalBorder}`, boxShadow: dark ? '0 24px 64px rgba(0,0,0,0.6)' : '0 12px 48px rgba(0,0,0,0.18)' }}>
+            <div onClick={e => e.stopPropagation()} style={{ background: T.modalBg, borderRadius: 0, width: 440, maxWidth: 'calc(100vw - 24px)', maxHeight: '80vh', display: 'flex', flexDirection: 'column', border: `1px solid ${T.modalBorder}`, boxShadow: dark ? '0 24px 64px rgba(0,0,0,0.6)' : '0 12px 48px rgba(0,0,0,0.18)' }}>
               {/* Header */}
               <div style={{ padding: '20px 24px 16px', borderBottom: `1px solid ${T.borderFaint}`, display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexShrink: 0 }}>
                 <div style={{ fontSize: 16, fontWeight: 700, color: dark ? T.text : NAVY, letterSpacing: '-0.02em' }}>Google Calendar links</div>
@@ -1976,7 +2075,7 @@ export default function BookingPage() {
         const allUpcomingSelected = upcoming.length > 0 && upcoming.every(b => myBkSelected.has(b.id))
         return (
           <div onClick={() => setShowMyBookings(false)} style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 100 }}>
-            <div onClick={e => e.stopPropagation()} style={{ background: T.modalBg, borderRadius: 0, width: 540, maxHeight: '80vh', display: 'flex', flexDirection: 'column', border: `1px solid ${T.modalBorder}`, boxShadow: dark ? '0 24px 64px rgba(0,0,0,0.6)' : '0 12px 48px rgba(0,0,0,0.18)' }}>
+            <div onClick={e => e.stopPropagation()} style={{ background: T.modalBg, borderRadius: 0, width: 540, maxWidth: 'calc(100vw - 24px)', maxHeight: '80vh', display: 'flex', flexDirection: 'column', border: `1px solid ${T.modalBorder}`, boxShadow: dark ? '0 24px 64px rgba(0,0,0,0.6)' : '0 12px 48px rgba(0,0,0,0.18)' }}>
               {/* Header */}
               <div style={{ padding: '20px 24px 16px', borderBottom: `1px solid ${T.borderFaint}`, display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexShrink: 0 }}>
                 <div style={{ fontSize: 16, fontWeight: 700, color: dark ? T.text : NAVY, letterSpacing: '-0.02em' }}>{txt.myBookings}</div>
@@ -2126,7 +2225,7 @@ export default function BookingPage() {
         const editInvalid = !editStart || !editEnd || editEnd <= editStart
         return (
           <div onClick={() => { setEditBooking(null); setEditConflicts([]) }} style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 100 }}>
-            <div onClick={e => e.stopPropagation()} style={{ background: T.modalBg, borderRadius: 0, padding: 28, width: 370, border: `1px solid ${T.modalBorder}`, boxShadow: dark ? '0 24px 64px rgba(0,0,0,0.6)' : '0 12px 48px rgba(0,0,0,0.18)' }}>
+            <div onClick={e => e.stopPropagation()} style={{ background: T.modalBg, borderRadius: 0, padding: 28, width: 370, maxWidth: 'calc(100vw - 24px)', border: `1px solid ${T.modalBorder}`, boxShadow: dark ? '0 24px 64px rgba(0,0,0,0.6)' : '0 12px 48px rgba(0,0,0,0.18)' }}>
               <div style={{ fontSize: 17, fontWeight: 700, color: dark ? T.text : NAVY, marginBottom: isOthers ? 10 : 20, letterSpacing: '-0.02em' }}>
                 Edit booking <span style={{ color: accentColor }}>·</span> {selectedRoom?.name}
               </div>
@@ -2222,7 +2321,7 @@ export default function BookingPage() {
 
       {myBkCancelConfirm && (
         <div onClick={() => setMyBkCancelConfirm(false)} style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.45)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 200 }}>
-          <div onClick={e => e.stopPropagation()} style={{ background: T.cardBg, border: `1px solid ${T.border}`, padding: '28px 24px', width: 320 }}>
+          <div onClick={e => e.stopPropagation()} style={{ background: T.cardBg, border: `1px solid ${T.border}`, padding: '28px 24px', width: 320, maxWidth: 'calc(100vw - 24px)' }}>
             <div style={{ fontSize: 16, fontWeight: 600, color: T.text, marginBottom: 8 }}>
               Cancel {myBkSelected.size} booking{myBkSelected.size !== 1 ? 's' : ''}?
             </div>
@@ -2245,7 +2344,7 @@ export default function BookingPage() {
 
       {confirmCancel && (
         <div onClick={() => setConfirmCancel(null)} style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.45)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 200 }}>
-          <div onClick={e => e.stopPropagation()} style={{ background: T.cardBg, border: `1px solid ${T.border}`, padding: '28px 24px', width: 320 }}>
+          <div onClick={e => e.stopPropagation()} style={{ background: T.cardBg, border: `1px solid ${T.border}`, padding: '28px 24px', width: 320, maxWidth: 'calc(100vw - 24px)' }}>
             {confirmCancel.onConfirmScope ? <>
               <div style={{ fontSize: 16, fontWeight: 600, color: T.text, marginBottom: 6 }}>Cancel recurring booking?</div>
               <div style={{ fontSize: 13, color: T.textMuted, marginBottom: 20 }}>Which meetings should be cancelled?</div>
@@ -2274,16 +2373,16 @@ export default function BookingPage() {
         </div>
       )}
 
-      {/* Feedback button */}
-      <button onClick={() => { setShowFeedback(true); setFbDone(false) }}
+      {/* Feedback button — desktop only; phones have it in the header */}
+      {!isMobile && <button onClick={() => { setShowFeedback(true); setFbDone(false) }}
         style={{ position: 'fixed', bottom: 16, right: 16, fontSize: 11, color: '#fff', background: '#6B7280', border: 'none', padding: '5px 11px', cursor: 'pointer', zIndex: 50, fontFamily: 'inherit', boxShadow: '0 1px 4px rgba(0,0,0,0.15)' }}>
         feedback
-      </button>
+      </button>}
 
       {/* Feedback modal */}
       {showFeedback && (
         <div onClick={() => setShowFeedback(false)} style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.45)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 200 }}>
-          <div onClick={e => e.stopPropagation()} style={{ background: T.cardBg, border: `1px solid ${T.border}`, padding: '24px', width: 360 }}>
+          <div onClick={e => e.stopPropagation()} style={{ background: T.cardBg, border: `1px solid ${T.border}`, padding: '24px', width: 360, maxWidth: 'calc(100vw - 24px)' }}>
             <div style={{ fontSize: 15, fontWeight: 600, color: T.text, marginBottom: 6 }}>Send feedback</div>
             <div style={{ fontSize: 13, color: T.textMuted, marginBottom: 16, lineHeight: 1.5 }}>Bug, request, or anything else — thanks for sharing!</div>
             {fbDone ? (
