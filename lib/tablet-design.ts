@@ -18,3 +18,15 @@ export function resolveTabletDesign(workspaceSetting: unknown, override: string 
   if (isTabletDesign(workspaceSetting)) return workspaceSetting
   return DEFAULT_TABLET_DESIGN
 }
+
+/**
+ * The room page a tablet link redirects to. A valid `?design=` on the tablet link is carried
+ * through, so `/api/{slug}/t/{token}?design=linen` can be a tablet's home page. Only known
+ * designs pass — anything else is dropped, so this can't be used to inject into the redirect.
+ */
+export function tabletRoomUrl(workspace: string, roomId: string, requestUrl: string): URL {
+  const url = new URL(`/${workspace}/room/${roomId}`, requestUrl)
+  const design = new URL(requestUrl).searchParams.get('design')
+  if (isTabletDesign(design)) url.searchParams.set('design', design)
+  return url
+}
