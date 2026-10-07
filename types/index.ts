@@ -59,6 +59,9 @@ export interface Booking {
   origin?: 'desktop' | 'tablet' | 'gcal'
   is_block?: boolean
   block_group_id?: string | null
+  // Set by the calendar feed: whether this viewer can cancel/change the
+  // booking without saying why (ADR-023, lib/booking-access.ts).
+  access?: 'direct' | 'needs-reason'
 }
 
 export interface BookingWithRoom extends Booking {

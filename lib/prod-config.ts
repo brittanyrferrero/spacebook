@@ -155,6 +155,19 @@ export async function setTabletDesign(workspaceId: string, design: string): Prom
   await kv().set(k(workspaceId, 'cfg:tabletDesign'), design)
 }
 
+// ─── Time zone (IANA name, e.g. America/Los_Angeles) — used for email times ───
+
+export async function getTimeZone(workspaceId: string): Promise<string | null> {
+  return kv().get<string>(k(workspaceId, 'cfg:timezone'))
+}
+export async function setTimeZone(workspaceId: string, timeZone: string): Promise<void> {
+  await kv().set(k(workspaceId, 'cfg:timezone'), timeZone)
+}
+/** Sets the zone only if none is stored yet. Returns true if it was set. */
+export async function setTimeZoneIfUnset(workspaceId: string, timeZone: string): Promise<boolean> {
+  return (await kv().set(k(workspaceId, 'cfg:timezone'), timeZone, { nx: true })) === 'OK'
+}
+
 // ─── Recovery nonces ──────────────────────────────────────────────────────────
 // Short-lived one-time tokens used in recovery emails. Each nonce expires after
 // 1 hour and is consumed on first use, preventing replay via email/browser history.

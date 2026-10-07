@@ -1,4 +1,5 @@
 import { Resend } from 'resend'
+import { isPlaceholderEmail } from '@/lib/booking-access'
 
 // RFC 5321 practical email validation — rejects obviously invalid addresses
 export function isValidEmail(email: unknown): email is string {
@@ -22,6 +23,7 @@ export const appUrl = () =>
   (process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : 'http://localhost:3000')
 
 export async function sendGcalConflictEmail({
+  timeZone,
   to,
   organizerName,
   roomName,
@@ -29,6 +31,7 @@ export async function sendGcalConflictEmail({
   endTime,
   eventTitle,
 }: {
+  timeZone?: string | null   // workspace time zone; UTC if unknown
   to: string
   organizerName: string
   roomName: string
@@ -40,8 +43,8 @@ export async function sendGcalConflictEmail({
   if (!key) return
   const resend = new Resend(key)
 
-  const date = fmt(startTime, { weekday: 'long', day: 'numeric', month: 'long' })
-  const time = `${fmt(startTime, { hour: '2-digit', minute: '2-digit' })} – ${fmt(endTime, { hour: '2-digit', minute: '2-digit' })}`
+  const date = fmtDate(startTime, timeZone)
+  const time = fmtTimeRange(startTime, endTime, timeZone)
   const firstName = organizerName.split(' ')[0]
 
   await resend.emails.send({
@@ -71,15 +74,50 @@ export async function sendGcalConflictEmail({
   })
 }
 
-function fmt(iso: string, opts: Intl.DateTimeFormatOptions) {
-  return new Date(iso).toLocaleString('en-AU', opts)
+// Email times are shown in the workspace's time zone (cfg:timezone, set from the
+// first browser that opens the workspace or in admin Settings). Without one they
+// fall back to UTC and say so, rather than silently using the server's zone.
+function zone(timeZone?: string | null) {
+  if (!timeZone) return 'UTC'
+  try { new Intl.DateTimeFormat('en-US', { timeZone }); return timeZone } catch { return 'UTC' }
+}
+
+/** "Tuesday, October 6" */
+export function fmtDate(iso: string, timeZone?: string | null) {
+  return new Date(iso).toLocaleString('en-US', { weekday: 'long', month: 'long', day: 'numeric', timeZone: zone(timeZone) })
+}
+
+/** "3:00 – 4:00 PM PDT" (both ends shown in full when they straddle noon) */
+export function fmtTimeRange(startIso: string, endIso: string, timeZone?: string | null) {
+  const tz = zone(timeZone)
+  const parts = (iso: string) => new Intl.DateTimeFormat('en-US', { hour: 'numeric', minute: '2-digit', timeZone: tz, timeZoneName: 'short' })
+    .formatToParts(new Date(iso))
+  const pick = (ps: Intl.DateTimeFormatPart[], t: string) => ps.find(p => p.type === t)?.value ?? ''
+  const a = parts(startIso), b = parts(endIso)
+  const clock = (ps: Intl.DateTimeFormatPart[]) => `${pick(ps, 'hour')}:${pick(ps, 'minute')}`
+  const startStr = pick(a, 'dayPeriod') === pick(b, 'dayPeriod') ? clock(a) : `${clock(a)} ${pick(a, 'dayPeriod')}`
+  return `${startStr} – ${clock(b)} ${pick(b, 'dayPeriod')} ${pick(b, 'timeZoneName')}`
+}
+
+/** Calendar date (YYYY-MM-DD) in the given zone, for "did the day change?" checks */
+function localDay(iso: string, timeZone?: string | null) {
+  return new Date(iso).toLocaleDateString('en-CA', { timeZone: zone(timeZone) })
+}
+
+function editedIntro({ editorName, editorEmail, reason }: { editorName: string; editorEmail?: string; reason?: 'mine' | 'permission' }) {
+  if (reason === 'mine') return 'You changed'
+  const who = `<strong>${escapeHtml(editorName)}</strong>${editorEmail ? ` (${escapeHtml(editorEmail)})` : ''}`
+  if (reason === 'permission') return `${who} changed, saying they had your permission,`
+  return `${who} made changes to`
 }
 
 export async function sendBookingEditedEmail({
+  timeZone,
   to,
   bookerName,
   editorName,
   editorEmail,
+  reason,
   roomName,
   oldStartTime,
   oldEndTime,
@@ -88,10 +126,13 @@ export async function sendBookingEditedEmail({
   title,
   cancelToken,
 }: {
+  timeZone?: string | null   // workspace time zone; UTC if unknown
   to: string
   bookerName: string
   editorName: string
-  editorEmail: string
+  editorEmail?: string
+  // ADR-023: set when someone changed another person's booking and said why
+  reason?: 'mine' | 'permission'
   roomName: string
   oldStartTime: string
   oldEndTime: string
@@ -100,18 +141,19 @@ export async function sendBookingEditedEmail({
   title: string | null
   cancelToken: string
 }) {
+  if (isPlaceholderEmail(to)) return   // walk-ins: nobody reads these
   const key = process.env.RESEND_API_KEY
   if (!key) return
 
   const resend = new Resend(key)
 
-  const dateChanged = oldStartTime.slice(0, 10) !== newStartTime.slice(0, 10)
+  const dateChanged = localDay(oldStartTime, timeZone) !== localDay(newStartTime, timeZone)
   const timeChanged = oldStartTime !== newStartTime || oldEndTime !== newEndTime
 
-  const oldDate = fmt(oldStartTime, { weekday: 'long', day: 'numeric', month: 'long' })
-  const newDate = fmt(newStartTime, { weekday: 'long', day: 'numeric', month: 'long' })
-  const oldTime = `${fmt(oldStartTime, { hour: '2-digit', minute: '2-digit' })} – ${fmt(oldEndTime, { hour: '2-digit', minute: '2-digit' })}`
-  const newTime = `${fmt(newStartTime, { hour: '2-digit', minute: '2-digit' })} – ${fmt(newEndTime, { hour: '2-digit', minute: '2-digit' })}`
+  const oldDate = fmtDate(oldStartTime, timeZone)
+  const newDate = fmtDate(newStartTime, timeZone)
+  const oldTime = fmtTimeRange(oldStartTime, oldEndTime, timeZone)
+  const newTime = fmtTimeRange(newStartTime, newEndTime, timeZone)
 
   const cancelUrl = `${appUrl()}/cancel/${cancelToken}`
 
@@ -125,9 +167,9 @@ export async function sendBookingEditedEmail({
   <div style="font-size:18px;font-weight:600;color:#2C3E6B;margin-bottom:4px">spacebook</div>
   <div style="font-size:13px;color:#9CA3AF;margin-bottom:24px">Booking updated</div>
 
-  <p style="font-size:14px;color:#374151">Hi ${bookerName.split(' ')[0]},</p>
+  <p style="font-size:14px;color:#374151">Hi ${escapeHtml(bookerName.split(' ')[0])},</p>
   <p style="font-size:14px;color:#374151">
-    <strong>${editorName}</strong> (${editorEmail}) made changes to your booking for <strong>${roomName}</strong>${title ? ` — <em>${title}</em>` : ''}.
+    ${editedIntro({ editorName, editorEmail, reason })} your booking for <strong>${escapeHtml(roomName)}</strong>${title ? ` — <em>${escapeHtml(title)}</em>` : ''}.
   </p>
 
   ${changes.length > 0 ? `
@@ -136,13 +178,15 @@ export async function sendBookingEditedEmail({
   </div>` : ''}
 
   <div style="background:#F8F8F6;border-radius:8px;padding:14px 16px;margin:20px 0;font-size:13px;color:#374151">
-    <div style="margin-bottom:6px"><span style="color:#9CA3AF">Room</span> &nbsp; ${roomName}</div>
+    <div style="margin-bottom:6px"><span style="color:#9CA3AF">Room</span> &nbsp; ${escapeHtml(roomName)}</div>
     <div style="margin-bottom:6px"><span style="color:#9CA3AF">Date</span> &nbsp; ${newDate}</div>
     <div><span style="color:#9CA3AF">Time</span> &nbsp; ${newTime}</div>
   </div>
 
   <p style="font-size:13px;color:#6B7280">
-    If this wasn't expected, you can <a href="${cancelUrl}" style="color:#C0392B">cancel this booking</a>.
+    ${reason === 'mine'
+      ? `Whoever made this change said it was their meeting. If that wasn't you, you can <a href="${cancelUrl}" style="color:#C0392B">cancel this booking</a> or rebook the original time.`
+      : `If this wasn't expected, you can <a href="${cancelUrl}" style="color:#C0392B">cancel this booking</a>.`}
   </p>
 </div>`
 
@@ -247,6 +291,7 @@ export async function sendMyBookingsMagicLink({
 }
 
 export async function sendBlockRebookedEmail({
+  timeZone,
   to,
   bookerName,
   originalRoomName,
@@ -256,6 +301,7 @@ export async function sendBlockRebookedEmail({
   reason,
   workspaceSlug,
 }: {
+  timeZone?: string | null   // workspace time zone; UTC if unknown
   to: string
   bookerName: string
   originalRoomName: string
@@ -265,13 +311,14 @@ export async function sendBlockRebookedEmail({
   reason?: string
   workspaceSlug: string
 }) {
+  if (isPlaceholderEmail(to)) return   // walk-ins: nobody reads these
   const key = process.env.RESEND_API_KEY
   if (!key) return
   const resend = new Resend(key)
 
   const firstName = bookerName.split(' ')[0]
-  const date = fmt(startTime, { weekday: 'long', day: 'numeric', month: 'long' })
-  const time = `${fmt(startTime, { hour: '2-digit', minute: '2-digit' })} – ${fmt(endTime, { hour: '2-digit', minute: '2-digit' })}`
+  const date = fmtDate(startTime, timeZone)
+  const time = fmtTimeRange(startTime, endTime, timeZone)
   const workspaceUrl = `${appUrl()}/${workspaceSlug}`
   const reasonText = reason ?? 'scheduled maintenance'
 
@@ -304,6 +351,7 @@ export async function sendBlockRebookedEmail({
 }
 
 export async function sendBlockCancelledEmail({
+  timeZone,
   to,
   bookerName,
   roomName,
@@ -312,6 +360,7 @@ export async function sendBlockCancelledEmail({
   reason,
   workspaceSlug,
 }: {
+  timeZone?: string | null   // workspace time zone; UTC if unknown
   to: string
   bookerName: string
   roomName: string
@@ -320,13 +369,14 @@ export async function sendBlockCancelledEmail({
   reason?: string
   workspaceSlug: string
 }) {
+  if (isPlaceholderEmail(to)) return   // walk-ins: nobody reads these
   const key = process.env.RESEND_API_KEY
   if (!key) return
   const resend = new Resend(key)
 
   const firstName = bookerName.split(' ')[0]
-  const date = fmt(startTime, { weekday: 'long', day: 'numeric', month: 'long' })
-  const time = `${fmt(startTime, { hour: '2-digit', minute: '2-digit' })} – ${fmt(endTime, { hour: '2-digit', minute: '2-digit' })}`
+  const date = fmtDate(startTime, timeZone)
+  const time = fmtTimeRange(startTime, endTime, timeZone)
   const workspaceUrl = `${appUrl()}/${workspaceSlug}`
   const reasonPhrase = reason ? ` due to ${reason}` : ''
 
@@ -486,5 +536,170 @@ export async function sendAdminRecoveryEmail({
     If you didn't request this, you can ignore this email. This link does not expire.
   </p>
 </div>`,
+  })
+}
+
+// ─── ADR-023: changes by someone other than the booker ──────────────────────
+
+function emailShell(label: string, body: string) {
+  return `
+<div style="font-family:sans-serif;max-width:480px;margin:0 auto;padding:24px">
+  <div style="font-size:18px;font-weight:600;color:#2C3E6B;margin-bottom:4px">spacebook</div>
+  <div style="font-size:13px;color:#9CA3AF;margin-bottom:24px">${label}</div>
+${body}
+</div>`
+}
+
+function bookingCard(roomName: string, startTime: string, endTime: string, timeZone: string | null | undefined, tint = '#F8F8F6') {
+  const date = fmtDate(startTime, timeZone)
+  const time = fmtTimeRange(startTime, endTime, timeZone)
+  return `
+  <div style="background:${tint};border-radius:8px;padding:14px 16px;margin:20px 0;font-size:13px;color:#374151">
+    <div style="margin-bottom:6px"><span style="color:#9CA3AF">Room</span> &nbsp; ${escapeHtml(roomName)}</div>
+    <div style="margin-bottom:6px"><span style="color:#9CA3AF">Date</span> &nbsp; ${date}</div>
+    <div><span style="color:#9CA3AF">Time</span> &nbsp; ${time}</div>
+  </div>`
+}
+
+const p = (html: string, muted = false) =>
+  `  <p style="font-size:${muted ? 13 : 14}px;color:${muted ? '#6B7280' : '#374151'}">${html}</p>`
+
+/** Sent to the booker when someone else cancelled their booking and said why. */
+export async function sendBookingCancelledNoticeEmail({
+  timeZone,
+  to, bookerName, reason, actorName, roomName, startTime, endTime, title, count, workspaceSlug,
+}: {
+  timeZone?: string | null   // workspace time zone; UTC if unknown
+  to: string
+  bookerName: string
+  reason: 'mine' | 'permission'
+  actorName: string
+  roomName: string
+  startTime: string
+  endTime: string
+  title: string | null
+  count: number          // >1 when the rest of a recurring series was cancelled too
+  workspaceSlug: string
+}) {
+  if (isPlaceholderEmail(to)) return   // walk-ins: nobody reads these
+  const key = process.env.RESEND_API_KEY
+  if (!key) return
+  const resend = new Resend(key)
+
+  const what = `your booking for <strong>${escapeHtml(roomName)}</strong>${title ? ` — <em>${escapeHtml(title)}</em>` : ''}${count > 1 ? ` and the ${count - 1} after it in the series` : ''}`
+  const workspaceUrl = `${appUrl()}/${workspaceSlug}`
+  const body = reason === 'mine'
+    ? [
+        p(`Hi ${escapeHtml(bookerName.split(' ')[0])},`),
+        p(`You cancelled ${what}.`),
+        bookingCard(roomName, startTime, endTime, timeZone, '#FEF2F2'),
+        p(`Whoever cancelled it said it was their meeting. If that wasn't you, <a href="${workspaceUrl}" style="color:#2C3E6B">book the time again</a> if it's still free.`, true),
+      ]
+    : [
+        p(`Hi ${escapeHtml(bookerName.split(' ')[0])},`),
+        p(`<strong>${escapeHtml(actorName)}</strong> cancelled ${what}, saying they had your permission.`),
+        bookingCard(roomName, startTime, endTime, timeZone, '#FEF2F2'),
+        p(`If you didn't agree to this, <a href="${workspaceUrl}" style="color:#2C3E6B">book the time again</a> if it's still free.`, true),
+      ]
+
+  await resend.emails.send({
+    from: FROM,
+    to,
+    subject: `Your ${roomName} booking was cancelled`,
+    html: emailShell('Booking cancelled', body.join('\n')),
+  })
+}
+
+/** "Ask them to cancel or change it": one email to the booker (Reply-To the
+ *  requester, with the one-click cancel link) and a copy to the requester
+ *  (no cancel link, no booker email address). */
+export async function sendBookingRequestEmail({
+  timeZone,
+  bookerEmail, bookerName, requesterName, requesterEmail, note, kind, roomName, startTime, endTime, title, cancelToken,
+}: {
+  timeZone?: string | null   // workspace time zone; UTC if unknown
+  bookerEmail: string
+  bookerName: string
+  requesterName: string
+  requesterEmail: string
+  note: string
+  kind: 'cancel' | 'change'
+  roomName: string
+  startTime: string
+  endTime: string
+  title: string | null
+  cancelToken: string
+}) {
+  const key = process.env.RESEND_API_KEY
+  if (!key) return
+  const resend = new Resend(key)
+
+  const ask = kind === 'cancel' ? 'cancel' : 'change'
+  const booking = `your booking for <strong>${escapeHtml(roomName)}</strong>${title ? ` — <em>${escapeHtml(title)}</em>` : ''}`
+  const noteHtml = note
+    ? `  <div style="border-left:3px solid #D1D5DB;padding:4px 12px;margin:16px 0;font-size:14px;color:#374151;white-space:pre-wrap">${escapeHtml(note)}</div>`
+    : ''
+  const cancelUrl = `${appUrl()}/cancel/${cancelToken}`
+
+  await resend.emails.send({
+    from: FROM,
+    to: bookerEmail,
+    replyTo: requesterEmail,
+    subject: `${requesterName} asked you to ${ask} your ${roomName} booking`,
+    html: emailShell('Request about your booking', [
+      p(`Hi ${escapeHtml(bookerName.split(' ')[0])},`),
+      p(`<strong>${escapeHtml(requesterName)}</strong> (${escapeHtml(requesterEmail)}) asked you to ${ask} ${booking}.`),
+      noteHtml,
+      bookingCard(roomName, startTime, endTime, timeZone),
+      p(`Nothing has changed yet. <a href="${cancelUrl}" style="color:#C0392B">Cancel this booking</a>, or reply to this email to talk to ${escapeHtml(requesterName.split(' ')[0])}. If you cancel or move it, they'll be told.`, true),
+    ].join('\n')),
+  })
+
+  await resend.emails.send({
+    from: FROM,
+    to: requesterEmail,
+    subject: `Your request about the ${roomName} booking was sent`,
+    html: emailShell('Request sent', [
+      p(`Hi ${escapeHtml(requesterName.split(' ')[0])},`),
+      p(`We asked ${escapeHtml(bookerName)} to ${ask} their booking for <strong>${escapeHtml(roomName)}</strong>.`),
+      noteHtml,
+      bookingCard(roomName, startTime, endTime, timeZone),
+      p(`They can reply to you directly. If they cancel or move it, we'll email you.`, true),
+    ].join('\n')),
+  })
+}
+
+/** Sent to each requester when the booking they asked about is cancelled or moved. */
+export async function sendRequestedSlotFreedEmail({
+  timeZone,
+  to, requesterName, bookerName, roomName, startTime, endTime, change,
+}: {
+  timeZone?: string | null   // workspace time zone; UTC if unknown
+  to: string
+  requesterName: string
+  bookerName: string
+  roomName: string
+  startTime: string
+  endTime: string
+  change: 'cancelled' | 'moved'
+}) {
+  const key = process.env.RESEND_API_KEY
+  if (!key) return
+  const resend = new Resend(key)
+
+  const what = change === 'cancelled'
+    ? `${escapeHtml(bookerName)} cancelled the <strong>${escapeHtml(roomName)}</strong> booking you asked about, so that time is free now.`
+    : `${escapeHtml(bookerName)} moved the <strong>${escapeHtml(roomName)}</strong> booking you asked about. The time you wanted may be free now.`
+
+  await resend.emails.send({
+    from: FROM,
+    to,
+    subject: change === 'cancelled' ? `${roomName} is free at the time you asked about` : `The ${roomName} booking you asked about was moved`,
+    html: emailShell('The time you asked about', [
+      p(`Hi ${escapeHtml(requesterName.split(' ')[0])},`),
+      p(what),
+      bookingCard(roomName, startTime, endTime, timeZone, '#F0FDF4'),
+      p(`It isn't booked for you yet — book it in spacebook before someone else does.`, true),
+    ].join('\n')),
   })
 }
