@@ -1,4 +1,5 @@
 import { type NextRequest, NextResponse } from 'next/server'
+import { tabletRoomUrl } from '@/lib/tablet-design'
 import { cookies } from 'next/headers'
 
 export async function GET(req: NextRequest, { params }: { params: { workspace: string; token: string } }) {
@@ -12,7 +13,7 @@ export async function GET(req: NextRequest, { params }: { params: { workspace: s
       httpOnly: true, secure: process.env.NODE_ENV === 'production', sameSite: 'lax', path: '/',
       maxAge: 60 * 60 * 24 * 365 * 10,
     })
-    return NextResponse.redirect(new URL(`/${params.workspace}/room/${room.id}`, req.url))
+    return NextResponse.redirect(tabletRoomUrl(params.workspace, room.id, req.url))
   }
 
   const { getWorkspaceBySlug } = await import('@/lib/workspace')
@@ -40,5 +41,5 @@ export async function GET(req: NextRequest, { params }: { params: { workspace: s
     maxAge: 60 * 60 * 24 * 365 * 10,
   })
 
-  return NextResponse.redirect(new URL(`/${params.workspace}/room/${room.id}`, req.url))
+  return NextResponse.redirect(tabletRoomUrl(params.workspace, room.id, req.url))
 }
