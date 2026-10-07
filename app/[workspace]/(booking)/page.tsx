@@ -4,6 +4,8 @@ import { useState, useEffect, useCallback, useRef, useMemo } from 'react'
 import { useParams } from 'next/navigation'
 import type { Room, Booking } from '@/types'
 import { NameAutocomplete } from '@/components/NameAutocomplete'
+import { OthersBookingDialog } from '@/components/OthersBookingDialog'
+import { reportTimeZone } from '@/lib/report-time-zone'
 import { gcalSubscribeUrl, fetchJsonArray } from '@/lib/utils'
 
 // ─── Design token presets ─────────────────────────────────────────────────────
@@ -887,6 +889,11 @@ export default function BookingPage() {
     error?: string
   } | null>(null)
   const [confirmCancel,   setConfirmCancel]   = useState<{ message?: string; onConfirm?: () => void; onConfirmScope?: (scope: 'this' | 'future') => void } | null>(null)
+  // Someone else's booking (ADR-023): say why, or ask the booker
+  const [others,          setOthers]          = useState<{ booking: Booking; action: 'cancel' | 'change'; scope: 'this' | 'future' } | null>(null)
+  const [othersBusy,      setOthersBusy]      = useState(false)
+  const [othersError,     setOthersError]     = useState<string | null>(null)
+  const [othersSent,      setOthersSent]      = useState(false)
   const [mRoomId,        setMRoomId]        = useState('')
   const [laterDayBkgs,   setLaterDayBkgs]   = useState<Booking[]>([])
   const [laterRoomOpen,  setLaterRoomOpen]  = useState(false)
@@ -1013,6 +1020,7 @@ export default function BookingPage() {
       setVisAllowEditOthers(d.bookingVisibility?.allowEditOthers ?? false)
       if (d.workspaceName) setWorkspaceName(d.workspaceName)
       if (d.accentColor) setAccentColor(d.accentColor)
+      reportTimeZone(api, d.timeZone)
     }).catch(() => {})
   }, [])
 
@@ -1179,11 +1187,13 @@ export default function BookingPage() {
     await doEditSave('this')
   }
 
-  async function doEditSave(scope: 'this' | 'future') {
+  async function doEditSave(scope: 'this' | 'future', reason?: 'mine' | 'permission', actorName = '') {
     if (!editBooking) return
     setEditScopeStep(false)
-    setEditSubmitting(true)
-    setEditError(null)
+    const needsReason = editBooking.access === 'needs-reason'
+    if (needsReason && !reason) { openOthers(editBooking, 'change', scope); return }
+    setEditSubmitting(true); setOthersBusy(true)
+    setEditError(null); setOthersError(null)
     const [sh, sm] = editStart.split(':').map(Number)
     const [eh, em] = editEnd.split(':').map(Number)
     const [y, mo, d] = editDate.split('-').map(Number)
@@ -1193,24 +1203,28 @@ export default function BookingPage() {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        ...(mEmail && editBooking.booker_email === mEmail ? { title: editTitle || null } : {}),
-        booker_name: editName,
-        booker_email: editEmail,
+        // Title and who it belongs to are the booker's to change (ADR-023)
+        ...(needsReason ? {} : { title: editTitle || null, booker_name: editName, booker_email: editEmail }),
         start_time: startIso,
         end_time: endIso,
         _editor_name: mName,
         _editor_email: mEmail,
         _room_name: selectedRoom?.name ?? '',
         _scope: scope,
-        _cancel_token: editBooking.cancel_token,
+        ...(reason ? { _reason: reason, _actor_name: actorName } : {}),
       }),
     })
+    setOthersBusy(false)
     if (!res.ok) {
       const err = await res.json().catch(() => ({}))
-      setEditError(err.error ?? 'That time slot is no longer available.')
       setEditSubmitting(false)
+      // The 5-minute window ran out since the calendar last refreshed
+      if (err.code === 'reason_required' && !reason) { openOthers({ ...editBooking, access: 'needs-reason' }, 'change', scope); return }
+      const msg = err.error ?? 'That time slot is no longer available.'
+      if (others) setOthersError(msg); else setEditError(msg)
       return
     }
+    setOthers(null)
     const result = await res.json()
     const updated = result.conflictDates !== undefined ? result.booking : result
     setRangeBkgs(prev => prev.map(b => b.id === editBooking.id ? updated : b))
@@ -1228,26 +1242,53 @@ export default function BookingPage() {
 
   async function handleEditCancel() {
     if (!editBooking) return
-    if (!editBooking.cancel_token) { setEditError('Verify your email under "My Bookings" to cancel this booking from here.'); return }
-    if (editBooking.recurring_series_id) {
-      setConfirmCancel({ onConfirmScope: async (scope) => {
-        setConfirmCancel(null)
-        await fetch(`/api/cancel/${editBooking.cancel_token}`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ scope }) })
-        setEditBooking(null)
-        fetchRange()
-        fetchSidebar()
-        fetchAllRoomsDay()
-      }})
-    } else {
-      setConfirmCancel({ message: 'This will cancel the booking.', onConfirm: async () => {
-        setConfirmCancel(null)
-        await fetch(`/api/cancel/${editBooking.cancel_token}`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ scope: 'this' }) })
-        setEditBooking(null)
-        fetchRange()
-        fetchSidebar()
-        fetchAllRoomsDay()
-      }})
+    const b = editBooking
+    const go = (scope: 'this' | 'future') => {
+      setConfirmCancel(null)
+      if (b.access === 'needs-reason') openOthers(b, 'cancel', scope)
+      else cancelBooking(b, scope)
     }
+    if (b.recurring_series_id) setConfirmCancel({ onConfirmScope: go })
+    else if (b.access === 'needs-reason') openOthers(b, 'cancel', 'this')
+    else setConfirmCancel({ message: 'This will cancel the booking.', onConfirm: () => go('this') })
+  }
+
+  async function cancelBooking(b: Booking, scope: 'this' | 'future', reason?: 'mine' | 'permission', actorName = '') {
+    setOthersBusy(true); setOthersError(null)
+    const res = await fetch(`${api}/bookings/${b.id}/cancel`, {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ scope, ...(reason ? { reason, actorName } : {}) }),
+    })
+    setOthersBusy(false)
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}))
+      if (err.code === 'reason_required' && !reason) { openOthers({ ...b, access: 'needs-reason' }, 'cancel', scope); return }
+      const msg = err.error ?? 'Could not cancel the booking. Please try again.'
+      if (others) setOthersError(msg); else setEditError(msg)
+      return
+    }
+    setOthers(null); setEditBooking(null)
+    fetchRange(); fetchSidebar(); fetchAllRoomsDay()
+  }
+
+  function openOthers(b: Booking, action: 'cancel' | 'change', scope: 'this' | 'future') {
+    setOthers({ booking: b, action, scope }); setOthersError(null); setOthersSent(false)
+  }
+
+  async function sendOthersRequest(form: { name: string; email: string; note: string }) {
+    if (!others) return
+    setOthersBusy(true); setOthersError(null)
+    const res = await fetch(`${api}/bookings/${others.booking.id}/request`, {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ ...form, kind: others.action }),
+    })
+    setOthersBusy(false)
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}))
+      setOthersError(err.error ?? 'Could not send the request. Please try again.')
+      return
+    }
+    setOthersSent(true); setEditBooking(null)
   }
 
   function handleEditFromConfirm() {
@@ -2221,7 +2262,7 @@ export default function BookingPage() {
 
       {/* Edit booking modal */}
       {editBooking && (() => {
-        const isOthers = mEmail && editBooking.booker_email !== mEmail
+        const isOthers = editBooking.access === 'needs-reason'
         const editInvalid = !editStart || !editEnd || editEnd <= editStart
         return (
           <div onClick={() => { setEditBooking(null); setEditConflicts([]) }} style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 100 }}>
@@ -2234,8 +2275,8 @@ export default function BookingPage() {
                   <div style={{ fontSize: 15, fontWeight: 700, color: '#fff', marginBottom: 4 }}>⚠️ Not your booking</div>
                   <div style={{ fontSize: 12, color: '#fddede', lineHeight: 1.5 }}>
                     {visShowOrganizer
-                      ? <>This belongs to <strong style={{ color: '#fff' }}>{editBooking.booker_name}</strong>. They will receive an email if you save changes.</>
-                      : 'This booking belongs to someone else. They will receive an email if you save changes.'}
+                      ? <>This belongs to <strong style={{ color: '#fff' }}>{editBooking.booker_name}</strong>. When you save or cancel, you’ll be asked whether it’s yours or you have their permission, and they’ll get an email.</>
+                      : 'This booking belongs to someone else. When you save or cancel, you’ll be asked whether it’s yours or you have their permission, and they’ll get an email.'}
                   </div>
                 </div>
               )}
@@ -2246,13 +2287,19 @@ export default function BookingPage() {
                   <input style={inp} placeholder="e.g. Team standup" value={editTitle} onChange={e => setEditTitle(e.target.value)} />
                 </div>
               )}
-              {(!isOthers || visShowOrganizer) && (
+              {isOthers && visShowOrganizer && (
                 <div style={{ marginBottom: 12 }}>
-                  <label style={lbl}>{isOthers ? 'Booked by' : 'Your name'}</label>
+                  <label style={lbl}>Booked by</label>
+                  <div style={{ fontSize: 14, color: T.text }}>{editBooking.booker_name}</div>
+                </div>
+              )}
+              {!isOthers && (
+                <div style={{ marginBottom: 12 }}>
+                  <label style={lbl}>Your name</label>
                   <NameAutocomplete value={editName} onChange={setEditName} onSelect={u => { setEditName(u.name); setEditEmail(u.email) }} workspace={workspace} style={inp} />
                 </div>
               )}
-              {(!isOthers || visShowOrganizer) && editConflicts.length === 0 && (
+              {!isOthers && editConflicts.length === 0 && (
                 <div style={{ marginBottom: 12 }}>
                   <label style={lbl}>Email</label>
                   <input style={inp} type="email" value={editEmail} onChange={e => setEditEmail(e.target.value)} />
@@ -2371,6 +2418,21 @@ export default function BookingPage() {
             </>}
           </div>
         </div>
+      )}
+
+      {others && (
+        <OthersBookingDialog
+          key={others.booking.id + others.action}
+          booking={others.booking} action={others.action}
+          theme={{ text: T.text, textMuted: T.textMuted, border: T.border, cardBg: T.cardBg, inputBg: T.inputBg }}
+          defaultName={mName} defaultEmail={mEmail}
+          submitting={othersBusy} error={othersError} sent={othersSent}
+          onDoNow={(reason, name) => others.action === 'cancel'
+            ? cancelBooking(others.booking, others.scope, reason, name)
+            : doEditSave(others.scope, reason, name)}
+          onAsk={sendOthersRequest}
+          onClose={() => setOthers(null)}
+        />
       )}
 
       {/* Feedback button — desktop only; phones have it in the header */}
