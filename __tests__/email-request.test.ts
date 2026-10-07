@@ -15,10 +15,10 @@ beforeEach(() => {
 })
 
 describe('sendBookingRequestEmail', () => {
-  it('sends the note to the booker, replying to the requester, and leaves it out of the receipt', async () => {
+  it('sends the note to the booker, replying to the requester, and the receipt carries nothing the requester typed', async () => {
     await sendBookingRequestEmail({
       bookerEmail: 'sam@example.com', bookerName: 'Sam Lee',
-      requesterName: 'Alex', requesterEmail: 'alex@example.com',
+      requesterName: 'https://evil.example/name', requesterEmail: 'alex@example.com',
       note: 'Visit evil.example now', kind: 'cancel',
       roomName: 'Recording Studio', title: null, cancelToken: 'tok',
       startTime: '2026-10-07T22:00:00Z', endTime: '2026-10-07T23:00:00Z', timeZone: 'America/Los_Angeles',
@@ -26,6 +26,7 @@ describe('sendBookingRequestEmail', () => {
     const [toBooker, receipt] = sent
     expect(toBooker).toMatchObject({ to: 'sam@example.com', replyTo: 'alex@example.com' })
     expect(toBooker.html).toContain('Visit evil.example now')
+    expect(toBooker.html).toContain('https://evil.example/name')
     expect(receipt.to).toBe('alex@example.com')
     expect(receipt.html).not.toContain('evil.example')
     expect(receipt.html).not.toContain('/cancel/tok')

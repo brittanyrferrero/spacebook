@@ -655,14 +655,15 @@ export async function sendBookingRequestEmail({
     ].join('\n')),
   })
 
-  // requesterEmail is whatever was typed, unverified, so this copy leaves out
-  // the note: nobody can send their own text to someone else's inbox from us.
+  // requesterEmail is whatever was typed, unverified, so this receipt carries
+  // nothing they wrote (no note, no name): nobody can send their own text to
+  // someone else's inbox from us.
   await resend.emails.send({
     from: FROM,
     to: requesterEmail,
     subject: `Your request about the ${roomName} booking was sent`,
     html: emailShell('Request sent', [
-      p(`Hi ${escapeHtml(requesterName.split(' ')[0])},`),
+      p(`Hi,`),
       p(`We asked ${escapeHtml(bookerName)} to ${ask} their booking for <strong>${escapeHtml(roomName)}</strong>.`),
       bookingCard(roomName, startTime, endTime, timeZone),
       p(`They can reply to you directly.`, true),
