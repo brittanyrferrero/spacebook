@@ -651,10 +651,12 @@ export async function sendBookingRequestEmail({
       p(`<strong>${escapeHtml(requesterName)}</strong> (${escapeHtml(requesterEmail)}) asked you to ${ask} ${booking}.`),
       noteHtml,
       bookingCard(roomName, startTime, endTime, timeZone),
-      p(`Nothing has changed yet. <a href="${cancelUrl}" style="color:#C0392B">Cancel this booking</a>, or reply to this email to talk to ${escapeHtml(requesterName.split(' ')[0])}. If you cancel or move it, they'll be told.`, true),
+      p(`Nothing has changed yet. <a href="${cancelUrl}" style="color:#C0392B">Cancel this booking</a>, or reply to this email to talk to ${escapeHtml(requesterName.split(' ')[0])}. If you cancel or move it, please let them know.`, true),
     ].join('\n')),
   })
 
+  // requesterEmail is whatever was typed, unverified, so this copy leaves out
+  // the note: nobody can send their own text to someone else's inbox from us.
   await resend.emails.send({
     from: FROM,
     to: requesterEmail,
@@ -662,44 +664,8 @@ export async function sendBookingRequestEmail({
     html: emailShell('Request sent', [
       p(`Hi ${escapeHtml(requesterName.split(' ')[0])},`),
       p(`We asked ${escapeHtml(bookerName)} to ${ask} their booking for <strong>${escapeHtml(roomName)}</strong>.`),
-      noteHtml,
       bookingCard(roomName, startTime, endTime, timeZone),
-      p(`They can reply to you directly. If they cancel or move it, we'll email you.`, true),
-    ].join('\n')),
-  })
-}
-
-/** Sent to each requester when the booking they asked about is cancelled or moved. */
-export async function sendRequestedSlotFreedEmail({
-  timeZone,
-  to, requesterName, bookerName, roomName, startTime, endTime, change,
-}: {
-  timeZone?: string | null   // workspace time zone; UTC if unknown
-  to: string
-  requesterName: string
-  bookerName: string
-  roomName: string
-  startTime: string
-  endTime: string
-  change: 'cancelled' | 'moved'
-}) {
-  const key = process.env.RESEND_API_KEY
-  if (!key) return
-  const resend = new Resend(key)
-
-  const what = change === 'cancelled'
-    ? `${escapeHtml(bookerName)} cancelled the <strong>${escapeHtml(roomName)}</strong> booking you asked about, so that time is free now.`
-    : `${escapeHtml(bookerName)} moved the <strong>${escapeHtml(roomName)}</strong> booking you asked about. The time you wanted may be free now.`
-
-  await resend.emails.send({
-    from: FROM,
-    to,
-    subject: change === 'cancelled' ? `${roomName} is free at the time you asked about` : `The ${roomName} booking you asked about was moved`,
-    html: emailShell('The time you asked about', [
-      p(`Hi ${escapeHtml(requesterName.split(' ')[0])},`),
-      p(what),
-      bookingCard(roomName, startTime, endTime, timeZone, '#F0FDF4'),
-      p(`It isn't booked for you yet — book it in spacebook before someone else does.`, true),
+      p(`They can reply to you directly.`, true),
     ].join('\n')),
   })
 }

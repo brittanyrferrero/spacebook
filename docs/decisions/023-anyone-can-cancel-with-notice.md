@@ -43,11 +43,14 @@ email, because there is no address.
 2. **I have their permission.** Name required. Done now. The booker gets "{Name}
    cancelled / changed your booking, saying they had your permission."
 3. **Ask them to cancel or change it** (not offered for walk-ins). Name and email required, note optional.
-   Nothing changes. The booker gets the request (Reply-To the requester, with the
-   one-click cancel link) and the requester gets a copy (without the cancel link or the
-   booker's address). Requesters are stored in KV (`booking:req:{id}`, expires when the
-   booking ends) and emailed if the booking is later cancelled or moved, by any path,
-   including the booker's emailed cancel link.
+   Nothing changes. The booker gets the request (Reply-To the requester, with the note
+   and the one-click cancel link) and the requester gets a receipt. The receipt leaves
+   out the note, the cancel link and the booker's address: the requester's email is
+   typed, not verified, so anything they wrote could otherwise be sent to a stranger's
+   inbox from our domain. If the booker frees the time, they reply and tell the
+   requester; Spacebook doesn't track requesters or email them later. (An automatic
+   "the time is free" email was built and removed: it kept typed addresses for later
+   mail, and missed bookings cancelled in Google Calendar.)
 
 Also:
 - The feed adds `access: 'direct' | 'needs-reason'` per booking so clients know whether

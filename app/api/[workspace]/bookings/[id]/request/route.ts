@@ -13,7 +13,7 @@ const MAX_NOTE = 500
 
 // "Ask them to cancel or change it" (ADR-023). Nothing about the booking
 // changes. The booker is emailed (Reply-To the requester) and the requester
-// gets a copy, and is emailed again if the booking is later cancelled or moved.
+// gets a receipt. If the booker frees the time, they tell the requester.
 export async function POST(req: NextRequest, { params }: { params: { workspace: string; id: string } }) {
   const body = await req.json().catch(() => ({}))
   const name = cleanName(body.name)
@@ -28,8 +28,6 @@ export async function POST(req: NextRequest, { params }: { params: { workspace: 
     const [{ getBookingById }, { getSessionStore }] = await Promise.all([import('@/lib/mock/api'), import('@/lib/mock/store')])
     const b = getBookingById(await getSessionStore(), params.id)
     if (!b || b.cancelled_at) return Response.json({ error: 'Booking already cancelled or not found.' }, { status: 410 })
-    const { addRequester } = await import('@/lib/booking-requests')
-    await addRequester(b.id, { name, email }, b.end_time)
     console.log('[mock] would email request:', { to: b.booker_email, from: email, kind, note })
     return Response.json({ ok: true })
   }
@@ -55,9 +53,6 @@ export async function POST(req: NextRequest, { params }: { params: { workspace: 
     return Response.json({ error: 'There is nobody to ask about this booking.' }, { status: 400 })
   }
   if (new Date(booking.end_time) <= new Date()) return Response.json({ error: 'This booking has already ended.' }, { status: 400 })
-
-  const { addRequester } = await import('@/lib/booking-requests')
-  await addRequester(booking.id, { name, email }, booking.end_time)
 
   const { sendBookingRequestEmail } = await import('@/lib/email')
   try {

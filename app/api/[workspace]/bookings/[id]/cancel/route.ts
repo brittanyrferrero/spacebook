@@ -29,8 +29,6 @@ export async function POST(req: NextRequest, { params }: { params: { workspace: 
     const result = cancelBooking(store, b.cancel_token, scope)
     await saveSessionStore(store)
     if (shouldNotifyBooker(access, b.booker_email)) console.log('[mock] would email booker:', b.booker_email, body.reason, actorName)
-    const { notifyRequesters } = await import('@/lib/booking-requests')
-    await notifyRequesters(b, '', 'cancelled', await workspaceTimeZone(null))
     return Response.json(result)
   }
 
@@ -53,7 +51,7 @@ export async function POST(req: NextRequest, { params }: { params: { workspace: 
   if (err) return Response.json({ error: err, code: 'reason_required' }, { status: 400 })
 
   const { cancelBookingRows } = await import('@/lib/cancel-booking')
-  const result = await cancelBookingRows(supabase, booking, scope, await workspaceTimeZone(workspaceId))
+  const result = await cancelBookingRows(supabase, booking, scope)
   if (result.error) return Response.json({ error: result.error }, { status: 500 })
 
   if (shouldNotifyBooker(access, booking.booker_email) && isChangeReason(body.reason)) {

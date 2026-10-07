@@ -19,8 +19,7 @@ export async function POST(req: NextRequest, { params }: { params: { token: stri
   if (!booking) return Response.json({ error: 'Booking already cancelled or not found.' }, { status: 410 })
 
   const { cancelBookingRows } = await import('@/lib/cancel-booking')
-  const { workspaceTimeZone } = await import('@/lib/time-zone')
-  const result = await cancelBookingRows(supabase, booking, scope, await workspaceTimeZone(booking.workspace_id))
+  const result = await cancelBookingRows(supabase, booking, scope)
   if (result.error) return Response.json({ error: result.error }, { status: 500 })
   return Response.json({ cancelled: result.cancelled })
 }
