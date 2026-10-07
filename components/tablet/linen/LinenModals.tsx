@@ -292,7 +292,7 @@ export function OthersBookingModal({ booking, action, submitting, error, sent, o
           </button>
           {!walkIn && (
             <button className="ln-choice" onClick={() => setStep('ask')}>
-              <b>Ask {first} to {action === 'cancel' ? 'cancel' : 'change'} it</b><span>Nothing changes yet. We’ll email them your note, and tell you if the time frees up.</span>
+              <b>Ask {first} to {action === 'cancel' ? 'cancel' : 'change'} it</b><span>Nothing changes yet. We’ll email them your note so they can reply to you.</span>
             </button>
           )}
           {walkIn && <div className="ln-msub" style={{ marginTop: 4 }}>If neither is true, leave it as it is.</div>}

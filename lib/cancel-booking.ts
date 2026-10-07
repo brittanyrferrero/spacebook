@@ -1,16 +1,13 @@
 import type { SupabaseClient } from '@supabase/supabase-js'
 import type { BookingWithRoom, CancelScope } from '@/types'
-import { notifyRequesters } from '@/lib/booking-requests'
 
 /** Cancels one booking, or it and the rest of its series ('future'). Deletes
- *  the Google Calendar events and tells anyone who asked about these bookings
- *  that the time is free. Shared by the emailed cancel link and the in-app
+ *  the Google Calendar events. Shared by the emailed cancel link and the in-app
  *  cancel route, so both behave the same. */
 export async function cancelBookingRows(
   supabase: SupabaseClient,
   booking: BookingWithRoom,
   scope: CancelScope,
-  timeZone?: string | null,
 ): Promise<{ cancelled: number; error?: string }> {
   const now = new Date().toISOString()
 
@@ -35,8 +32,6 @@ export async function cancelBookingRows(
     const { deleteCalendarEvent } = await import('@/lib/google-calendar/client')
     Promise.all(toDelete.map(r => deleteCalendarEvent(r.google_event_id!, room.google_calendar_id!, room.id))).catch(() => {})
   }
-
-  await Promise.all(rows.map(r => notifyRequesters(r, room?.name ?? '', 'cancelled', timeZone)))
 
   return { cancelled: rows.length }
 }

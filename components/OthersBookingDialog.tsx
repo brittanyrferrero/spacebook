@@ -64,7 +64,7 @@ export function OthersBookingDialog({ booking, action, theme, defaultName, defau
             {!walkIn && (
               <button style={choice} onClick={() => setStep('ask')}>
                 <div style={{ fontSize: 13, fontWeight: 600 }}>Ask {first} to {danger ? 'cancel' : 'change'} it</div>
-                <div style={{ fontSize: 12, color: T.textMuted, marginTop: 2 }}>Nothing changes yet. We email them your note and tell you if the time frees up.</div>
+                <div style={{ fontSize: 12, color: T.textMuted, marginTop: 2 }}>Nothing changes yet. We email them your note so they can reply to you.</div>
               </button>
             )}
             {walkIn && <div style={{ fontSize: 12, color: T.textMuted, margin: '0 0 8px' }}>If neither is true, leave it as it is.</div>}

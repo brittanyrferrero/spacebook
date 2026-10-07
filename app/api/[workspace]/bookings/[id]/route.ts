@@ -2,7 +2,6 @@ import { type NextRequest } from 'next/server'
 import { getWorkspaceId } from '@/lib/workspace'
 import type { Booking } from '@/types'
 import { isValidEmail } from '@/lib/email'
-import { notifyRequesters } from '@/lib/booking-requests'
 import { workspaceTimeZone } from '@/lib/time-zone'
 import {
   accessFor, cleanName, isChangeReason, isPlaceholderEmail, reasonError, shouldNotifyBooker,
@@ -65,12 +64,11 @@ export async function PATCH(req: NextRequest, { params }: { params: { workspace:
       return Response.json(getBookingById(store, params.id))
     }
 
-    const snapshot = { ...before }
+    const bookerEmail = before.booker_email   // updateBooking may change it in place
     const booking = updateBooking(store, params.id, patch)
     if (!booking) return Response.json({ error: 'Booking not found' }, { status: 404 })
     await saveSessionStore(store)
-    if (shouldNotifyBooker(access, snapshot.booker_email)) console.log('[mock] would email booker about edit:', snapshot.booker_email, _reason, actorName)
-    if (timesChanged(snapshot, booking)) await notifyRequesters(snapshot, _room_name ?? '', 'moved', await workspaceTimeZone(null))
+    if (shouldNotifyBooker(access, bookerEmail)) console.log('[mock] would email booker about edit:', bookerEmail, _reason, actorName)
     return Response.json(booking)
   }
 
@@ -107,7 +105,6 @@ export async function PATCH(req: NextRequest, { params }: { params: { workspace:
       .is('cancelled_at', null)
     const conflictDates: string[] = []
     const updatedBkgs: { google_event_id: string; start_time: string; end_time: string }[] = []
-    const moved: { id: string; booker_name: string; start_time: string; end_time: string }[] = []
     if (futureBkgs) {
       for (const bkg of futureBkgs) {
         const d = new Date(bkg.start_time)
@@ -120,7 +117,6 @@ export async function PATCH(req: NextRequest, { params }: { params: { workspace:
         const { error: upErr } = await supabase.from('bookings').update(up).eq('id', bkg.id).eq('workspace_id', workspaceId)
         if (upErr) { conflictDates.push(s.toISOString().slice(0, 10)); continue }
         if (bkg.google_event_id) updatedBkgs.push({ google_event_id: bkg.google_event_id, start_time: s.toISOString(), end_time: e.toISOString() })
-        if (timesChanged(bkg, up as { start_time: string; end_time: string })) moved.push({ id: bkg.id, booker_name: before.booker_name, start_time: bkg.start_time, end_time: bkg.end_time })
       }
     }
     const { data } = await supabase.from('bookings').select().eq('id', params.id).eq('workspace_id', workspaceId).single()
@@ -137,7 +133,6 @@ export async function PATCH(req: NextRequest, { params }: { params: { workspace:
     }
 
     if (data) await emailBookerAboutEdit({ access, reason: _reason, actorName, editorName: _editor_name, editorEmail: _editor_email, before, after: data, roomName, timeZone })
-    await Promise.all(moved.map(m => notifyRequesters(m, roomName, 'moved', timeZone)))
 
     return Response.json({ booking: data, conflictDates })
   }
@@ -149,7 +144,6 @@ export async function PATCH(req: NextRequest, { params }: { params: { workspace:
   }
 
   await emailBookerAboutEdit({ access, reason: _reason, actorName, editorName: _editor_name, editorEmail: _editor_email, before, after: data, roomName, timeZone })
-  if (timesChanged(before, data)) await notifyRequesters(before, roomName, 'moved', timeZone)
 
   if (data.google_event_id && before.room?.google_calendar_id) {
     const { updateCalendarEvent } = await import('@/lib/google-calendar/client')
@@ -159,9 +153,6 @@ export async function PATCH(req: NextRequest, { params }: { params: { workspace:
   return Response.json(data)
 }
 
-function timesChanged(a: { start_time: string; end_time: string }, b: { start_time: string; end_time: string }) {
-  return new Date(a.start_time).getTime() !== new Date(b.start_time).getTime() || new Date(a.end_time).getTime() !== new Date(b.end_time).getTime()
-}
 
 /** ADR-023: a change made with a reason always tells the booker. A direct change
  *  by someone else who identified themselves (e.g. an admin) still does, as before. */

@@ -38,11 +38,9 @@ vi.mock('@/lib/email', async (orig) => ({
   sendBookingCancelledNoticeEmail: vi.fn(async () => {}),
   sendBookingEditedEmail: vi.fn(async () => {}),
   sendBookingRequestEmail: vi.fn(async () => {}),
-  sendRequestedSlotFreedEmail: vi.fn(async () => {}),
 }))
 
 const email = await import('@/lib/email')
-const requests = await import('@/lib/booking-requests')
 const cancelRoute = await import('@/app/api/[workspace]/bookings/[id]/cancel/route')
 const bookingRoute = await import('@/app/api/[workspace]/bookings/[id]/route')
 const requestRoute = await import('@/app/api/[workspace]/bookings/[id]/request/route')
@@ -57,7 +55,7 @@ function req(body: unknown, cookie = '') {
   })
 }
 
-beforeEach(async () => {
+beforeEach(() => {
   vi.clearAllMocks()
   db.updates = []
   db.booking = {
@@ -67,7 +65,6 @@ beforeEach(async () => {
     cancelled_at: null, created_at: hourAgo(), origin: 'desktop', is_block: false,
     room: { id: 'r1', name: 'Recording Studio', google_calendar_id: null },
   }
-  await requests.takeRequesters('b1')   // empty the in-memory store between tests
 })
 
 describe('POST /bookings/[id]/cancel', () => {
@@ -117,12 +114,6 @@ describe('POST /bookings/[id]/cancel', () => {
     const res = await cancelRoute.POST(req({ reason: 'mine' }), params)
     expect(res.status).toBe(403)
   })
-
-  it('tells everyone who asked about the booking that the time is free', async () => {
-    await requests.addRequester('b1', { name: 'Jo', email: 'jo@example.com' }, inHours(2))
-    await cancelRoute.POST(req({ reason: 'mine' }), params)
-    expect(email.sendRequestedSlotFreedEmail).toHaveBeenCalledWith(expect.objectContaining({ to: 'jo@example.com', change: 'cancelled', timeZone: 'America/Los_Angeles' }))
-  })
 })
 
 describe('PATCH /bookings/[id]', () => {
@@ -145,12 +136,10 @@ describe('PATCH /bookings/[id]', () => {
     expect(Object.keys(db.updates[0]).sort()).toEqual(['end_time', 'start_time'])
   })
 
-  it('"permission" saves, emails the booker with the name, and tells requesters it moved', async () => {
-    await requests.addRequester('b1', { name: 'Jo', email: 'jo@example.com' }, inHours(2))
+  it('"permission" saves and emails the booker with the name', async () => {
     const res = await bookingRoute.PATCH(req({ ...move, _reason: 'permission', _actor_name: 'Alex' }), params)
     expect(res.status).toBe(200)
     expect(email.sendBookingEditedEmail).toHaveBeenCalledWith(expect.objectContaining({ to: 'sam@example.com', reason: 'permission', editorName: 'Alex', timeZone: 'America/Los_Angeles' }))
-    expect(email.sendRequestedSlotFreedEmail).toHaveBeenCalledWith(expect.objectContaining({ to: 'jo@example.com', change: 'moved' }))
   })
 
   it('the verified owner edits freely, including their own details, with no email', async () => {
@@ -167,14 +156,13 @@ describe('POST /bookings/[id]/request', () => {
     expect((await requestRoute.POST(req({ name: 'Jo', email: 'not-an-email' }), params)).status).toBe(400)
   })
 
-  it('emails the booker, stores the requester, and changes nothing', async () => {
+  it('emails the booker and changes nothing', async () => {
     const res = await requestRoute.POST(req({ name: 'Jo', email: 'jo@example.com', note: 'Can we swap?', kind: 'cancel' }), params)
     expect(res.status).toBe(200)
     expect(db.updates).toHaveLength(0)
     expect(email.sendBookingRequestEmail).toHaveBeenCalledWith(expect.objectContaining({
       bookerEmail: 'sam@example.com', requesterEmail: 'jo@example.com', note: 'Can we swap?', kind: 'cancel', cancelToken: 'tok',
     }))
-    expect(await requests.takeRequesters('b1')).toEqual([{ name: 'Jo', email: 'jo@example.com' }])
   })
 
   it('caps the note length', async () => {
