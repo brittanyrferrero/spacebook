@@ -792,6 +792,12 @@ export default function BookingPage() {
   const [viewDate,      setViewDate]      = useState(new Date())
   const [theme,         setTheme]         = useState<'light' | 'dark'>('light')
   const [lotr,          setLotr]          = useState(false)
+  const [lotrToast,     setLotrToast]     = useState(0)
+  function toggleLotr() {
+    const next = !lotr
+    setLotr(next)
+    if (next) setLotrToast(n => n + 1)
+  }
   const [workspaceName, setWorkspaceName] = useState('')
   const lotrQuote = useMemo(() => {
     const quotes = [
@@ -1457,6 +1463,12 @@ export default function BookingPage() {
   return (
     <div style={{ background: dark ? '#0d0d0d' : '#eeece8', height: isMobile ? '100dvh' : '100vh', display: 'flex', flexDirection: 'column', overflow: 'hidden', padding: isMobile ? '8px' : '24px' }}>
       <style dangerouslySetInnerHTML={{ __html: `@import url('https://fonts.googleapis.com/css2?family=Spectral:ital,wght@0,400;0,500;0,600;1,400&display=swap');@import url('https://fonts.googleapis.com/css2?family=Uncial+Antiqua&display=block');*{transition:background-color 0.25s ease,color 0.2s ease,border-color 0.2s ease,box-shadow 0.2s ease}@keyframes tabShine{0%,100%{border-bottom-color:rgba(219,149,171,0.6)}50%{border-bottom-color:rgba(219,149,171,1)}}@keyframes chronoFlash{0%{opacity:0;transform:translateY(3px)}12%{opacity:1;transform:translateY(0)}70%{opacity:1}100%{opacity:0}}` }} />
+      {lotrToast > 0 && (
+        <div key={lotrToast} onAnimationEnd={() => setLotrToast(0)} role="status"
+          style={{ position: 'fixed', bottom: 28, left: 0, right: 0, textAlign: 'center', pointerEvents: 'none', zIndex: 1000, fontFamily: "'Uncial Antiqua', serif", fontSize: 12, letterSpacing: '0.06em', color: dark ? '#B8B0A0' : '#6B5E4A', animation: 'chronoFlash 2.2s ease-out forwards' }}>
+          Lord of the Rings mode activated
+        </div>
+      )}
 
       {/* Calendar card */}
       <div style={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column', background: T.pageBg, borderRadius: '12px', overflow: 'hidden', border: dark ? '1px solid rgba(255,255,255,0.08)' : '1px solid rgba(0,0,0,0.13)' }}>
@@ -1480,7 +1492,7 @@ export default function BookingPage() {
                 style={{ width: 30, height: 16, borderRadius: 0, background: dark ? 'rgba(255,255,255,0.15)' : 'rgba(0,0,0,0.10)', border: dark ? '0.5px solid rgba(255,255,255,0.22)' : '0.5px solid rgba(0,0,0,0.20)', cursor: 'pointer', position: 'relative', flexShrink: 0 }}>
                 <div style={{ position: 'absolute', top: 2, left: dark ? 14 : 2, width: 12, height: 12, borderRadius: 0, background: dark ? '#fff' : '#1c1510', transition: 'left .18s' }} />
               </div>
-              <span onClick={() => setLotr(l => !l)} title="One ring to rule them all"
+              <span onClick={toggleLotr} title="One ring to rule them all"
                 style={{ cursor: 'pointer', fontSize: 14, opacity: lotr ? 1 : 0.25, transition: 'opacity .18s', userSelect: 'none' as const, lineHeight: 1 }}>
                 🧙
               </span>
@@ -1534,7 +1546,7 @@ export default function BookingPage() {
                 style={{ width: 30, height: 16, borderRadius: 0, background: dark ? 'rgba(255,255,255,0.15)' : 'rgba(0,0,0,0.10)', border: dark ? '0.5px solid rgba(255,255,255,0.22)' : '0.5px solid rgba(0,0,0,0.20)', cursor: 'pointer', position: 'relative', flexShrink: 0 }}>
                 <div style={{ position: 'absolute', top: 2, left: dark ? 14 : 2, width: 12, height: 12, borderRadius: 0, background: dark ? '#fff' : '#1c1510', transition: 'left .18s' }} />
               </div>
-              <span onClick={() => setLotr(l => !l)} title="One ring to rule them all"
+              <span onClick={toggleLotr} title="One ring to rule them all"
                 style={{ cursor: 'pointer', fontSize: 14, opacity: lotr ? 1 : 0.25, transition: 'opacity .18s', userSelect: 'none' as const, lineHeight: 1 }}>
                 🧙
               </span>
