@@ -5,7 +5,7 @@ const watches = new Map<string, { expirationMs: number }>()
 const tokens = new Set<string>()
 const registerResults = new Map<string, { ok: true } | { ok: false; reason: string; detail?: string }>()
 const registered: string[] = []
-const sent: { to: string; rooms: { roomName: string; reason: string }[] }[] = []
+const sent: { to: string; rooms: { roomName: string; reason: string }[]; healed: { roomName: string; reason: string }[] }[] = []
 
 vi.mock('@/lib/google-calendar/watchStore', () => ({
   getAllWatchedRooms: async () => [],
@@ -53,7 +53,7 @@ beforeEach(() => {
 })
 
 describe('gcal-renew sync health self-heal', () => {
-  it('re-registers missing and expired watches and sends no email when that works', async () => {
+  it('re-registers missing and expired watches and reports them as fixed, not broken', async () => {
     tokens.add('r1'); tokens.add('r2'); tokens.add('r3')
     watches.set('r2', { expirationMs: Date.now() - 1000 })     // expired
     watches.set('r3', { expirationMs: Date.now() + 86400000 }) // healthy
@@ -64,6 +64,21 @@ describe('gcal-renew sync health self-heal', () => {
     expect(registered.sort()).toEqual(['r1', 'r2'])
     expect(body.healedRooms).toBe(2)
     expect(body.unhealthyRooms).toBe(0)
+    expect(sent).toHaveLength(1)
+    expect(sent[0].rooms).toEqual([])
+    expect(sent[0].healed.map(r => [r.roomName, r.reason])).toEqual([
+      ['Room r1', 'no watch channel registered'],
+      ['Room r2', 'watch channel expired'],
+    ])
+  })
+
+  it('sends nothing when every connected room is healthy', async () => {
+    tokens.add('r1')
+    watches.set('r1', { expirationMs: Date.now() + 86400000 })
+
+    await call()
+
+    expect(registered).toEqual([])
     expect(sent).toHaveLength(0)
   })
 
@@ -77,5 +92,6 @@ describe('gcal-renew sync health self-heal', () => {
     expect(sent).toHaveLength(1)
     expect(sent[0].rooms.map(r => r.roomName)).toEqual(['Room r2'])
     expect(sent[0].rooms[0].reason).toContain('auto re-register failed: Not Found')
+    expect(sent[0].healed.map(r => r.roomName)).toEqual(['Room r1'])
   })
 })

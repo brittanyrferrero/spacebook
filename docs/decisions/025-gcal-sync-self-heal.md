@@ -33,8 +33,10 @@ days, a watch can still expire. Self-heal covers that case too.
 
 When the health check finds an active room with tokens whose watch is **missing or
 expired**, it calls `registerWatch()` itself, the same code the admin "pick calendar"
-flow uses. The room only goes into the alert email if that re-registration fails, and
-the email reason then includes Google's error.
+flow uses. If that works, the room is listed in a secondary "Fixed automatically"
+section of the email. If it fails, the room goes in the main alert section, and the
+reason includes Google's error. When every problem was fixed, the subject line says
+"sync restored", not "not syncing". Days with nothing to report still send no email.
 
 - Watch registration was pulled out of the `POST /gcal/watch` route into
   `lib/google-calendar/registerWatch.ts`, so the route and the cron share one
@@ -64,14 +66,16 @@ calendar, not the channel, so keeping the token across a channel swap is correct
 ## Consequences
 
 **Better:** A lost watch now costs at most one day of missed external changes instead of
-"until someone reads the email and clicks". The email goes back to meaning "a human needs
-to look": revoked access, a deleted calendar, a broken app URL.
+"until someone reads the email and clicks". The alert section goes back to meaning "a
+human needs to look": revoked access, a deleted calendar, a broken app URL.
 
-**Worse:** This can hide a recurring problem. If something keeps deleting watch state,
-the cron quietly repairs it every night, there's no email, and sync is still dead for up
-to 24 hours at a time. That's the accepted trade-off. The mitigation is the log line: **if
-`self-healed watch channel` shows up for the same rooms more than occasionally, the root
-cause is still active.** Look at the Redis side: whether the Upstash database has read
+**Worse:** This can still hide a recurring problem. If something keeps deleting watch
+state, the cron repairs it every night, and sync is still dead for up to 24 hours at a
+time. The first version of this change sent no email for a successful repair, and only
+logged `self-healed watch channel`. That was reversed before shipping. A problem you only
+see by searching the logs isn't really visible, so repaired rooms are reported in the
+email too, just without the alarm. **If the same rooms keep appearing under "Fixed
+automatically", the root cause is still active.** Look at the Redis side: whether the Upstash database has read
 replicas, and whether every environment that runs the cron points at the same
 `KV_REST_API_URL` as the app. Also look at the `[gcal renew] no tokens found` lines
 from ADR-019 on the same day.

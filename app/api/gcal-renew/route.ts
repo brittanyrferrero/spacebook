@@ -80,9 +80,9 @@ export async function GET(req: NextRequest) {
   }
 
   const { unhealthy, healed } = await checkSyncHealth(failedRoomIds)
-  if (unhealthy.length > 0) await notifyUnhealthy(unhealthy)
+  if (unhealthy.length > 0 || healed.length > 0) await notifyUnhealthy(unhealthy, healed)
 
-  return Response.json({ renewed, errors, total: roomIds.length, healedRooms: healed, unhealthyRooms: unhealthy.length })
+  return Response.json({ renewed, errors, total: roomIds.length, healedRooms: healed.length, unhealthyRooms: unhealthy.length })
 }
 
 // Cross-checks every GCal-connected room against its watch state — catches the
@@ -94,8 +94,9 @@ export async function GET(req: NextRequest) {
 //
 // A room with valid tokens but a missing or expired watch is re-registered on
 // the spot (same as the runbook's fast-path fix) and only flagged if that
-// fails. Every heal is logged as `[gcal renew] self-healed` so a recurring
-// root cause stays visible in Vercel logs instead of being silently papered over.
+// fails. Every heal is logged as `[gcal renew] self-healed` and listed in the
+// email as "fixed automatically", so a recurring root cause stays visible
+// instead of being silently papered over.
 async function checkSyncHealth(failedRoomIds: Set<string>) {
   const { getWatchState } = await import('@/lib/google-calendar/watchStore')
   const { hasTokens } = await import('@/lib/google-calendar/tokenStore')
@@ -107,10 +108,9 @@ async function checkSyncHealth(failedRoomIds: Set<string>) {
     .from('rooms')
     .select('id, name, is_active, google_calendar_id, workspace_id, workspaces(slug, name)')
     .not('google_calendar_id', 'is', null)
-  if (!rooms) return { unhealthy: [], healed: 0 }
-
-  const unhealthy: { roomName: string; workspaceSlug: string; workspaceName: string | null; reason: string }[] = []
-  let healed = 0
+  const unhealthy: HealthRoom[] = []
+  const healed: HealthRoom[] = []
+  if (!rooms) return { unhealthy, healed }
 
   for (const room of rooms as any[]) {
     if (!room.is_active) continue // disabled rooms deliberately don't sync — not a health issue
@@ -140,7 +140,7 @@ async function checkSyncHealth(failedRoomIds: Set<string>) {
       : null
     if (result?.ok) {
       console.warn('[gcal renew] self-healed watch channel', { roomId: room.id, roomName: room.name, workspaceSlug, problem })
-      healed++
+      healed.push({ roomName: room.name, workspaceSlug, workspaceName, reason: problem === 'missing' ? 'no watch channel registered' : 'watch channel expired' })
       continue
     }
 
@@ -158,9 +158,11 @@ async function checkSyncHealth(failedRoomIds: Set<string>) {
   return { unhealthy, healed }
 }
 
-async function notifyUnhealthy(rooms: { roomName: string; workspaceSlug: string; workspaceName: string | null; reason: string }[]) {
+type HealthRoom = { roomName: string; workspaceSlug: string; workspaceName: string | null; reason: string }
+
+async function notifyUnhealthy(rooms: HealthRoom[], healed: HealthRoom[]) {
   const admins = (process.env.PALANTIR_ADMINS ?? '').split(',').map(e => e.trim()).filter(Boolean)
   for (const to of admins) {
-    try { await sendGcalSyncHealthEmail({ to, rooms }) } catch (err) { console.error('[gcal renew] failed to send sync health email', { to, err }) }
+    try { await sendGcalSyncHealthEmail({ to, rooms, healed }) } catch (err) { console.error('[gcal renew] failed to send sync health email', { to, err }) }
   }
 }
