@@ -1,4 +1,8 @@
 import { type NextRequest } from 'next/server'
+import { ratelimit, getIP } from '@/lib/ratelimit'
+
+// A tablet beats every 2 minutes, plus a beacon on hide/close; this leaves lots of headroom
+const rl = ratelimit(20, '1 m')
 
 // Liveness ping from Linen tablets (ADR-024). Sent every 2 minutes with fetch, and
 // once via navigator.sendBeacon when the page is hidden or closed — sendBeacon posts
@@ -7,6 +11,7 @@ export async function POST(req: NextRequest, { params }: { params: { workspace: 
   if (process.env.MOCK_MODE === 'true') return Response.json({ ok: true })
   const wsToken = req.cookies.get(`ws_${params.workspace}`)?.value
   if (!wsToken) return Response.json({ error: 'Unauthorized' }, { status: 401 })
+  if (!(await rl.limit(`tablet-heartbeat:${getIP(req)}`)).success) return Response.json({ error: 'Too many requests' }, { status: 429 })
 
   let body: Record<string, unknown>
   try { body = JSON.parse(await req.text()) } catch { return Response.json({ error: 'Invalid payload' }, { status: 400 }) }
@@ -34,7 +39,8 @@ export async function POST(req: NextRequest, { params }: { params: { workspace: 
   if (!workspaceId) return Response.json({ error: 'Not found' }, { status: 404 })
 
   const { Redis } = await import('@upstash/redis')
-  const { recordTabletSeen } = await import('@/lib/tablet-health')
+  const { recordTabletSeen, roomBelongsToWorkspace } = await import('@/lib/tablet-health')
+  if (!(await roomBelongsToWorkspace(workspaceId, roomId))) return Response.json({ error: 'Not found' }, { status: 404 })
   await recordTabletSeen(Redis.fromEnv(), workspaceId, roomId, fields)
 
   return Response.json({ ok: true })

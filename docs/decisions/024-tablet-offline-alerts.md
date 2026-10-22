@@ -93,8 +93,13 @@ repo is public) is the real trigger. Both authenticate with `CRON_SECRET`.
   cookie is required, and per ADR-001 knowing the slug is the credential. So a workspace
   member could fake a heartbeat and mask an outage in their *own* workspace (snapshots
   have the same property). Cross-workspace spoofing isn't possible because the cron only
-  reads keys under each room's real workspace ID; unknown room IDs just create junk keys
-  that expire after 30 days.
+  reads keys under each room's real workspace ID.
+- Heartbeat and snapshot writes check that `roomId` is a real room in that workspace
+  before touching Redis, so made-up room IDs can't mint unlimited keys (snapshots are
+  ~800KB each). Heartbeats are also rate limited (20/min per IP).
+- `/api/tablet-health` **fails closed**: if `CRON_SECRET` isn't set (as on preview
+  deployments, which share production data) it rejects every call, rather than running
+  for anyone the way `gcal-renew` does.
 - `tablet-health` is in `PUBLIC_API_SEGMENTS` and `RESERVED_SLUGS`, like `gcal-renew`.
 
 See also: [tablet-offline-alert runbook](../runbooks/tablet-offline-alert.md).

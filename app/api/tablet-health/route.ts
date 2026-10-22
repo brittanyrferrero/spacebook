@@ -9,7 +9,9 @@ export const dynamic = 'force-dynamic'
 // workspace's super admins once when a tablet goes quiet or gets unplugged, and once
 // when it's back to normal.
 export async function GET(req: NextRequest) {
-  if (process.env.CRON_SECRET && req.headers.get('authorization') !== `Bearer ${process.env.CRON_SECRET}`) {
+  // Fails closed: unlike gcal-renew, an unset CRON_SECRET (e.g. on preview deployments,
+  // which share production data) must not leave the check open to anyone.
+  if (!process.env.CRON_SECRET || req.headers.get('authorization') !== `Bearer ${process.env.CRON_SECRET}`) {
     return Response.json({ error: 'Unauthorized' }, { status: 401 })
   }
 

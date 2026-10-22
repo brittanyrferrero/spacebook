@@ -42,11 +42,12 @@ vi.mock('@/lib/email', () => ({
 
 async function runCheck() {
   const { GET } = await import('@/app/api/tablet-health/route')
-  return (await GET(new Request('http://x/api/tablet-health') as any)).json()
+  const req = new Request('http://x/api/tablet-health', { headers: { authorization: 'Bearer s3cret' } })
+  return (await GET(req as any)).json()
 }
 
 describe('tablet-health cron', () => {
-  beforeEach(() => { store.clear(); sent.length = 0; delete process.env.CRON_SECRET })
+  beforeEach(() => { store.clear(); sent.length = 0; process.env.CRON_SECRET = 's3cret' })
 
   it('alerts super admins once when a tablet goes quiet, then once when it returns', async () => {
     store.set('tablet:seen:w1:r1', { lastSeen: new Date(Date.now() - 20 * 60_000).toISOString(), pageStartedAt: '2026-01-01T00:00:00Z', battery: 3, charging: 0 })
@@ -110,10 +111,17 @@ describe('tablet-health cron', () => {
     expect(sent).toHaveLength(0)
   })
 
-  it('requires the cron secret when one is configured', async () => {
-    process.env.CRON_SECRET = 's3cret'
+  it('rejects a missing or wrong bearer token', async () => {
     const { GET } = await import('@/app/api/tablet-health/route')
-    const res = await GET(new Request('http://x/api/tablet-health') as any)
-    expect(res.status).toBe(401)
+    expect((await GET(new Request('http://x/api/tablet-health') as any)).status).toBe(401)
+    const wrong = new Request('http://x/api/tablet-health', { headers: { authorization: 'Bearer nope' } })
+    expect((await GET(wrong as any)).status).toBe(401)
+  })
+
+  it('fails closed when CRON_SECRET is not configured', async () => {
+    delete process.env.CRON_SECRET
+    const { GET } = await import('@/app/api/tablet-health/route')
+    const req = new Request('http://x/api/tablet-health', { headers: { authorization: 'Bearer undefined' } })
+    expect((await GET(req as any)).status).toBe(401)
   })
 })

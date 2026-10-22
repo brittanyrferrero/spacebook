@@ -55,6 +55,17 @@ export function parseRecord(raw: Record<string, unknown> | null): TabletRecord |
   }
 }
 
+// Tablet writes are keyed by a client-supplied roomId, so check it's a real room in this
+// workspace first — otherwise anyone with the workspace cookie could mint unlimited
+// Redis keys (and, for snapshots, ~800KB values) under made-up room IDs.
+export async function roomBelongsToWorkspace(workspaceId: string, roomId: string): Promise<boolean> {
+  if (!/^[\w-]{1,64}$/.test(roomId)) return false
+  const { createClient } = await import('@/lib/supabase/server')
+  const supabase = await createClient()
+  const { data } = await supabase.from('rooms').select('id').eq('id', roomId).eq('workspace_id', workspaceId).maybeSingle()
+  return !!data
+}
+
 export async function recordTabletSeen(kv: Redis, workspaceId: string, roomId: string, fields: Record<string, string | number>) {
   const key = seenKey(workspaceId, roomId)
   const now = new Date().toISOString()

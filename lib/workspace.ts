@@ -9,7 +9,7 @@ export const RESERVED_SLUGS = new Set([
   'palantir', 'palantir-enter',
   // top-level API segments (PUBLIC_API_SEGMENTS in middleware)
   'cancel', 'workspaces', 'notify', 'demo-access', 'admin', 'palantir',
-  'delete-confirm', 'gcal', 'gcal-renew', 'tablet-health', 'version', 'find-my-workspaces',
+  'delete-confirm', 'gcal', 'gcal-renew', 'tablet-health', 'version', 'error-report', 'find-my-workspaces',
   // Next.js / infrastructure
   'api', '_next',
 ])
