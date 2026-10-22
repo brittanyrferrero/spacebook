@@ -422,7 +422,7 @@ export function LinenRoomDisplay() {
               <>
                 <span className="ln-big ln-serif" style={{ fontSize: `calc(96px * var(--rs))` }}>Free</span>
                 <span className="ln-sub">for <strong>{freeMins === null ? 'the rest of the day' : fmtDur(freeMins)}</strong></span>
-                <span className="ln-note">{status.next ? `until ${fmtClock(new Date(status.next.start_time))}` : 'nothing else booked'}</span>
+                {status.next && <span className="ln-note">until {fmtClock(new Date(status.next.start_time))}</span>}
               </>
             ) : (
               <>
