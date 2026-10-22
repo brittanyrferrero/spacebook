@@ -141,6 +141,8 @@ The room display page (`/[workspace]/room/[roomId]`) is designed to run as a per
 
 **Screenshot upload** — 5 seconds after mount, and every 5 minutes thereafter, the page dynamically imports `html2canvas`, renders its own DOM to a canvas, and POSTs a JPEG to `/api/[workspace]/tablet-snapshot`. These screenshots are stored in Redis and surfaced in the palantir overlord view so super-admins can see what each tablet's browser is actually rendering. The upload is fire-and-forget — a failure is silently swallowed and never crashes the tablet page. See [ADR-011](decisions/011-tablet-screenshot-approach.md) for why html2canvas was chosen over iframes, puppeteer, and ADB.
 
+**Heartbeat and health alerts** — Linen tablets POST to `/api/[workspace]/tablet-heartbeat` every 2 minutes with battery/charging state and page start time, plus a `sendBeacon` goodbye when the page is hidden or closed. Each heartbeat (and, for Classic tablets, each snapshot upload) refreshes `tablet:seen:{workspaceId}:{roomId}` in Redis. `/api/tablet-health`, run every 15 minutes by GitHub Actions (`.github/workflows/tablet-health.yml`) and daily by Vercel Cron, emails a workspace's super admins once when a tablet goes silent for 15 minutes or runs on battery for 5, and once when it recovers. See [ADR-024](decisions/024-tablet-offline-alerts.md) and the [tablet-offline-alert runbook](runbooks/tablet-offline-alert.md).
+
 ## Desktop "Book Now" and "Schedule for later"
 
 > See [ADR-008](decisions/008-book-now-time-semantics.md) — why "Book Now" uses retroactive slot timing and why past-time validation must not apply to it.

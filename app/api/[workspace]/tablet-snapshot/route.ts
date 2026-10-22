@@ -6,7 +6,7 @@ export async function POST(req: NextRequest, { params }: { params: { workspace: 
 
   const body = await req.json()
   const { roomId, image } = body
-  if (!roomId || typeof image !== 'string' || !image.startsWith('data:image/jpeg;base64,')) {
+  if (typeof roomId !== 'string' || typeof image !== 'string' || !image.startsWith('data:image/jpeg;base64,')) {
     return Response.json({ error: 'Invalid payload' }, { status: 400 })
   }
   if (image.length > 800_000) {
@@ -17,6 +17,9 @@ export async function POST(req: NextRequest, { params }: { params: { workspace: 
   const workspaceId = await getWorkspaceId(params.workspace)
   if (!workspaceId) return Response.json({ error: 'Not found' }, { status: 404 })
 
+  const { recordTabletSeen, roomBelongsToWorkspace } = await import('@/lib/tablet-health')
+  if (!(await roomBelongsToWorkspace(workspaceId, roomId))) return Response.json({ error: 'Not found' }, { status: 404 })
+
   const { Redis } = await import('@upstash/redis')
   const kv = Redis.fromEnv()
   await kv.set(
@@ -24,6 +27,8 @@ export async function POST(req: NextRequest, { params }: { params: { workspace: 
     { image, capturedAt: new Date().toISOString() },
     { ex: 60 * 60 * 48 }
   )
+  // Snapshots double as the liveness signal for Classic tablets, which don't send heartbeats (ADR-024)
+  await recordTabletSeen(kv, workspaceId, roomId, { lastSnapshotAt: new Date().toISOString() })
 
   return Response.json({ ok: true })
 }

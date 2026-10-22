@@ -67,7 +67,7 @@ The code resolves these as: `NEXT_PUBLIC_APP_URL ?? NEXT_PUBLIC_BASE_URL ?? 'htt
 |---|---|---|
 | `ADMIN_PASSWORD` | All | Password required to access any workspace's `/[workspace]/admin` panel. Shared across all workspaces. |
 | `PALANTIR_ADMINS` | All | Comma-separated list of email addresses that can access the Palantir super-admin panel at `/palantir`. Example: `alice@example.com,bob@example.com`. |
-| `CRON_SECRET` | Production | Bearer token used by Vercel Cron to authenticate the daily GCal webhook renewal job at `/api/gcal-renew`. If not set, the endpoint is unprotected. Set this in production. |
+| `CRON_SECRET` | Production | Bearer token used by Vercel Cron to authenticate the daily GCal webhook renewal job at `/api/gcal-renew` and the tablet-offline check at `/api/tablet-health`. The same value must be set as the `CRON_SECRET` GitHub Actions repo secret, which runs the tablet check every 15 minutes (ADR-024). If not set, the endpoint is unprotected. Set this in production. |
 
 ### Google Calendar (optional)
 
