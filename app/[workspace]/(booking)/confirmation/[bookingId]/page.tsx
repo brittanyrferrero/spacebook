@@ -11,7 +11,8 @@ function fmt(iso: string, opts: Intl.DateTimeFormatOptions) {
   return new Date(iso).toLocaleString('en-AU', opts)
 }
 
-export default async function ConfirmationPage({ params }: { params: { workspace: string; bookingId: string } }) {
+export default async function ConfirmationPage(props: { params: Promise<{ workspace: string; bookingId: string }> }) {
+  const params = await props.params;
   const workspaceId = process.env.MOCK_MODE === 'true' ? params.workspace : await getWorkspaceId(params.workspace)
   const booking = await getBookingById(params.bookingId, workspaceId ?? undefined)
   if (!booking || booking.cancelled_at) return notFound()

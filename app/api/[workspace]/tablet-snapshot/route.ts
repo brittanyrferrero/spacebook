@@ -1,6 +1,7 @@
 import { type NextRequest } from 'next/server'
 
-export async function POST(req: NextRequest, { params }: { params: { workspace: string } }) {
+export async function POST(req: NextRequest, props: { params: Promise<{ workspace: string }> }) {
+  const params = await props.params;
   const wsToken = req.cookies.get(`ws_${params.workspace}`)?.value
   if (!wsToken) return Response.json({ error: 'Unauthorized' }, { status: 401 })
 
@@ -28,7 +29,8 @@ export async function POST(req: NextRequest, { params }: { params: { workspace: 
   return Response.json({ ok: true })
 }
 
-export async function GET(req: NextRequest, { params }: { params: { workspace: string } }) {
+export async function GET(req: NextRequest, props: { params: Promise<{ workspace: string }> }) {
+  const params = await props.params;
   const wsToken      = req.cookies.get(`ws_${params.workspace}`)?.value
   const adminToken   = req.cookies.get(`admin_${params.workspace}`)?.value
   const palantir     = req.cookies.get('palantir_session')?.value

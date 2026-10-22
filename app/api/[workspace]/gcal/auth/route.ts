@@ -2,7 +2,8 @@ import { type NextRequest, NextResponse } from 'next/server'
 import { google } from 'googleapis'
 import { appUrl } from '@/lib/email'
 
-export async function GET(req: NextRequest, { params }: { params: { workspace: string } }) {
+export async function GET(req: NextRequest, props: { params: Promise<{ workspace: string }> }) {
+  const params = await props.params;
   const adminRole = req.cookies.get(`admin_${params.workspace}`)?.value
   if (!adminRole) return Response.json({ error: 'Admin required.' }, { status: 403 })
 

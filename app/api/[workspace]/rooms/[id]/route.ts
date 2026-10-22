@@ -1,7 +1,11 @@
 import { type NextRequest } from 'next/server'
 import { getWorkspaceId } from '@/lib/workspace'
 
-export async function PATCH(req: NextRequest, { params }: { params: { workspace: string; id: string } }) {
+export async function PATCH(
+  req: NextRequest,
+  props: { params: Promise<{ workspace: string; id: string }> }
+) {
+  const params = await props.params;
   const patch = await req.json()
   const adminRole = req.cookies.get(`admin_${params.workspace}`)?.value
   if (!adminRole) return Response.json({ error: 'Admin required.' }, { status: 403 })
@@ -24,7 +28,11 @@ export async function PATCH(req: NextRequest, { params }: { params: { workspace:
   return Response.json(data)
 }
 
-export async function DELETE(req: NextRequest, { params }: { params: { workspace: string; id: string } }) {
+export async function DELETE(
+  req: NextRequest,
+  props: { params: Promise<{ workspace: string; id: string }> }
+) {
+  const params = await props.params;
   const adminRole = req.cookies.get(`admin_${params.workspace}`)?.value
   if (!adminRole) return Response.json({ error: 'Admin required.' }, { status: 403 })
   if (process.env.MOCK_MODE === 'true') {

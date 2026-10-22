@@ -10,7 +10,8 @@ function overlapsInterval(bStart: Date, bEnd: Date, start: Date, end: Date): boo
 
 // ─── GET — preview (dry run) ──────────────────────────────────────────────────
 
-export async function GET(req: NextRequest, { params }: { params: { workspace: string } }) {
+export async function GET(req: NextRequest, props: { params: Promise<{ workspace: string }> }) {
+  const params = await props.params;
   const cookieHeader = req.cookies.get(`admin_${params.workspace}`)
   if (!cookieHeader?.value) return Response.json({ error: 'Forbidden.' }, { status: 403 })
 
@@ -130,7 +131,8 @@ export async function GET(req: NextRequest, { params }: { params: { workspace: s
 
 // ─── POST — commit block ──────────────────────────────────────────────────────
 
-export async function POST(req: NextRequest, { params }: { params: { workspace: string } }) {
+export async function POST(req: NextRequest, props: { params: Promise<{ workspace: string }> }) {
+  const params = await props.params;
   const cookieHeader = req.cookies.get(`admin_${params.workspace}`)
   if (!cookieHeader?.value) return Response.json({ error: 'Forbidden.' }, { status: 403 })
 
