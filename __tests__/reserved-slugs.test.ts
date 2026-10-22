@@ -5,7 +5,7 @@ describe('RESERVED_SLUGS', () => {
   it('blocks middleware public API segments', () => {
     // These all live in PUBLIC_API_SEGMENTS in middleware.ts — a workspace
     // named any of these would bypass auth for all its API routes.
-    for (const slug of ['cancel', 'workspaces', 'notify', 'admin', 'gcal', 'version']) {
+    for (const slug of ['cancel', 'workspaces', 'notify', 'admin', 'gcal', 'tablet-health', 'version']) {
       expect(RESERVED_SLUGS.has(slug)).toBe(true)
     }
   })

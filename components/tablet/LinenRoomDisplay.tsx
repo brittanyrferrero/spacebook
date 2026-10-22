@@ -185,6 +185,57 @@ export function LinenRoomDisplay() {
     return () => { cancelled = true; clearTimeout(initial); clearInterval(interval) }
   }, [workspace, roomId])
 
+  // Heartbeat for the tablet-offline alert (ADR-024). The goodbye beacon on hide/close
+  // and the battery reading are what let the alert guess *why* a tablet went quiet.
+  useEffect(() => {
+    const url = `/api/${workspace}/tablet-heartbeat`
+    const pageStartedAt = new Date().toISOString()
+    let battery: { level: number; charging: boolean } | null = null
+    let offlineSince: number | null = null
+    let offlineMs = 0
+
+    const nav = navigator as Navigator & { getBattery?: () => Promise<{ level: number; charging: boolean }> }
+    nav.getBattery?.().then(b => { battery = b }).catch(() => {})
+
+    function payload(event?: 'hidden' | 'pagehide') {
+      return JSON.stringify({
+        roomId, pageStartedAt, event, offlineMs: offlineMs || undefined,
+        battery: battery ? Math.round(battery.level * 100) : undefined,
+        charging: battery?.charging,
+      })
+    }
+    async function beat() {
+      try {
+        const res = await fetch(url, { method: 'POST', body: payload() })
+        if (res.ok) offlineMs = 0
+      } catch { /* offline — the health check notices the silence */ }
+    }
+    function goodbye(event: 'hidden' | 'pagehide') {
+      try { navigator.sendBeacon(url, payload(event)) } catch { /* best effort */ }
+    }
+    const onVisibility = () => { if (document.visibilityState === 'hidden') goodbye('hidden'); else beat() }
+    const onPageHide = () => goodbye('pagehide')
+    const onOffline = () => { offlineSince = Date.now() }
+    const onOnline = () => {
+      if (offlineSince !== null) { offlineMs += Date.now() - offlineSince; offlineSince = null }
+      beat()
+    }
+
+    beat()
+    const id = setInterval(beat, 2 * 60_000)
+    document.addEventListener('visibilitychange', onVisibility)
+    window.addEventListener('pagehide', onPageHide)
+    window.addEventListener('offline', onOffline)
+    window.addEventListener('online', onOnline)
+    return () => {
+      clearInterval(id)
+      document.removeEventListener('visibilitychange', onVisibility)
+      window.removeEventListener('pagehide', onPageHide)
+      window.removeEventListener('offline', onOffline)
+      window.removeEventListener('online', onOnline)
+    }
+  }, [workspace, roomId])
+
   // ── Fit the 820px-wide layout to the screen ───────────────────────────────
   // Taller screens (like the Fire tablets) stretch rather than letterbox: most of the
   // extra height grows the status ring, the rest goes to the calendar.

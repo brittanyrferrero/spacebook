@@ -488,3 +488,65 @@ export async function sendAdminRecoveryEmail({
 </div>`,
   })
 }
+
+export interface TabletStatusRow { roomName: string; detail: string }
+
+// Tablet-offline alert and its "back online" follow-up (ADR-024), sent to a workspace's super admins
+export async function sendTabletStatusEmail({
+  to,
+  kind,
+  workspaceSlug,
+  workspaceName,
+  rooms,
+}: {
+  to: string
+  kind: 'offline' | 'online'
+  workspaceSlug: string
+  workspaceName: string | null
+  rooms: TabletStatusRow[]
+}) {
+  const key = process.env.RESEND_API_KEY
+  if (!key) return
+  const resend = new Resend(key)
+
+  const offline = kind === 'offline'
+  const plural = rooms.length !== 1
+  const subject = offline
+    ? (plural ? `spacebook: ${rooms.length} tablets are offline` : `spacebook: the ${rooms[0].roomName} tablet is offline`)
+    : (plural ? `spacebook: ${rooms.length} tablets are back online` : `spacebook: the ${rooms[0].roomName} tablet is back online`)
+
+  const rows = rooms.map(r => `
+  <div style="background:${offline ? '#FEF2F2' : '#F0FDF4'};border-radius:8px;padding:14px 16px;margin:12px 0;font-size:13px;color:#374151">
+    <div style="font-weight:600;margin-bottom:6px">${escapeHtml(r.roomName)}</div>
+    <div>${escapeHtml(r.detail)}</div>
+  </div>`).join('')
+
+  const adminUrl = `${appUrl()}/${workspaceSlug}/admin`
+
+  await resend.emails.send({
+    from: FROM,
+    to,
+    subject,
+    html: `
+<div style="font-family:sans-serif;max-width:520px;margin:0 auto;padding:24px">
+  <div style="font-size:18px;font-weight:600;color:#2C3E6B;margin-bottom:4px">spacebook</div>
+  <div style="font-size:13px;color:#9CA3AF;margin-bottom:24px">${escapeHtml(workspaceName ?? workspaceSlug)}</div>
+
+  <p style="font-size:14px;color:#374151">
+    ${offline
+      ? `${plural ? 'These room tablets have' : 'This room tablet has'} stopped checking in with spacebook, so ${plural ? 'they' : 'it'} may be off or showing out-of-date bookings.`
+      : `${plural ? 'These room tablets are' : 'This room tablet is'} checking in with spacebook again.`}
+  </p>
+
+  ${rows}
+
+  ${offline ? `<p style="font-size:13px;color:#6B7280">
+    Usually the fix is to check the tablet is switched on, plugged in and connected to wifi, with the spacebook page open.
+    If it shows a sign-in page instead, reopen the room's tablet link from the <a href="${adminUrl}" style="color:#2C3E6B">admin panel</a>.
+    You'll get one more email when it comes back online.
+  </p>` : ''}
+
+  <p style="font-size:12px;color:#9CA3AF">You're receiving this because you're a super admin of this workspace.</p>
+</div>`,
+  })
+}

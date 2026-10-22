@@ -24,6 +24,9 @@ export async function POST(req: NextRequest, { params }: { params: { workspace: 
     { image, capturedAt: new Date().toISOString() },
     { ex: 60 * 60 * 48 }
   )
+  // Snapshots double as the liveness signal for Classic tablets, which don't send heartbeats (ADR-024)
+  const { recordTabletSeen } = await import('@/lib/tablet-health')
+  await recordTabletSeen(kv, workspaceId, roomId, { lastSnapshotAt: new Date().toISOString() })
 
   return Response.json({ ok: true })
 }

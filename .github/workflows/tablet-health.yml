@@ -1,0 +1,24 @@
+# Runs the tablet-offline check (ADR-024) every 15 minutes. Vercel Cron on our plan
+# only allows daily jobs, so this is the frequent trigger; vercel.json keeps a daily
+# run as a fallback. GitHub may delay scheduled runs by a few minutes under load.
+#
+# Needs the repo secret CRON_SECRET, matching CRON_SECRET in Vercel production.
+name: Tablet health check
+
+on:
+  schedule:
+    - cron: '*/15 * * * *'
+  workflow_dispatch:
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    timeout-minutes: 2
+    steps:
+      - name: Call /api/tablet-health
+        env:
+          CRON_SECRET: ${{ secrets.CRON_SECRET }}
+        run: |
+          curl --fail-with-body --silent --show-error \
+            -H "Authorization: Bearer $CRON_SECRET" \
+            https://www.space-book.net/api/tablet-health
