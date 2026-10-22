@@ -1,7 +1,7 @@
 import { google } from 'googleapis'
 import type { Booking, Room } from '@/types'
 
-export async function getAuthClient(roomId: string) {
+async function getAuthClient(roomId: string) {
   const { getTokens, saveTokens } = await import('./tokenStore')
   const tokens = await getTokens(roomId)
   if (!tokens) return null

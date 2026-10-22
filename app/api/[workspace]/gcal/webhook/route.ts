@@ -28,7 +28,7 @@ export async function POST(req: NextRequest) {
 }
 
 async function processWebhook(channelId: string) {
-  const { getRoomIdByChannel, getWatchState, saveSyncToken } = await import('@/lib/google-calendar/watchStore')
+  const { getRoomIdByChannel, getWatchState, saveWatchState } = await import('@/lib/google-calendar/watchStore')
   const roomId = await getRoomIdByChannel(channelId)
   if (!roomId) return
 
@@ -78,7 +78,7 @@ async function processWebhook(channelId: string) {
           freshPageToken = fresh.data.nextPageToken ?? undefined
           if (!freshPageToken) freshToken = fresh.data.nextSyncToken
         } while (freshPageToken)
-        await saveSyncToken(roomId, freshToken ?? syncToken)
+        await saveWatchState(roomId, { ...watchState, syncToken: freshToken ?? syncToken })
       }
       return
     }
@@ -87,7 +87,7 @@ async function processWebhook(channelId: string) {
     if (!pageToken) syncToken = res.data.nextSyncToken ?? syncToken
   } while (pageToken)
 
-  await saveSyncToken(roomId, syncToken)
+  await saveWatchState(roomId, { ...watchState, syncToken })
 
   if (changed.length === 0) return
 
