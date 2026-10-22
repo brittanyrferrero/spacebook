@@ -2,10 +2,10 @@ import { describe, it, expect } from 'vitest'
 import { resolveTabletDesign, isTabletDesign, DEFAULT_TABLET_DESIGN } from '@/lib/tablet-design'
 
 describe('resolveTabletDesign', () => {
-  it('defaults to classic when nothing is set, so shipping Linen changes nothing', () => {
-    expect(DEFAULT_TABLET_DESIGN).toBe('classic')
-    expect(resolveTabletDesign(undefined, null)).toBe('classic')
-    expect(resolveTabletDesign(null, undefined)).toBe('classic')
+  it('defaults to linen when nothing is set', () => {
+    expect(DEFAULT_TABLET_DESIGN).toBe('linen')
+    expect(resolveTabletDesign(undefined, null)).toBe('linen')
+    expect(resolveTabletDesign(null, undefined)).toBe('linen')
   })
 
   it('uses the workspace setting', () => {
@@ -20,8 +20,8 @@ describe('resolveTabletDesign', () => {
 
   it('ignores unrecognised values rather than breaking the tablet', () => {
     expect(resolveTabletDesign('linen', 'fancy')).toBe('linen')
-    expect(resolveTabletDesign('fancy', null)).toBe('classic')
-    expect(resolveTabletDesign({ design: 'linen' }, '')).toBe('classic')
+    expect(resolveTabletDesign('fancy', null)).toBe('linen')
+    expect(resolveTabletDesign({ design: 'classic' }, '')).toBe('linen')
   })
 })
 
