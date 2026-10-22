@@ -68,10 +68,10 @@ export async function GET(req: NextRequest) {
     }
   }
 
-  const unhealthy = await checkSyncHealth(failedRoomIds)
+  const { unhealthy, healed } = await checkSyncHealth(failedRoomIds)
   if (unhealthy.length > 0) await notifyUnhealthy(unhealthy)
 
-  return Response.json({ renewed, errors, total: roomIds.length, unhealthyRooms: unhealthy.length })
+  return Response.json({ renewed, errors, total: roomIds.length, healedRooms: healed, unhealthyRooms: unhealthy.length })
 }
 
 // Cross-checks every GCal-connected room against its watch state — catches the
@@ -80,9 +80,15 @@ export async function GET(req: NextRequest) {
 // place, so it was never in `roomIds` above at all. This is what let a real
 // outage (plonk-mango-wizard, since ~2026-08-25) go unnoticed for three weeks —
 // see docs/runbooks/gcal-not-syncing.md.
+//
+// A room with valid tokens but a missing or expired watch is re-registered on
+// the spot (same as the runbook's fast-path fix) and only flagged if that
+// fails. Every heal is logged as `[gcal renew] self-healed` so a recurring
+// root cause stays visible in Vercel logs instead of being silently papered over.
 async function checkSyncHealth(failedRoomIds: Set<string>) {
   const { getWatchState } = await import('@/lib/google-calendar/watchStore')
   const { hasTokens } = await import('@/lib/google-calendar/tokenStore')
+  const { registerWatch } = await import('@/lib/google-calendar/registerWatch')
   const { createClient } = await import('@/lib/supabase/server')
   const supabase = await createClient()
 
@@ -90,9 +96,10 @@ async function checkSyncHealth(failedRoomIds: Set<string>) {
     .from('rooms')
     .select('id, name, is_active, google_calendar_id, workspace_id, workspaces(slug, name)')
     .not('google_calendar_id', 'is', null)
-  if (!rooms) return []
+  if (!rooms) return { unhealthy: [], healed: 0 }
 
   const unhealthy: { roomName: string; workspaceSlug: string; workspaceName: string | null; reason: string }[] = []
+  let healed = 0
 
   for (const room of rooms as any[]) {
     if (!room.is_active) continue // disabled rooms deliberately don't sync — not a health issue
@@ -114,14 +121,30 @@ async function checkSyncHealth(failedRoomIds: Set<string>) {
       continue
     }
     const watchState = await getWatchState(room.id)
-    if (!watchState) {
-      unhealthy.push({ roomName: room.name, workspaceSlug, workspaceName, reason: 'no watch channel registered — sync was never set up or was lost' })
-    } else if (watchState.expirationMs < Date.now()) {
-      unhealthy.push({ roomName: room.name, workspaceSlug, workspaceName, reason: 'watch channel expired and was not renewed' })
+    const problem = !watchState ? 'missing' : watchState.expirationMs < Date.now() ? 'expired' : null
+    if (!problem) continue
+
+    const result = room.workspaces?.slug
+      ? await registerWatch({ roomId: room.id, calendarId: room.google_calendar_id, workspace: room.workspaces.slug, workspaceId: room.workspace_id })
+      : null
+    if (result?.ok) {
+      console.warn('[gcal renew] self-healed watch channel', { roomId: room.id, roomName: room.name, workspaceSlug, problem })
+      healed++
+      continue
     }
+
+    const why = result && !result.ok ? ` (auto re-register failed: ${result.detail ?? result.reason})` : ''
+    unhealthy.push({
+      roomName: room.name,
+      workspaceSlug,
+      workspaceName,
+      reason: problem === 'missing'
+        ? `no watch channel registered — sync was never set up or was lost${why}`
+        : `watch channel expired and was not renewed${why}`,
+    })
   }
 
-  return unhealthy
+  return { unhealthy, healed }
 }
 
 async function notifyUnhealthy(rooms: { roomName: string; workspaceSlug: string; workspaceName: string | null; reason: string }[]) {

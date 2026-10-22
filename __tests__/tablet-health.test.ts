@@ -33,11 +33,14 @@ describe('likelyCause', () => {
     expect(likelyCause({ ...linen, lastEvent: 'pagehide', lastEventAt: T })).toMatch(/page was closed/)
   })
   it('detects a flat battery', () => {
-    expect(likelyCause({ ...linen, battery: 4, charging: false })).toMatch(/ran out of power.*4%/)
+    expect(likelyCause({ ...linen, battery: 4, charging: false })).toMatch(/ran out of power.*unplugged.*4%/)
   })
-  it('detects the screen sleeping or being switched off', () => {
+  it('detects the screen turning off or spacebook being covered', () => {
     expect(likelyCause({ ...linen, lastEvent: 'hidden', lastEventAt: T, battery: 80, charging: true }))
-      .toMatch(/screen went to sleep.*80% and charging/)
+      .toMatch(/screen turned off.*plugged in \(battery 80%\)/)
+  })
+  it('flags a tablet that was running on battery', () => {
+    expect(likelyCause({ ...linen, battery: 60, charging: false })).toMatch(/lost contact.*unplugged.*charger/)
   })
   it('ignores a goodbye event that was followed by more heartbeats', () => {
     expect(likelyCause({ ...linen, lastEvent: 'hidden', lastEventAt: ago(10 * 60_000) })).toMatch(/lost contact suddenly/)

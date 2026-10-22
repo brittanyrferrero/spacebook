@@ -9,6 +9,11 @@ battery or has its browser closed, nobody finds out until someone notices a blan
 screen. Workspace super admins wanted an email when that happens, with as much detail
 about the likely cause as possible.
 
+Tablets are set up to be always plugged in with the screen never sleeping, so *any*
+shutdown is worth flagging: it means the tablet is dead or the screen probably isn't
+showing spacebook any more. For the same reason, running on battery or the screen
+turning off are reported as problems, not normal states.
+
 A browser can't reliably announce "I'm turning off", so the only robust signal is
 silence: the tablet stops reporting in, and something on the server notices.
 
@@ -45,9 +50,14 @@ public) is the real trigger. Both authenticate with `CRON_SECRET`.
 - An alert means "stopped reporting", not a confirmed cause. A lost `ws_` cookie
   (tablet stuck on a sign-in page) looks the same as being switched off; the email
   points admins at the tablet link in the admin panel for that case.
-- Tablets switched off every night will produce an offline + back-online email pair
-  each day. If that turns out noisy, add quiet hours (e.g. outside the workspace's
-  `displayHours`) to the check.
+- There are no quiet hours: tablets are meant to be on 24/7, so an overnight shutdown
+  is alerted like any other. Revisit if a workspace starts switching tablets off at night.
+- Heartbeats are trusted on the same basis as everything else in a workspace: a `ws_`
+  cookie is required, and per ADR-001 knowing the slug is the credential. So a workspace
+  member could fake a heartbeat and mask an outage in their *own* workspace (snapshots
+  have the same property). Cross-workspace spoofing isn't possible because the cron only
+  reads keys under each room's real workspace ID. Unknown room IDs just create junk keys
+  that expire after 30 days.
 - GitHub may delay scheduled workflows by several minutes, and disables schedules on
   repos with no activity for 60 days. The daily Vercel cron still runs either way.
 - `tablet-health` is in `PUBLIC_API_SEGMENTS` and `RESERVED_SLUGS`, like `gcal-renew`.

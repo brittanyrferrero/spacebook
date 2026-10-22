@@ -71,14 +71,18 @@ export function fmtDuration(ms: number) {
   return `${d} days`
 }
 
-// Best guess at why a tablet went quiet, from the last things it told us.
+// Best guess at why a tablet went quiet, from the last things it told us. Tablets are
+// meant to be always plugged in with the screen never sleeping, so running on battery
+// or the screen turning off are themselves signs something is wrong.
 export function likelyCause(rec: TabletRecord): string {
   const seen = new Date(rec.lastSeen).getTime()
   // Only trust a goodbye event if it was (nearly) the last thing we heard
   const goodbye = rec.lastEvent && rec.lastEventAt && seen - new Date(rec.lastEventAt).getTime() < 60_000
     ? rec.lastEvent : undefined
   const batteryNote = rec.battery !== undefined
-    ? ` Battery was at ${Math.round(rec.battery)}% and ${rec.charging ? 'charging' : 'not plugged in'}.`
+    ? (rec.charging
+      ? ` It was plugged in (battery ${Math.round(rec.battery)}%).`
+      : ` It was running on battery (${Math.round(rec.battery)}%), so it looks like it was unplugged — check the charger.`)
     : ''
 
   if (!rec.pageStartedAt) {
@@ -88,12 +92,12 @@ export function likelyCause(rec: TabletRecord): string {
     return `The spacebook page was closed, or the browser navigated away from it.${batteryNote}`
   }
   if (rec.battery !== undefined && !rec.charging && rec.battery <= 15) {
-    return `It probably ran out of power — battery was at ${Math.round(rec.battery)}% and not plugged in.`
+    return `It probably ran out of power — it had been unplugged and its battery was down to ${Math.round(rec.battery)}%. Check the charger.`
   }
   if (goodbye === 'hidden') {
-    return `The screen went to sleep, the tablet was switched off, or another app was opened over spacebook.${batteryNote}`
+    return `The screen turned off or spacebook was moved off-screen — someone likely pressed the power button, or another app or the home screen was opened over spacebook.${batteryNote}`
   }
-  return `It lost contact suddenly with no warning — most likely the wifi dropped, the power went out, or the browser crashed.${batteryNote}`
+  return `It lost contact suddenly with no warning — most likely the wifi dropped, the power went out, or the tablet or browser crashed.${batteryNote}`
 }
 
 // What the tablet told us after it came back, in hindsight.
