@@ -66,3 +66,26 @@ describe('fmtDuration', () => {
     expect(fmtDuration(4 * 86_400_000)).toBe('4 days')
   })
 })
+
+describe('recordTabletSeen', () => {
+  function fakeKv() {
+    const calls: [string, ...unknown[]][] = []
+    const p: any = new Proxy({}, { get: (_t, op: string) => op === 'exec' ? async () => [] : (...a: unknown[]) => { calls.push([op, ...a]); return p } })
+    return { kv: { pipeline: () => p } as any, calls }
+  }
+  it('starts the unplugged clock only once, and clears it when charging resumes', async () => {
+    const { recordTabletSeen } = await import('@/lib/tablet-health')
+    const off = fakeKv()
+    await recordTabletSeen(off.kv, 'w1', 'r1', { charging: 0 })
+    expect(off.calls.map(c => c[0])).toEqual(['hset', 'hsetnx', 'expire'])
+    expect(off.calls[1].slice(1, 3)).toEqual(['tablet:seen:w1:r1', 'unpluggedSince'])
+
+    const on = fakeKv()
+    await recordTabletSeen(on.kv, 'w1', 'r1', { charging: 1 })
+    expect(on.calls.map(c => c[0])).toEqual(['hset', 'hdel', 'expire'])
+
+    const snapshot = fakeKv()
+    await recordTabletSeen(snapshot.kv, 'w1', 'r1', { lastSnapshotAt: T })
+    expect(snapshot.calls.map(c => c[0])).toEqual(['hset', 'expire'])
+  })
+})

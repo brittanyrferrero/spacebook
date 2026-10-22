@@ -194,8 +194,16 @@ export function LinenRoomDisplay() {
     let offlineSince: number | null = null
     let offlineMs = 0
 
+    // Standard Battery API first; Fully Kiosk Browser's JavaScript interface (when enabled
+    // in its settings) as a fallback in case its WebView doesn't expose that API.
     const nav = navigator as Navigator & { getBattery?: () => Promise<{ level: number; charging: boolean }> }
-    nav.getBattery?.().then(b => { battery = b }).catch(() => {})
+    const fully = (window as Window & { fully?: { getBatteryLevel?: () => number; isPlugged?: () => boolean } }).fully
+    function fullyBattery() {
+      if (!fully?.getBatteryLevel || !fully.isPlugged) return
+      battery = { get level() { return fully.getBatteryLevel!() / 100 }, get charging() { return fully.isPlugged!() } }
+    }
+    if (nav.getBattery) nav.getBattery().then(b => { battery = b }).catch(fullyBattery)
+    else fullyBattery()
 
     function payload(event?: 'hidden' | 'pagehide') {
       return JSON.stringify({

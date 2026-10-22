@@ -9,11 +9,14 @@ import type { Redis } from '@upstash/redis'
 // frozen (ADR-021), so they only refresh `lastSeen` via their snapshot uploads.
 
 export const OFFLINE_AFTER_MS = 15 * 60_000
+// Grace period so briefly moving a tablet between sockets doesn't trigger a warning
+export const UNPLUGGED_AFTER_MS = 5 * 60_000
 // A tablet unseen for this long is treated as decommissioned and forgotten
 const RECORD_TTL_S = 60 * 60 * 24 * 30
 
 export const seenKey  = (workspaceId: string, roomId: string) => `tablet:seen:${workspaceId}:${roomId}`
 export const alertKey = (workspaceId: string, roomId: string) => `tablet:alert:${workspaceId}:${roomId}`
+export const unpluggedAlertKey = (workspaceId: string, roomId: string) => `tablet:unplugged:${workspaceId}:${roomId}`
 
 export interface TabletRecord {
   lastSeen: string
@@ -21,6 +24,7 @@ export interface TabletRecord {
   pageStartedAt?: string    // only Linen heartbeats send this
   battery?: number          // 0–100
   charging?: boolean
+  unpluggedSince?: string   // set on the first not-charging heartbeat, cleared when charging resumes
   lastEvent?: 'hidden' | 'pagehide'
   lastEventAt?: string
   offlineMs?: number        // most recent network drop the browser noticed
@@ -43,6 +47,7 @@ export function parseRecord(raw: Record<string, unknown> | null): TabletRecord |
     pageStartedAt: str(raw.pageStartedAt),
     battery: num(raw.battery),
     charging: bool(raw.charging),
+    unpluggedSince: str(raw.unpluggedSince),
     lastEvent: event,
     lastEventAt: str(raw.lastEventAt),
     offlineMs: num(raw.offlineMs),
@@ -52,14 +57,23 @@ export function parseRecord(raw: Record<string, unknown> | null): TabletRecord |
 
 export async function recordTabletSeen(kv: Redis, workspaceId: string, roomId: string, fields: Record<string, string | number>) {
   const key = seenKey(workspaceId, roomId)
+  const now = new Date().toISOString()
   const p = kv.pipeline()
-  p.hset(key, { ...fields, lastSeen: new Date().toISOString() })
+  p.hset(key, { ...fields, lastSeen: now })
+  if (fields.charging === 0) p.hsetnx(key, 'unpluggedSince', now)
+  if (fields.charging === 1) p.hdel(key, 'unpluggedSince')
   p.expire(key, RECORD_TTL_S)
   await p.exec()
 }
 
 export function isOffline(rec: TabletRecord, now: Date) {
   return now.getTime() - new Date(rec.lastSeen).getTime() > OFFLINE_AFTER_MS
+}
+
+// Still reporting in, but has been off its charger for longer than the grace period
+export function isUnplugged(rec: TabletRecord, now: Date) {
+  return rec.charging === false && !!rec.unpluggedSince &&
+    now.getTime() - new Date(rec.unpluggedSince).getTime() >= UNPLUGGED_AFTER_MS
 }
 
 export function fmtDuration(ms: number) {

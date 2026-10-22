@@ -51,27 +51,62 @@ describe('tablet-health cron', () => {
   it('alerts super admins once when a tablet goes quiet, then once when it returns', async () => {
     store.set('tablet:seen:w1:r1', { lastSeen: new Date(Date.now() - 20 * 60_000).toISOString(), pageStartedAt: '2026-01-01T00:00:00Z', battery: 3, charging: 0 })
 
-    expect(await runCheck()).toEqual({ checked: 1, wentOffline: 1, cameBack: 0 })
+    expect(await runCheck()).toMatchObject({ checked: 1, wentOffline: 1, cameBack: 0 })
     expect(sent).toHaveLength(1)
     expect(sent[0]).toMatchObject({ to: 'boss@x.org', kind: 'offline' })
     expect(sent[0].rooms[0].detail).toMatch(/ran out of power/)
 
     // Still offline on the next run: no repeat email
-    expect(await runCheck()).toEqual({ checked: 1, wentOffline: 0, cameBack: 0 })
+    expect(await runCheck()).toMatchObject({ checked: 1, wentOffline: 0, cameBack: 0 })
     expect(sent).toHaveLength(1)
 
     // Tablet comes back after a reboot
     const now = new Date().toISOString()
     store.set('tablet:seen:w1:r1', { lastSeen: now, pageStartedAt: now })
-    expect(await runCheck()).toEqual({ checked: 1, wentOffline: 0, cameBack: 1 })
+    expect(await runCheck()).toMatchObject({ checked: 1, wentOffline: 0, cameBack: 1 })
     expect(sent[1]).toMatchObject({ to: 'boss@x.org', kind: 'online' })
     expect(sent[1].rooms[0].detail).toMatch(/rebooted/)
     expect(store.has('tablet:alert:w1:r1')).toBe(false)
   })
 
+  it('warns once when a tablet is unplugged, then once when it is charging again', async () => {
+    const minsAgo = (m: number) => new Date(Date.now() - m * 60_000).toISOString()
+    store.set('tablet:seen:w1:r1', { lastSeen: minsAgo(1), pageStartedAt: minsAgo(60), battery: 71, charging: 0, unpluggedSince: minsAgo(8) })
+
+    expect(await runCheck()).toMatchObject({ unplugged: 1, wentOffline: 0 })
+    expect(sent[0]).toMatchObject({ to: 'boss@x.org', kind: 'unplugged' })
+    expect(sent[0].rooms[0].detail).toMatch(/battery for about 8 minutes.*71%/)
+
+    expect(await runCheck()).toMatchObject({ unplugged: 0 })
+    expect(sent).toHaveLength(1)
+
+    store.set('tablet:seen:w1:r1', { lastSeen: minsAgo(1), pageStartedAt: minsAgo(60), battery: 65, charging: 1 })
+    expect(await runCheck()).toMatchObject({ pluggedIn: 1 })
+    expect(sent[1]).toMatchObject({ kind: 'pluggedIn' })
+    expect(store.has('tablet:unplugged:w1:r1')).toBe(false)
+  })
+
+  it('gives a brief unplug a grace period', async () => {
+    const minsAgo = (m: number) => new Date(Date.now() - m * 60_000).toISOString()
+    store.set('tablet:seen:w1:r1', { lastSeen: minsAgo(1), pageStartedAt: minsAgo(60), battery: 90, charging: 0, unpluggedSince: minsAgo(2) })
+    expect(await runCheck()).toMatchObject({ unplugged: 0 })
+    expect(sent).toHaveLength(0)
+  })
+
+  it('sends only the back-online email when an unplugged tablet died and returned charging', async () => {
+    const minsAgo = (m: number) => new Date(Date.now() - m * 60_000).toISOString()
+    store.set('tablet:alert:w1:r1', { alertedAt: minsAgo(60), lastSeen: minsAgo(90) })
+    store.set('tablet:unplugged:w1:r1', { alertedAt: minsAgo(120), lastSeen: minsAgo(120) })
+    store.set('tablet:seen:w1:r1', { lastSeen: minsAgo(1), pageStartedAt: minsAgo(3), battery: 5, charging: 1 })
+
+    expect(await runCheck()).toMatchObject({ cameBack: 1, pluggedIn: 0 })
+    expect(sent.map(e => e.kind)).toEqual(['online'])
+    expect(store.has('tablet:unplugged:w1:r1')).toBe(false)
+  })
+
   it('stays quiet for healthy tablets', async () => {
     store.set('tablet:seen:w1:r1', { lastSeen: new Date().toISOString() })
-    expect(await runCheck()).toEqual({ checked: 1, wentOffline: 0, cameBack: 0 })
+    expect(await runCheck()).toMatchObject({ checked: 1, wentOffline: 0, cameBack: 0 })
     expect(sent).toHaveLength(0)
   })
 
