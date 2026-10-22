@@ -10,7 +10,7 @@
 
 Migration `006_enable_rls.sql` enables Row Level Security on all tables with no permissive policies. This means:
 
-- The **anon key** (`NEXT_PUBLIC_SUPABASE_ANON_KEY`) is completely locked out of all data. The frontend does not (and must not) query Supabase directly.
+- The **anon key** (`NEXT_PUBLIC_SUPABASE_ANON_KEY`) is completely locked out of all data. The frontend does not (and must not) query Supabase directly — there is deliberately no browser-side Supabase client in the codebase (the unused one was removed along with `@supabase/ssr`).
 - All database access goes through the server using the **service role key** (`SUPABASE_SERVICE_ROLE_KEY`). The service role key bypasses RLS.
 
 If you try to query any table from a client that uses the anon key, you will get an empty result (`data: []` or `data: null`) with no error — RLS silently returns nothing when no policies match. This is the most common source of confusion: the query looks like it succeeded but returned empty data.

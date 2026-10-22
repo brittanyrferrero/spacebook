@@ -17,7 +17,7 @@ Copy `.env.local.example` to `.env.local` and fill in the values below.
 | Variable | Description |
 |---|---|
 | `NEXT_PUBLIC_SUPABASE_URL` | Your Supabase project URL |
-| `NEXT_PUBLIC_SUPABASE_ANON_KEY` | Supabase anon/public key |
+| `NEXT_PUBLIC_SUPABASE_ANON_KEY` | Not used by the app (there is no browser-side Supabase client). Optional; safe to leave unset |
 | `SUPABASE_SERVICE_ROLE_KEY` | Supabase service role key (secret — server only) |
 
 Find these in Supabase → Project Settings → API.
