@@ -125,3 +125,13 @@ does, so every disconnect path cleans up after itself.
 the "Recurring incident" note in
 [docs/runbooks/gcal-not-syncing.md](../runbooks/gcal-not-syncing.md) for the
 operational side of that day.
+
+**2026-10-22:** This ADR sat unmerged (PR #166) for about 4 weeks, and the incident kept
+recurring in the meantime. It shipped together with
+[ADR-025](025-gcal-sync-self-heal.md), which adds a daily self-heal. One correction to
+the Context section: eviction doesn't fit the evidence. Tokens were present for all
+5 rooms on later runs, and the only code path that creates tokens from nothing is the
+OAuth callback, which nobody went through. Every other `saveTokens` call is a refresh
+that first requires an existing token. Evicted keys don't come back, so the keys
+existed and the read missed them. Leading suspects are now a lagging Upstash read
+replica, or the cron using a different `KV_REST_API_URL` than the app.

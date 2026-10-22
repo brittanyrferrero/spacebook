@@ -18,7 +18,7 @@ Everything in category 2 lives in Upstash Redis (accessed via `KV_REST_API_URL` 
 
 All Redis keys are namespaced by workspace ID using the pattern `ws:{workspaceId}:{key}`. Non-workspace keys (GCal OAuth nonces, recovery nonces) use their own prefixes (`gcal:nonce:`, `recovery:nonce:`, etc.).
 
-The main data access layer is `lib/prod-config.ts`. Watch state and token state for GCal live in `lib/google-calendar/watchStore.ts` and `lib/google-calendar/tokenStore.ts`.
+The main data access layer is `lib/prod-config.ts`. Watch state and token state for GCal live in `lib/google-calendar/watchStore.ts` and `lib/google-calendar/tokenStore.ts`. Writers that only change part of a `WatchState` should use a field-level helper like `saveSyncToken()`, not write back a snapshot read earlier. A stale snapshot clobbers a channel the renewal cron swapped in (see ADR-025).
 
 ## Consequences
 
