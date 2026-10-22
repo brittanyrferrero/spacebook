@@ -7,7 +7,11 @@ async function kv() {
   return new Redis({ url: process.env.KV_REST_API_URL!, token: process.env.KV_REST_API_TOKEN! })
 }
 
-export async function GET(req: NextRequest, { params }: { params: { workspace: string; token: string } }) {
+export async function GET(
+  req: NextRequest,
+  props: { params: Promise<{ workspace: string; token: string }> }
+) {
+  const params = await props.params;
   const base = appUrl()
   const workspaceUrl = new URL(`/${params.workspace}`, base)
 

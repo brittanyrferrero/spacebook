@@ -2,7 +2,8 @@ import { type NextRequest, NextResponse } from 'next/server'
 import { getWorkspaceBySlug } from '@/lib/workspace'
 import { appUrl } from '@/lib/email'
 
-export async function POST(req: NextRequest, { params }: { params: { workspace: string } }) {
+export async function POST(req: NextRequest, props: { params: Promise<{ workspace: string }> }) {
+  const params = await props.params;
   const { email } = await req.json().catch(() => ({}))
   if (!email || typeof email !== 'string') {
     return NextResponse.json({ error: 'Email is required.' }, { status: 400 })

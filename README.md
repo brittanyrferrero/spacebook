@@ -16,7 +16,7 @@ Spacebook is a frictionless meeting room booking system for coworking spaces and
 
 | Layer | Technology |
 |---|---|
-| Framework | Next.js 14 (App Router) |
+| Framework | Next.js 15 (App Router) |
 | Database | Supabase (PostgreSQL) |
 | KV / config | Upstash Redis |
 | Email | Resend |

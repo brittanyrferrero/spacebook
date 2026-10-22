@@ -40,7 +40,8 @@ API routes that gate on admin access **must** place the admin cookie check **aft
 
 ```ts
 // ✅ CORRECT
-export async function GET(req, { params }) {
+export async function GET(req, props) {
+  const params = await props.params      // Next 15: params is a Promise (ADR-026)
   if (process.env.MOCK_MODE === 'true') {
     return Response.json(getMockData())   // demo path — no admin cookie exists
   }
@@ -50,7 +51,8 @@ export async function GET(req, { params }) {
 }
 
 // ❌ WRONG — breaks the demo admin panel
-export async function GET(req, { params }) {
+export async function GET(req, props) {
+  const params = await props.params
   const adminRole = req.cookies.get(`admin_${params.workspace}`)?.value
   if (!adminRole) return Response.json({ error: 'Admin required.' }, { status: 403 })
   if (process.env.MOCK_MODE === 'true') { ... }

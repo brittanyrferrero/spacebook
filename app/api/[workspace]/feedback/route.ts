@@ -12,7 +12,8 @@ async function getSheets() {
   return google.sheets({ version: 'v4', auth })
 }
 
-export async function POST(req: NextRequest, { params }: { params: { workspace: string } }) {
+export async function POST(req: NextRequest, props: { params: Promise<{ workspace: string }> }) {
+  const params = await props.params;
   const { name, email, message } = await req.json()
   if (!message?.trim()) return Response.json({ error: 'Message required.' }, { status: 400 })
 

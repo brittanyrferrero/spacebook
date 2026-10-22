@@ -1,7 +1,8 @@
 import { type NextRequest } from 'next/server'
 import type { CancelScope } from '@/types'
 
-export async function POST(req: NextRequest, { params }: { params: { token: string } }) {
+export async function POST(req: NextRequest, props: { params: Promise<{ token: string }> }) {
+  const params = await props.params;
   const { scope = 'this' }: { scope: CancelScope } = await req.json().catch(() => ({ scope: 'this' }))
 
   if (process.env.MOCK_MODE === 'true') {

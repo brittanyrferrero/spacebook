@@ -3,7 +3,8 @@ import { getWorkspaceId, RESERVED_SLUGS } from '@/lib/workspace'
 
 const SLUG_RE = /^[a-z0-9][a-z0-9-]{1,48}[a-z0-9]$/
 
-export async function POST(req: NextRequest, { params }: { params: { workspace: string } }) {
+export async function POST(req: NextRequest, props: { params: Promise<{ workspace: string }> }) {
+  const params = await props.params;
   const { newSlug } = await req.json()
   const adminRole = req.cookies.get(`admin_${params.workspace}`)?.value
   if (adminRole !== 'super_admin') return NextResponse.json({ error: 'Super admin required.' }, { status: 403 })

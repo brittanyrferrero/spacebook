@@ -28,7 +28,8 @@ function scrubCancelToken(bookings: Booking[], isAdmin: boolean, mbEmail: string
   })
 }
 
-export async function GET(req: NextRequest, { params }: { params: { workspace: string } }) {
+export async function GET(req: NextRequest, props: { params: Promise<{ workspace: string }> }) {
+  const params = await props.params;
   const { searchParams } = req.nextUrl
   const roomId = searchParams.get('room_id') ?? undefined
   const from = searchParams.get('from')
@@ -74,7 +75,8 @@ export async function GET(req: NextRequest, { params }: { params: { workspace: s
   return Response.json(scrubCancelToken(await getBookingsForDate(searchParams.get('date') ?? new Date().toISOString().slice(0, 10), roomId, workspaceId), isAdmin, mbEmail))
 }
 
-export async function POST(req: NextRequest, { params }: { params: { workspace: string } }) {
+export async function POST(req: NextRequest, props: { params: Promise<{ workspace: string }> }) {
+  const params = await props.params;
   const payload: CreateBookingPayload = await req.json()
   if (!payload.room_id || !payload.booker_name || !payload.booker_email || !payload.start_time || !payload.end_time)
     return Response.json({ error: 'Missing required fields.' }, { status: 400 })
