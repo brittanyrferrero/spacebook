@@ -5,7 +5,6 @@ import { Redis } from '@upstash/redis'
 
 export const dynamic = 'force-dynamic'
 
-const ALERT_TO = 'brittany@intelligence.org'
 const FROM = process.env.EMAIL_FROM ?? 'spacebook <noreply@spacebook.app>'
 
 const esc = (s: unknown) =>
@@ -31,7 +30,8 @@ function getRatelimit() {
 
 export async function POST(req: NextRequest) {
   const key = process.env.RESEND_API_KEY
-  if (!key) return Response.json({ ok: false }, { status: 500 })
+  const alertTo = process.env.ERROR_ALERT_TO
+  if (!key || !alertTo) return Response.json({ ok: false }, { status: 500 })
 
   const ip = req.headers.get('x-forwarded-for')?.split(',')[0].trim() ?? 'unknown'
   const rl = getRatelimit()
@@ -47,7 +47,7 @@ export async function POST(req: NextRequest) {
   const resend = new Resend(key)
   await resend.emails.send({
     from: FROM,
-    to: ALERT_TO,
+    to: alertTo,
     subject: 'spacebook app error',
     html: `
 <div style="font-family:sans-serif;max-width:480px;margin:0 auto;padding:24px">
