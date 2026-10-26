@@ -28,6 +28,17 @@ export async function saveWatchState(roomId: string, state: WatchState): Promise
   ])
 }
 
+// Updates only the sync token, on top of whatever watch state is current *now*.
+// The webhook handler holds a watch-state snapshot for the whole (slow) sync;
+// writing that snapshot back would clobber a channel the renewal cron swapped
+// in meanwhile, and would resurrect state for a room disconnected meanwhile.
+export async function saveSyncToken(roomId: string, syncToken: string): Promise<void> {
+  const r = await kv()
+  const current = await r.get<WatchState>(`gcal:watch:${roomId}`)
+  if (!current) return
+  await r.set(`gcal:watch:${roomId}`, { ...current, syncToken })
+}
+
 export async function removeWatchState(roomId: string, channelId?: string): Promise<void> {
   const r = await kv()
   const ops: Promise<unknown>[] = [
