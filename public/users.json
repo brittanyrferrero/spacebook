@@ -1,12 +1,12 @@
 [
-  { "name": "Brittany Ferrero", "email": "brittany@intelligence.org" },
-  { "name": "Sam Clarke", "email": "sam@intelligence.org" },
-  { "name": "Jordan Lee", "email": "jordan@intelligence.org" },
-  { "name": "Alex Morgan", "email": "alex@intelligence.org" },
-  { "name": "Riley Chen", "email": "riley@intelligence.org" },
-  { "name": "Casey Park", "email": "casey@intelligence.org" },
-  { "name": "Avery Thompson", "email": "avery@intelligence.org" },
-  { "name": "Morgan Davis", "email": "morgan@intelligence.org" },
-  { "name": "Taylor Kim", "email": "taylor@intelligence.org" },
-  { "name": "Quinn Rivera", "email": "quinn@intelligence.org" }
+  { "name": "Brittany Ferrero", "email": "brittany@example.com" },
+  { "name": "Sam Clarke", "email": "sam@example.com" },
+  { "name": "Jordan Lee", "email": "jordan@example.com" },
+  { "name": "Alex Morgan", "email": "alex@example.com" },
+  { "name": "Riley Chen", "email": "riley@example.com" },
+  { "name": "Casey Park", "email": "casey@example.com" },
+  { "name": "Avery Thompson", "email": "avery@example.com" },
+  { "name": "Morgan Davis", "email": "morgan@example.com" },
+  { "name": "Taylor Kim", "email": "taylor@example.com" },
+  { "name": "Quinn Rivera", "email": "quinn@example.com" }
 ]

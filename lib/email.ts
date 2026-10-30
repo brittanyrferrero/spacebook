@@ -415,39 +415,63 @@ export async function sendFindMyWorkspacesEmail({
 export async function sendGcalSyncHealthEmail({
   to,
   rooms,
+  healed = [],
 }: {
   to: string
   rooms: { roomName: string; workspaceSlug: string; workspaceName: string | null; reason: string }[]
+  // Rooms the check re-registered itself (ADR-025). Reported, not alarmed about:
+  // the same rooms showing up here repeatedly means the root cause is still live.
+  healed?: { roomName: string; workspaceSlug: string; workspaceName: string | null; reason: string }[]
 }) {
   const key = process.env.RESEND_API_KEY
   if (!key) return
   const resend = new Resend(key)
 
-  const rows = rooms.map(r => `
-  <div style="background:#FEF2F2;border-radius:8px;padding:14px 16px;margin:12px 0;font-size:13px;color:#374151">
+  const row = (bg: string, label: string) => (r: { roomName: string; workspaceSlug: string; workspaceName: string | null; reason: string }) => `
+  <div style="background:${bg};border-radius:8px;padding:14px 16px;margin:12px 0;font-size:13px;color:#374151">
     <div style="margin-bottom:6px"><span style="color:#9CA3AF">Room</span> &nbsp; ${escapeHtml(r.roomName)}</div>
     <div style="margin-bottom:6px"><span style="color:#9CA3AF">Workspace</span> &nbsp; ${escapeHtml(r.workspaceName ?? r.workspaceSlug)}</div>
-    <div><span style="color:#9CA3AF">Issue</span> &nbsp; ${escapeHtml(r.reason)}</div>
-  </div>`).join('')
+    <div><span style="color:#9CA3AF">${label}</span> &nbsp; ${escapeHtml(r.reason)}</div>
+  </div>`
+  const brokenRows = rooms.map(row('#FEF2F2', 'Issue')).join('')
+  const healedRows = healed.map(row('#F3F4F6', 'Was')).join('')
+  const plural = (n: number) => `${n} room${n === 1 ? '' : 's'}`
+
+  const brokenSection = rooms.length === 0 ? '' : `
+  <p style="font-size:14px;color:#374151">
+    The daily sync-health check found ${plural(rooms.length)} where Google Calendar sync looks broken — external calendar changes on these rooms are not reaching spacebook, and re-registering automatically didn't fix it.
+  </p>
+
+  ${brokenRows}
+
+  <p style="font-size:13px;color:#6B7280">
+    Standard fix: in each workspace's admin panel, disconnect and reconnect Google Calendar for the affected room. See the <code>gcal-not-syncing</code> runbook for diagnosis steps.
+  </p>`
+
+  // Secondary when there's also something broken; the headline when it's all there is
+  const healedIntroStyle = rooms.length > 0 ? 'font-size:13px;color:#6B7280;margin-top:28px' : 'font-size:14px;color:#374151'
+  const healedSection = healed.length === 0 ? '' : `
+  <p style="${healedIntroStyle}">
+    Fixed automatically: ${plural(healed.length)} had lost ${healed.length === 1 ? 'its' : 'their'} Google Calendar sync and ${healed.length === 1 ? 'was' : 'were'} re-registered. Nothing to do now — but external calendar changes made since the sync was lost (up to a day) may not have reached spacebook.
+  </p>
+
+  ${healedRows}
+
+  <p style="font-size:13px;color:#6B7280">
+    If the same rooms keep showing up here, something keeps deleting their sync. See ADR-025 and the <code>gcal-not-syncing</code> runbook.
+  </p>`
 
   await resend.emails.send({
     from: FROM,
     to,
-    subject: `spacebook: ${rooms.length} room${rooms.length === 1 ? '' : 's'} not syncing with Google Calendar`,
+    subject: rooms.length > 0
+      ? `spacebook: ${plural(rooms.length)} not syncing with Google Calendar`
+      : `spacebook: Google Calendar sync restored for ${plural(healed.length)}`,
     html: `
 <div style="font-family:sans-serif;max-width:520px;margin:0 auto;padding:24px">
   <div style="font-size:18px;font-weight:600;color:#2C3E6B;margin-bottom:4px">spacebook</div>
   <div style="font-size:13px;color:#9CA3AF;margin-bottom:24px">GCal sync health check</div>
-
-  <p style="font-size:14px;color:#374151">
-    The daily sync-health check found ${rooms.length} room${rooms.length === 1 ? '' : 's'} where Google Calendar sync looks broken — external calendar changes on these rooms are not reaching spacebook.
-  </p>
-
-  ${rows}
-
-  <p style="font-size:13px;color:#6B7280">
-    Standard fix: in each workspace's admin panel, disconnect and reconnect Google Calendar for the affected room. See the <code>gcal-not-syncing</code> runbook for diagnosis steps.
-  </p>
+${brokenSection}${healedSection}
 </div>`,
   })
 }

@@ -4,9 +4,10 @@
 export const TABLET_DESIGNS = ['classic', 'linen'] as const
 export type TabletDesign = typeof TABLET_DESIGNS[number]
 
-// Classic stays the default so shipping the Linen code changes nothing until an
-// admin opts in — and switching back is just choosing Classic again.
-export const DEFAULT_TABLET_DESIGN: TabletDesign = 'classic'
+// Linen is the default for every workspace (2026-10-22; Classic was the default during
+// the pilot). Workspaces that explicitly saved Classic, and tablets with ?design=classic,
+// keep Classic. Switching back is still just choosing Classic in admin.
+export const DEFAULT_TABLET_DESIGN: TabletDesign = 'linen'
 
 export function isTabletDesign(value: unknown): value is TabletDesign {
   return typeof value === 'string' && (TABLET_DESIGNS as readonly string[]).includes(value)

@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useEffect, useCallback, useRef } from 'react'
+import { useParams } from 'next/navigation'
 import type { Room, Booking } from '@/types'
 import { NameAutocomplete } from '@/components/NameAutocomplete'
 
@@ -429,7 +430,8 @@ function MonthView({ bookings, viewDate, onDayClick }: { bookings: Booking[]; vi
 
 type CalView = 'day' | 'week' | 'month'
 
-export default function RoomDisplayPage({ params }: { params: { roomId: string } }) {
+export default function RoomDisplayPage() {
+  const params = useParams<{ roomId: string }>()
   const [room,         setRoom]         = useState<Room | null>(null)
   const [allRooms,     setAllRooms]     = useState<Room[]>([])
   const [todayBkgs,   setTodayBkgs]    = useState<Booking[]>([])   // this room, today

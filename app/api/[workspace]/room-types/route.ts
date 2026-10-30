@@ -1,7 +1,8 @@
 import { type NextRequest } from 'next/server'
 import { getWorkspaceId } from '@/lib/workspace'
 
-export async function GET(_req: NextRequest, { params }: { params: { workspace: string } }) {
+export async function GET(_req: NextRequest, props: { params: Promise<{ workspace: string }> }) {
+  const params = await props.params;
   if (process.env.MOCK_MODE === 'true') {
     const [{ getRoomTypes }, { getSessionStore }] = await Promise.all([import('@/lib/mock/api'), import('@/lib/mock/store')])
     return Response.json(getRoomTypes(await getSessionStore()))
@@ -12,7 +13,8 @@ export async function GET(_req: NextRequest, { params }: { params: { workspace: 
   return Response.json(await getRoomTypes(workspaceId))
 }
 
-export async function POST(req: NextRequest, { params }: { params: { workspace: string } }) {
+export async function POST(req: NextRequest, props: { params: Promise<{ workspace: string }> }) {
+  const params = await props.params;
   const { type } = await req.json()
   if (!type?.trim()) return Response.json({ error: 'type required' }, { status: 400 })
   const adminRole = req.cookies.get(`admin_${params.workspace}`)?.value

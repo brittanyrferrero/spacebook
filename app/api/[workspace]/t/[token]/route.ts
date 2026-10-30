@@ -1,7 +1,11 @@
 import { type NextRequest, NextResponse } from 'next/server'
 import { cookies } from 'next/headers'
 
-export async function GET(req: NextRequest, { params }: { params: { workspace: string; token: string } }) {
+export async function GET(
+  req: NextRequest,
+  props: { params: Promise<{ workspace: string; token: string }> }
+) {
+  const params = await props.params;
   if (process.env.MOCK_MODE === 'true') {
     const { getSessionStore } = await import('@/lib/mock/store')
     const store = await getSessionStore()

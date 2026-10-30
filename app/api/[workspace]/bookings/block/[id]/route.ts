@@ -7,7 +7,11 @@ function overlapsInterval(bStart: Date, bEnd: Date, start: Date, end: Date): boo
 
 // ─── PATCH — edit block (update times/reason, handle new conflicts) ───────────
 
-export async function PATCH(req: NextRequest, { params }: { params: { workspace: string; id: string } }) {
+export async function PATCH(
+  req: NextRequest,
+  props: { params: Promise<{ workspace: string; id: string }> }
+) {
+  const params = await props.params;
   const cookieHeader = req.cookies.get(`admin_${params.workspace}`)
   if (!cookieHeader?.value) return Response.json({ error: 'Forbidden.' }, { status: 403 })
 
