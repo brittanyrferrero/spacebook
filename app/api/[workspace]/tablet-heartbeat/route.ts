@@ -7,7 +7,8 @@ const rl = ratelimit(20, '1 m')
 // Liveness ping from Linen tablets (ADR-024). Sent every 2 minutes with fetch, and
 // once via navigator.sendBeacon when the page is hidden or closed — sendBeacon posts
 // text/plain, so the body is read as text and parsed here rather than via req.json().
-export async function POST(req: NextRequest, { params }: { params: { workspace: string } }) {
+export async function POST(req: NextRequest, props: { params: Promise<{ workspace: string }> }) {
+  const params = await props.params;
   if (process.env.MOCK_MODE === 'true') return Response.json({ ok: true })
   const wsToken = req.cookies.get(`ws_${params.workspace}`)?.value
   if (!wsToken) return Response.json({ error: 'Unauthorized' }, { status: 401 })
