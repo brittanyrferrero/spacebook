@@ -1,12 +1,13 @@
 import { type NextRequest } from 'next/server'
 
-export async function POST(req: NextRequest, { params }: { params: { workspace: string } }) {
+export async function POST(req: NextRequest, props: { params: Promise<{ workspace: string }> }) {
+  const params = await props.params;
   const wsToken = req.cookies.get(`ws_${params.workspace}`)?.value
   if (!wsToken) return Response.json({ error: 'Unauthorized' }, { status: 401 })
 
   const body = await req.json()
   const { roomId, image } = body
-  if (!roomId || typeof image !== 'string' || !image.startsWith('data:image/jpeg;base64,')) {
+  if (typeof roomId !== 'string' || typeof image !== 'string' || !image.startsWith('data:image/jpeg;base64,')) {
     return Response.json({ error: 'Invalid payload' }, { status: 400 })
   }
   if (image.length > 800_000) {
@@ -17,6 +18,9 @@ export async function POST(req: NextRequest, { params }: { params: { workspace: 
   const workspaceId = await getWorkspaceId(params.workspace)
   if (!workspaceId) return Response.json({ error: 'Not found' }, { status: 404 })
 
+  const { recordTabletSeen, roomBelongsToWorkspace } = await import('@/lib/tablet-health')
+  if (!(await roomBelongsToWorkspace(workspaceId, roomId))) return Response.json({ error: 'Not found' }, { status: 404 })
+
   const { Redis } = await import('@upstash/redis')
   const kv = Redis.fromEnv()
   await kv.set(
@@ -24,11 +28,14 @@ export async function POST(req: NextRequest, { params }: { params: { workspace: 
     { image, capturedAt: new Date().toISOString() },
     { ex: 60 * 60 * 48 }
   )
+  // Snapshots double as the liveness signal for Classic tablets, which don't send heartbeats (ADR-024)
+  await recordTabletSeen(kv, workspaceId, roomId, { lastSnapshotAt: new Date().toISOString() })
 
   return Response.json({ ok: true })
 }
 
-export async function GET(req: NextRequest, { params }: { params: { workspace: string } }) {
+export async function GET(req: NextRequest, props: { params: Promise<{ workspace: string }> }) {
+  const params = await props.params;
   const wsToken      = req.cookies.get(`ws_${params.workspace}`)?.value
   const adminToken   = req.cookies.get(`admin_${params.workspace}`)?.value
   const palantir     = req.cookies.get('palantir_session')?.value

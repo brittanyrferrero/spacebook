@@ -120,7 +120,7 @@ Members can be assigned roles by a super admin:
 |---|---|
 | **User** | Can make bookings |
 | **Admin** | Can manage rooms, bookings, and settings |
-| **Super admin** | All admin capabilities, plus adding and removing other admins |
+| **Super admin** | All admin capabilities, plus adding and removing other admins. Receives [tablet alerts](#tablet-alerts) by email |
 
 Role assignment is done inline in the Members table — super admins see a role dropdown next to each member.
 
@@ -266,3 +266,18 @@ https://your-app.com/api/[workspace]/t/[token]
 3. Add the page to the home screen or set it as the browser's home page for a kiosk-style setup
 
 The tablet session cookie never expires and does not require re-entry of the workspace URL. If the workspace URL is renamed, the tablet must be reconfigured by opening the new tablet URL again.
+
+Tablets are meant to stay **plugged in with the screen always on**. If you use Fully Kiosk Browser, also turn on **Settings → Advanced Web Settings → Enable JavaScript Interface** so spacebook can read the tablet's battery and charging state for the alerts below.
+
+### Tablet alerts
+
+Every super admin in the workspace gets an email when a room tablet needs attention:
+
+- **Tablet is offline:** the tablet hasn't checked in for 15 minutes. It may be switched off, out of battery, off wifi, or no longer showing spacebook. The email includes spacebook's best guess at why (for example "it probably ran out of power — it had been unplugged" or "the screen turned off or spacebook was moved off-screen").
+- **Tablet is unplugged:** the tablet is still working but has been running on battery for 5 minutes. Plug it back in before it dies.
+
+You get one email when the problem starts and one when it's resolved ("back online" / "plugged back in"), not repeated reminders. Checks run about every 15 minutes, so expect an alert within roughly half an hour.
+
+Alerts are most detailed on the Linen tablet design. Tablets on the Classic design only get offline alerts, with less detail about the cause.
+
+If a tablet shows a sign-in page instead of the room display, open the room's **Tablet URL** on it again.

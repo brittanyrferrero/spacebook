@@ -3,7 +3,8 @@ import type { NextRequest } from 'next/server'
 import { getWorkspaceId } from '@/lib/workspace'
 import { isValidEmail } from '@/lib/email'
 
-export async function GET(req: NextRequest, { params }: { params: { workspace: string } }) {
+export async function GET(req: NextRequest, props: { params: Promise<{ workspace: string }> }) {
+  const params = await props.params;
   if (process.env.MOCK_MODE === 'true') {
     const [{ getMembers }, { getSessionStore }] = await Promise.all([import('@/lib/mock/api'), import('@/lib/mock/store')])
     return NextResponse.json(getMembers(await getSessionStore()))
@@ -41,7 +42,8 @@ export async function GET(req: NextRequest, { params }: { params: { workspace: s
   return NextResponse.json(result)
 }
 
-export async function POST(req: NextRequest, { params }: { params: { workspace: string } }) {
+export async function POST(req: NextRequest, props: { params: Promise<{ workspace: string }> }) {
+  const params = await props.params;
   const { name, email } = await req.json()
   if (!name?.trim() || !email?.trim()) return NextResponse.json({ error: 'Name and email are required.' }, { status: 400 })
   if (!isValidEmail(email)) return NextResponse.json({ error: 'Invalid email address.' }, { status: 400 })

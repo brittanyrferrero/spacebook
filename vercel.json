@@ -3,6 +3,10 @@
     {
       "path": "/api/gcal-renew",
       "schedule": "0 2 * * *"
+    },
+    {
+      "path": "/api/tablet-health",
+      "schedule": "0 13 * * *"
     }
   ]
 }

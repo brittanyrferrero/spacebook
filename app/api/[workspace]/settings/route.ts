@@ -6,7 +6,8 @@ const DEFAULT_VISIBILITY = { showTitle: false, showOrganizer: false, allowEditOt
 const DEFAULT_DISPLAY_HOURS = { start: 8, end: 20 }
 const DEFAULT_BOOKING_HOURS = { start: 6, end: 22 }
 
-export async function GET(req: NextRequest, { params }: { params: { workspace: string } }) {
+export async function GET(req: NextRequest, props: { params: Promise<{ workspace: string }> }) {
+  const params = await props.params;
   // Lightweight path for the room tablets, which re-check their design every 2 minutes
   // (ADR-021): one cached workspace lookup and one KV read, instead of the full settings
   // payload (six KV reads, plus two count queries for trial workspaces).
@@ -73,7 +74,8 @@ export async function GET(req: NextRequest, { params }: { params: { workspace: s
   })
 }
 
-export async function PATCH(req: NextRequest, { params }: { params: { workspace: string } }) {
+export async function PATCH(req: NextRequest, props: { params: Promise<{ workspace: string }> }) {
+  const params = await props.params;
   const body = await req.json()
   const adminRole = req.cookies.get(`admin_${params.workspace}`)?.value
   if (!adminRole) return Response.json({ error: 'Admin required.' }, { status: 403 })

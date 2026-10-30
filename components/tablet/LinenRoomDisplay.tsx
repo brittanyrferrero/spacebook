@@ -185,6 +185,65 @@ export function LinenRoomDisplay() {
     return () => { cancelled = true; clearTimeout(initial); clearInterval(interval) }
   }, [workspace, roomId])
 
+  // Heartbeat for the tablet-offline alert (ADR-024). The goodbye beacon on hide/close
+  // and the battery reading are what let the alert guess *why* a tablet went quiet.
+  useEffect(() => {
+    const url = `/api/${workspace}/tablet-heartbeat`
+    const pageStartedAt = new Date().toISOString()
+    let battery: { level: number; charging: boolean } | null = null
+    let offlineSince: number | null = null
+    let offlineMs = 0
+
+    // Standard Battery API first; Fully Kiosk Browser's JavaScript interface (when enabled
+    // in its settings) as a fallback in case its WebView doesn't expose that API.
+    const nav = navigator as Navigator & { getBattery?: () => Promise<{ level: number; charging: boolean }> }
+    const fully = (window as Window & { fully?: { getBatteryLevel?: () => number; isPlugged?: () => boolean } }).fully
+    function fullyBattery() {
+      if (!fully?.getBatteryLevel || !fully.isPlugged) return
+      battery = { get level() { return fully.getBatteryLevel!() / 100 }, get charging() { return fully.isPlugged!() } }
+    }
+    if (nav.getBattery) nav.getBattery().then(b => { battery = b }).catch(fullyBattery)
+    else fullyBattery()
+
+    function payload(event?: 'hidden' | 'pagehide') {
+      return JSON.stringify({
+        roomId, pageStartedAt, event, offlineMs: offlineMs || undefined,
+        battery: battery ? Math.round(battery.level * 100) : undefined,
+        charging: battery?.charging,
+      })
+    }
+    async function beat() {
+      try {
+        const res = await fetch(url, { method: 'POST', body: payload() })
+        if (res.ok) offlineMs = 0
+      } catch { /* offline — the health check notices the silence */ }
+    }
+    function goodbye(event: 'hidden' | 'pagehide') {
+      try { navigator.sendBeacon(url, payload(event)) } catch { /* best effort */ }
+    }
+    const onVisibility = () => { if (document.visibilityState === 'hidden') goodbye('hidden'); else beat() }
+    const onPageHide = () => goodbye('pagehide')
+    const onOffline = () => { offlineSince = Date.now() }
+    const onOnline = () => {
+      if (offlineSince !== null) { offlineMs += Date.now() - offlineSince; offlineSince = null }
+      beat()
+    }
+
+    beat()
+    const id = setInterval(beat, 2 * 60_000)
+    document.addEventListener('visibilitychange', onVisibility)
+    window.addEventListener('pagehide', onPageHide)
+    window.addEventListener('offline', onOffline)
+    window.addEventListener('online', onOnline)
+    return () => {
+      clearInterval(id)
+      document.removeEventListener('visibilitychange', onVisibility)
+      window.removeEventListener('pagehide', onPageHide)
+      window.removeEventListener('offline', onOffline)
+      window.removeEventListener('online', onOnline)
+    }
+  }, [workspace, roomId])
+
   // ── Fit the 820px-wide layout to the screen ───────────────────────────────
   // Taller screens (like the Fire tablets) stretch rather than letterbox: most of the
   // extra height grows the status ring, the rest goes to the calendar.

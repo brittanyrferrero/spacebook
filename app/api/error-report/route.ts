@@ -2,6 +2,7 @@ import { Resend } from 'resend'
 import { NextRequest } from 'next/server'
 import { Ratelimit } from '@upstash/ratelimit'
 import { Redis } from '@upstash/redis'
+import { getIP } from '@/lib/ratelimit'
 
 export const dynamic = 'force-dynamic'
 
@@ -33,7 +34,7 @@ export async function POST(req: NextRequest) {
   const alertTo = process.env.ERROR_ALERT_TO
   if (!key || !alertTo) return Response.json({ ok: false }, { status: 500 })
 
-  const ip = req.headers.get('x-forwarded-for')?.split(',')[0].trim() ?? 'unknown'
+  const ip = getIP(req) // rightmost X-Forwarded-For; the leftmost is client-controlled
   const rl = getRatelimit()
   if (rl) {
     const { success } = await rl.limit(ip)

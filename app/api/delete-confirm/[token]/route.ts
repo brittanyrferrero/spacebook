@@ -5,7 +5,8 @@ async function kv() {
   return new Redis({ url: process.env.KV_REST_API_URL!, token: process.env.KV_REST_API_TOKEN! })
 }
 
-export async function GET(_req: NextRequest, { params }: { params: { token: string } }) {
+export async function GET(_req: NextRequest, props: { params: Promise<{ token: string }> }) {
+  const params = await props.params;
   const r = await kv()
   const raw = await r.get(`delete_request:token:${params.token}`)
 

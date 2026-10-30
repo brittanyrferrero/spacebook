@@ -6,8 +6,9 @@ async function requirePalantir() {
   return cookieStore.get('palantir_session')?.value ?? null
 }
 
-export async function PATCH(req: NextRequest, { params }: { params: { id: string } }) {
-  if (!await requirePalantir()) return Response.json({ error: 'Unauthorized' }, { status: 401 })
+export async function PATCH(req: NextRequest, props: { params: Promise<{ id: string }> }) {
+  const params = await props.params;
+  if (!(await requirePalantir())) return Response.json({ error: 'Unauthorized' }, { status: 401 })
 
   const body = await req.json()
   const { is_trial, max_rooms, max_members, max_bookings } = body
@@ -23,8 +24,9 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
   return Response.json({ ok: true })
 }
 
-export async function DELETE(req: NextRequest, { params }: { params: { id: string } }) {
-  if (!await requirePalantir()) return Response.json({ error: 'Unauthorized' }, { status: 401 })
+export async function DELETE(req: NextRequest, props: { params: Promise<{ id: string }> }) {
+  const params = await props.params;
+  if (!(await requirePalantir())) return Response.json({ error: 'Unauthorized' }, { status: 401 })
 
   const { confirm_slug } = await req.json()
   if (!confirm_slug) return Response.json({ error: 'confirm_slug required' }, { status: 400 })
