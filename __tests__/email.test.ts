@@ -4,7 +4,7 @@ import { isValidEmail } from '@/lib/email'
 describe('isValidEmail', () => {
   it('accepts valid emails', () => {
     expect(isValidEmail('user@example.com')).toBe(true)
-    expect(isValidEmail('brittany@intelligence.org')).toBe(true)
+    expect(isValidEmail('brittany@example.com')).toBe(true)
   })
 
   it('accepts the tablet walk-in placeholder email', () => {
