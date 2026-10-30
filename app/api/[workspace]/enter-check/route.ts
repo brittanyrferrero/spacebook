@@ -1,7 +1,8 @@
 import { type NextRequest } from 'next/server'
 import { getWorkspaceId } from '@/lib/workspace'
 
-export async function GET(req: NextRequest, { params }: { params: { workspace: string } }) {
+export async function GET(req: NextRequest, props: { params: Promise<{ workspace: string }> }) {
+  const params = await props.params;
   const token = req.nextUrl.searchParams.get('token')
   if (!token) return Response.json({ ok: false }, { status: 401 })
 

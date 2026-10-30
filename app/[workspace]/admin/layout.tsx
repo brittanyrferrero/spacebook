@@ -1,13 +1,18 @@
 import { cookies } from 'next/headers'
 import AdminRecoverModal from './recover-modal'
 
-export default async function AdminLayout({
-  children,
-  params,
-}: {
-  children: React.ReactNode
-  params: { workspace: string }
-}) {
+export default async function AdminLayout(
+  props: {
+    children: React.ReactNode
+    params: Promise<{ workspace: string }>
+  }
+) {
+  const params = await props.params;
+
+  const {
+    children
+  } = props;
+
   if (process.env.MOCK_MODE === 'true') return <>{children}</>
 
   const cookieStore = await cookies()

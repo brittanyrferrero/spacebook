@@ -1,7 +1,8 @@
 import { type NextRequest, NextResponse } from 'next/server'
 import { cookies } from 'next/headers'
 
-export async function GET(req: NextRequest, { params }: { params: { workspace: string } }) {
+export async function GET(req: NextRequest, props: { params: Promise<{ workspace: string }> }) {
+  const params = await props.params;
   const roomId = req.nextUrl.searchParams.get('room')
   const token  = req.nextUrl.searchParams.get('t')
 

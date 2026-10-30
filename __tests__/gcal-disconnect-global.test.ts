@@ -40,7 +40,7 @@ describe('DELETE /api/gcal/disconnect/[roomId] (Palantir)', () => {
     getTokens.mockResolvedValue({ refresh_token: 'rt' })
 
     const { DELETE } = await import('@/app/api/gcal/disconnect/[roomId]/route')
-    const res = await DELETE(req(true), { params: { roomId: 'room-1' } })
+    const res = await DELETE(req(true), { params: Promise.resolve({ roomId: 'room-1' }) })
 
     expect(res.status).toBe(200)
     expect(removeWatchState).toHaveBeenCalledWith('room-1', 'chan-1')
@@ -49,7 +49,7 @@ describe('DELETE /api/gcal/disconnect/[roomId] (Palantir)', () => {
 
   it('rejects requests without a Palantir session', async () => {
     const { DELETE } = await import('@/app/api/gcal/disconnect/[roomId]/route')
-    const res = await DELETE(req(false), { params: { roomId: 'room-1' } })
+    const res = await DELETE(req(false), { params: Promise.resolve({ roomId: 'room-1' }) })
 
     expect(res.status).toBe(401)
     expect(removeWatchState).not.toHaveBeenCalled()

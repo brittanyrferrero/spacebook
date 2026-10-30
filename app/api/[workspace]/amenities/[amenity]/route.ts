@@ -1,7 +1,11 @@
 import { type NextRequest } from 'next/server'
 import { getWorkspaceId } from '@/lib/workspace'
 
-export async function DELETE(req: NextRequest, { params }: { params: { workspace: string; amenity: string } }) {
+export async function DELETE(
+  req: NextRequest,
+  props: { params: Promise<{ workspace: string; amenity: string }> }
+) {
+  const params = await props.params;
   const amenity = decodeURIComponent(params.amenity)
   const adminRole = req.cookies.get(`admin_${params.workspace}`)?.value
   if (!adminRole) return Response.json({ error: 'Admin required.' }, { status: 403 })

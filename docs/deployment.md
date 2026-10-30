@@ -44,7 +44,7 @@ The code resolves these as: `NEXT_PUBLIC_APP_URL ?? NEXT_PUBLIC_BASE_URL ?? 'htt
 | Variable | Environments | Description |
 |---|---|---|
 | `NEXT_PUBLIC_SUPABASE_URL` | All | Supabase project URL. Found in Supabase → Project Settings → API. |
-| `NEXT_PUBLIC_SUPABASE_ANON_KEY` | All | Supabase anon/public key. Safe to expose to the browser; RLS is on so it cannot read or write any table directly. |
+| `NEXT_PUBLIC_SUPABASE_ANON_KEY` | — | **Unused.** The app has no browser-side Supabase client; the unused `lib/supabase/client.ts` and `@supabase/ssr` were removed in Oct 2026. Safe to leave set or remove. If set, it's harmless: RLS is on, so it cannot read or write any table. |
 | `SUPABASE_SERVICE_ROLE_KEY` | Production / Preview | **Server-only.** Service role key — bypasses RLS. All server-side database access uses this key. Never set as `NEXT_PUBLIC_`. |
 
 ### Upstash Redis (KV)

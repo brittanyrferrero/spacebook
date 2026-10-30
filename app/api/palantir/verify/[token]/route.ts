@@ -6,7 +6,8 @@ async function kv() {
   return new Redis({ url: process.env.KV_REST_API_URL!, token: process.env.KV_REST_API_TOKEN! })
 }
 
-export async function GET(_req: NextRequest, { params }: { params: { token: string } }) {
+export async function GET(_req: NextRequest, props: { params: Promise<{ token: string }> }) {
+  const params = await props.params;
   const r = await kv()
   const email = await r.get<string>(`palantir:token:${params.token}`)
   if (!email) return NextResponse.redirect(new URL('/palantir-enter?error=expired', _req.url))

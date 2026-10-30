@@ -10,7 +10,8 @@ async function kv() {
   return new Redis({ url: process.env.KV_REST_API_URL!, token: process.env.KV_REST_API_TOKEN! })
 }
 
-export async function POST(req: NextRequest, { params }: { params: { workspace: string } }) {
+export async function POST(req: NextRequest, props: { params: Promise<{ workspace: string }> }) {
+  const params = await props.params;
   const { success } = await rl.limit(getIP(req))
   if (!success) return Response.json({ error: 'Too many requests.' }, { status: 429 })
 
