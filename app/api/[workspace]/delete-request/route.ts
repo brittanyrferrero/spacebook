@@ -6,7 +6,8 @@ async function kv() {
   return new Redis({ url: process.env.KV_REST_API_URL!, token: process.env.KV_REST_API_TOKEN! })
 }
 
-export async function POST(req: NextRequest, { params }: { params: { workspace: string } }) {
+export async function POST(req: NextRequest, props: { params: Promise<{ workspace: string }> }) {
+  const params = await props.params;
   const { requesterEmail } = await req.json()
   if (!requesterEmail?.trim()) return Response.json({ error: 'Email required.' }, { status: 400 })
   if (!isValidEmail(requesterEmail)) return Response.json({ error: 'Invalid email address.' }, { status: 400 })
