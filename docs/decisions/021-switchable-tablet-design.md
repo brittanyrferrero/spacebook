@@ -1,6 +1,6 @@
 # ADR-021: Switchable tablet design (Classic / Linen)
 Date: 2026-09-29
-Status: Accepted
+Status: Accepted (default changed to Linen 2026-10-22 — see Update below)
 
 ## Context
 
@@ -77,3 +77,11 @@ changes nothing until an admin opts in. Validation lives in `lib/tablet-design.t
   setting and the override in one PR, and fold the helpers back together.
 - The pre-workspace route `app/room/[roomId]` is untouched; tablets are provisioned
   through `/{workspace}/room/{id}` (via `/api/[workspace]/t` and `tablet-enter`).
+
+## Update 2026-10-22: Linen is the default
+
+`DEFAULT_TABLET_DESIGN` is now `'linen'`. Every workspace that never saved a choice
+switches on the next 2-minute design check — no refresh, no touching tablets.
+Workspaces that explicitly saved Classic stay on Classic until an admin picks Linen,
+and a tablet whose address has `?design=classic` stays Classic until that is removed.
+The rollback path is unchanged: choose Classic in admin.
