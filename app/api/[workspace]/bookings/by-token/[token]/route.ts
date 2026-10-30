@@ -1,7 +1,11 @@
 import { type NextRequest } from 'next/server'
 import { getWorkspaceId } from '@/lib/workspace'
 
-export async function GET(_req: NextRequest, { params }: { params: { workspace: string; token: string } }) {
+export async function GET(
+  _req: NextRequest,
+  props: { params: Promise<{ workspace: string; token: string }> }
+) {
+  const params = await props.params;
   if (process.env.MOCK_MODE === 'true') {
     const { getBookingByToken } = await import('@/lib/mock/api')
     const { getSessionStore } = await import('@/lib/mock/store')

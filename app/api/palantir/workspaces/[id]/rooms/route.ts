@@ -6,8 +6,9 @@ async function requirePalantir() {
   return cookieStore.get('palantir_session')?.value ?? null
 }
 
-export async function GET(_req: NextRequest, { params }: { params: { id: string } }) {
-  if (!await requirePalantir()) return Response.json({ error: 'Unauthorized' }, { status: 401 })
+export async function GET(_req: NextRequest, props: { params: Promise<{ id: string }> }) {
+  const params = await props.params;
+  if (!(await requirePalantir())) return Response.json({ error: 'Unauthorized' }, { status: 401 })
 
   const { createClient } = await import('@/lib/supabase/server')
   const sb = await createClient()

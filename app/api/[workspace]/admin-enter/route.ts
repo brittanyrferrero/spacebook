@@ -6,7 +6,8 @@ import { isValidEmail } from '@/lib/email'
 
 const rl = ratelimit(10, '15 m')
 
-export async function GET(_req: NextRequest, { params }: { params: { workspace: string } }) {
+export async function GET(_req: NextRequest, props: { params: Promise<{ workspace: string }> }) {
+  const params = await props.params;
   if (process.env.MOCK_MODE === 'true') return Response.json({ unclaimed: true })
   const workspaceId = (await getWorkspaceBySlug(params.workspace))?.id
   if (!workspaceId) return Response.json({ unclaimed: false })
@@ -14,7 +15,8 @@ export async function GET(_req: NextRequest, { params }: { params: { workspace: 
   return Response.json({ unclaimed: await isWorkspaceUnclaimed(workspaceId) })
 }
 
-export async function POST(req: NextRequest, { params }: { params: { workspace: string } }) {
+export async function POST(req: NextRequest, props: { params: Promise<{ workspace: string }> }) {
+  const params = await props.params;
   const { email: emailFromBody, token } = await req.json()
   if (!token) return NextResponse.json({ error: 'Missing fields.' }, { status: 400 })
 

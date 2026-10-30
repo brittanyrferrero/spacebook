@@ -2,7 +2,8 @@ import { type NextRequest } from 'next/server'
 import { subDays, format } from 'date-fns'
 import { getWorkspaceId } from '@/lib/workspace'
 
-export async function GET(req: NextRequest, { params }: { params: { workspace: string } }) {
+export async function GET(req: NextRequest, props: { params: Promise<{ workspace: string }> }) {
+  const params = await props.params;
   const { searchParams } = req.nextUrl
   const to = searchParams.get('to') ?? format(new Date(), 'yyyy-MM-dd')
   const from = searchParams.get('from') ?? format(subDays(new Date(), 29), 'yyyy-MM-dd')

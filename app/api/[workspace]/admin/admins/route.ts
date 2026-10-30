@@ -9,7 +9,8 @@ async function requireSuperAdmin(workspace: string) {
   return role === 'super_admin'
 }
 
-export async function GET(_req: NextRequest, { params }: { params: { workspace: string } }) {
+export async function GET(_req: NextRequest, props: { params: Promise<{ workspace: string }> }) {
+  const params = await props.params;
   if (process.env.MOCK_MODE === 'true') return Response.json({ admins: [], myRole: 'super_admin' })
   const cookieStore = await cookies()
   const myRole = cookieStore.get(`admin_${params.workspace}`)?.value ?? null
@@ -19,8 +20,9 @@ export async function GET(_req: NextRequest, { params }: { params: { workspace: 
   return Response.json({ admins: await getAdmins(workspaceId), myRole })
 }
 
-export async function POST(req: NextRequest, { params }: { params: { workspace: string } }) {
-  if (!await requireSuperAdmin(params.workspace)) return Response.json({ error: 'Super admin required.' }, { status: 403 })
+export async function POST(req: NextRequest, props: { params: Promise<{ workspace: string }> }) {
+  const params = await props.params;
+  if (!(await requireSuperAdmin(params.workspace))) return Response.json({ error: 'Super admin required.' }, { status: 403 })
 
   const { email, role } = await req.json()
   if (!email || !['admin', 'super_admin'].includes(role)) {
@@ -42,8 +44,9 @@ export async function POST(req: NextRequest, { params }: { params: { workspace: 
   return Response.json({ ok: true })
 }
 
-export async function DELETE(req: NextRequest, { params }: { params: { workspace: string } }) {
-  if (!await requireSuperAdmin(params.workspace)) return Response.json({ error: 'Super admin required.' }, { status: 403 })
+export async function DELETE(req: NextRequest, props: { params: Promise<{ workspace: string }> }) {
+  const params = await props.params;
+  if (!(await requireSuperAdmin(params.workspace))) return Response.json({ error: 'Super admin required.' }, { status: 403 })
 
   const { email } = await req.json()
   if (!email) return Response.json({ error: 'email required.' }, { status: 400 })

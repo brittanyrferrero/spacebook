@@ -2,7 +2,8 @@ import { type NextRequest } from 'next/server'
 import { getAllRooms, getRooms } from '@/lib/data'
 import { getWorkspaceId } from '@/lib/workspace'
 
-export async function GET(req: NextRequest, { params }: { params: { workspace: string } }) {
+export async function GET(req: NextRequest, props: { params: Promise<{ workspace: string }> }) {
+  const params = await props.params;
   const all = req.nextUrl.searchParams.get('all') === '1'
   if (process.env.MOCK_MODE === 'true') {
     const [{ getRooms: mockGet, getAllRooms: mockAll }, { getSessionStore }] = await Promise.all([import('@/lib/mock/api'), import('@/lib/mock/store')])
@@ -14,7 +15,8 @@ export async function GET(req: NextRequest, { params }: { params: { workspace: s
   return Response.json(all ? await getAllRooms(workspaceId) : await getRooms(workspaceId))
 }
 
-export async function POST(req: NextRequest, { params }: { params: { workspace: string } }) {
+export async function POST(req: NextRequest, props: { params: Promise<{ workspace: string }> }) {
+  const params = await props.params;
   const data = await req.json()
   if (!data.name || !data.capacity) return Response.json({ error: 'name and capacity required' }, { status: 400 })
   const adminRole = req.cookies.get(`admin_${params.workspace}`)?.value

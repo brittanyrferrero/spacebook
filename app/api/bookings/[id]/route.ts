@@ -1,6 +1,7 @@
 import { type NextRequest } from 'next/server'
 
-export async function PATCH(req: NextRequest, { params }: { params: { id: string } }) {
+export async function PATCH(req: NextRequest, props: { params: Promise<{ id: string }> }) {
+  const params = await props.params;
   const body = await req.json()
   const { _editor_name, _editor_email, _room_name, ...patch } = body
 
@@ -59,7 +60,8 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
   return Response.json(data)
 }
 
-export async function DELETE(_req: NextRequest, { params }: { params: { id: string } }) {
+export async function DELETE(_req: NextRequest, props: { params: Promise<{ id: string }> }) {
+  const params = await props.params;
   if (process.env.MOCK_MODE === 'true') {
     const [{ cancelBooking, getBookingById }, { getSessionStore, saveSessionStore }] = await Promise.all([import('@/lib/mock/api'), import('@/lib/mock/store')])
     const store = await getSessionStore()

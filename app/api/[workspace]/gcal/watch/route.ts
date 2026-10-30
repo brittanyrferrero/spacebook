@@ -1,7 +1,8 @@
 import { type NextRequest } from 'next/server'
 import { getWorkspaceId } from '@/lib/workspace'
 
-export async function POST(req: NextRequest, { params }: { params: { workspace: string } }) {
+export async function POST(req: NextRequest, props: { params: Promise<{ workspace: string }> }) {
+  const params = await props.params;
   const adminRole = req.cookies.get(`admin_${params.workspace}`)?.value
   if (!adminRole) return Response.json({ error: 'Admin required.' }, { status: 403 })
 
