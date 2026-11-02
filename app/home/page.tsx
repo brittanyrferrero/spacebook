@@ -34,9 +34,9 @@ const TABS: { key: Tab; label: string; url: string; desc: string; fw: number; fh
     fw: 1280, fh: 780, scale: 0.72,
   },
   {
-    key: 'tablet', label: 'Tablet', url: `${DEMO}/swift-cedar-lake/room/r2`,
+    key: 'tablet', label: 'Tablet', url: `${DEMO}/swift-cedar-lake/room/r2?design=linen`,
     desc: 'Mount one outside each room. Shows live status — free or in use — from across the hallway.',
-    fw: 500, fh: 880, scale: 0.78,
+    fw: 820, fh: 1180, scale: 0.58,
   },
   {
     key: 'admin', label: 'Admin', url: `${DEMO}/swift-cedar-lake/admin`,

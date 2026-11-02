@@ -11,7 +11,7 @@ const INK    = '#1c1510'
 const DEMO = 'https://demo.space-book.net'
 const TABS: { key: Tab; label: string; url: string; fw: number; fh: number; scale: number }[] = [
   { key: 'desktop', label: 'Desktop',  url: `${DEMO}/swift-cedar-lake`,       fw: 1280, fh: 780, scale: 0.72 },
-  { key: 'tablet',  label: 'Tablet',   url: `${DEMO}/swift-cedar-lake/room/r2`,    fw: 500,  fh: 880, scale: 0.78 },
+  { key: 'tablet',  label: 'Tablet',   url: `${DEMO}/swift-cedar-lake/room/r2?design=linen`, fw: 820, fh: 1180, scale: 0.58 },
   { key: 'admin',   label: 'Admin',    url: `${DEMO}/swift-cedar-lake/admin`, fw: 1280, fh: 780, scale: 0.72 },
 ]
 
