@@ -83,7 +83,7 @@ const PLANS = [
     blurb: 'Running several sites, need a custom integration, or want us to guide you through the setup? Let\'s talk.',
     features: ['Multiple locations', 'Custom integrations', 'Dedicated support', 'Custom contract & invoicing'],
     cta: 'Contact us',
-    href: 'mailto:hello@spacebook.app',
+    href: 'mailto:hello@space-book.net',
     highlight: false,
   },
 ]

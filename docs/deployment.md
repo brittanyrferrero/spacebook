@@ -34,7 +34,7 @@ Set these in the Vercel dashboard under **Settings → Environment Variables**. 
 
 | Variable | Environments | Description |
 |---|---|---|
-| `NEXT_PUBLIC_APP_URL` | All | Canonical public URL, e.g. `https://spacebook.app`. Used in email links, GCal OAuth redirect URIs, and webhook addresses. |
+| `NEXT_PUBLIC_APP_URL` | All | Canonical public URL, e.g. `https://space-book.net`. Used in email links, GCal OAuth redirect URIs, and webhook addresses. |
 | `NEXT_PUBLIC_BASE_URL` | All | Fallback for `NEXT_PUBLIC_APP_URL` — the app reads whichever is set. Keep both in sync if you set both. |
 
 The code resolves these as: `NEXT_PUBLIC_APP_URL ?? NEXT_PUBLIC_BASE_URL ?? 'http://localhost:3000'`.
@@ -59,7 +59,7 @@ The code resolves these as: `NEXT_PUBLIC_APP_URL ?? NEXT_PUBLIC_BASE_URL ?? 'htt
 | Variable | Environments | Description |
 |---|---|---|
 | `RESEND_API_KEY` | Production / Preview | Resend API key. If absent, emails are silently skipped — safe to omit in preview environments where you don't want real mail sent. |
-| `EMAIL_FROM` | Production / Preview | Sender address shown in emails, e.g. `Spacebook <noreply@spacebook.app>`. Defaults to `spacebook <noreply@spacebook.app>` if not set. |
+| `EMAIL_FROM` | Production / Preview | Sender address shown in emails, e.g. `Spacebook <noreply@space-book.net>`. Defaults to `spacebook <noreply@space-book.net>` if not set. |
 
 ### Admin and security
 

@@ -36,7 +36,7 @@ Used to store workspace config, admin roles, trial limits, and session tokens. C
 | Variable | Description |
 |---|---|
 | `RESEND_API_KEY` | Resend API key |
-| `EMAIL_FROM` | Sender address, e.g. `Spacebook <noreply@spacebook.app>` |
+| `EMAIL_FROM` | Sender address, e.g. `Spacebook <noreply@space-book.net>` |
 
 Email is optional locally — if `RESEND_API_KEY` is missing, emails are silently skipped.
 
@@ -44,7 +44,7 @@ Email is optional locally — if `RESEND_API_KEY` is missing, emails are silentl
 
 | Variable | Description |
 |---|---|
-| `NEXT_PUBLIC_APP_URL` | Public URL of the app, e.g. `https://spacebook.app`. Used in email links, GCal OAuth redirect URIs, and webhook addresses. |
+| `NEXT_PUBLIC_APP_URL` | Public URL of the app, e.g. `https://space-book.net`. Used in email links, GCal OAuth redirect URIs, and webhook addresses. |
 | `NEXT_PUBLIC_BASE_URL` | Legacy fallback for `NEXT_PUBLIC_APP_URL`. The app reads whichever is set: `NEXT_PUBLIC_APP_URL ?? NEXT_PUBLIC_BASE_URL ?? 'http://localhost:3000'`. Set `NEXT_PUBLIC_APP_URL` going forward; both are accepted for backwards compatibility. |
 
 ### Admin

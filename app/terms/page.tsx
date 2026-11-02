@@ -72,7 +72,7 @@ export default function TermsPage() {
         </Section>
 
         <Section title="Contact">
-          <p>Questions: <a href="mailto:hello@spacebook.app" style={{ color: INK }}>hello@spacebook.app</a></p>
+          <p>Questions: <a href="mailto:hello@space-book.net" style={{ color: INK }}>hello@space-book.net</a></p>
         </Section>
       </div>
 
@@ -83,7 +83,7 @@ export default function TermsPage() {
         <div style={{ display: 'flex', gap: 24, flexWrap: 'wrap' }}>
           <a href="/privacy" style={{ fontSize: 12, color: `${CREAM}66`, textDecoration: 'none', letterSpacing: '0.06em' }}>Privacy</a>
           <a href="/terms" style={{ fontSize: 12, color: CREAM, textDecoration: 'none', letterSpacing: '0.06em' }}>Terms</a>
-          <a href="mailto:hello@spacebook.app" style={{ fontSize: 12, color: `${CREAM}66`, textDecoration: 'none', letterSpacing: '0.06em' }}>hello@spacebook.app</a>
+          <a href="mailto:hello@space-book.net" style={{ fontSize: 12, color: `${CREAM}66`, textDecoration: 'none', letterSpacing: '0.06em' }}>hello@space-book.net</a>
         </div>
       </div>
     </div>

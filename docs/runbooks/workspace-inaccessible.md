@@ -34,7 +34,7 @@ The recovery email links to `/{workspace}/admin-recover?nonce={uuid}`. The nonce
 
 **If the recovery email doesn't arrive:**
 
-- Check spam. The email comes from the address in `EMAIL_FROM` (default: `spacebook <noreply@spacebook.app>`).
+- Check spam. The email comes from the address in `EMAIL_FROM` (default: `spacebook <noreply@space-book.net>`).
 - Check that `RESEND_API_KEY` is set in Vercel. If it's missing, emails are silently skipped — no error is shown to the user.
 - Check the Resend dashboard → Logs to see whether the email was sent and what happened to it.
 - If Resend shows the email was delivered but it's not in the inbox, check spam or confirm the email address is correct.
