@@ -47,9 +47,9 @@ const CSS = `
 .dm-pill { font-size:13px; font-weight:600; color:var(--muted); background:#ece4d7; border-radius:999px; padding:6px 14px; }
 
 .dm-hero { max-width:760px; margin:0 auto; text-align:center; padding:56px 0 64px; }
-.dm-lead { font-size:clamp(28px, 4.4vw, 46px); font-weight:400; line-height:1.15; letter-spacing:-0.02em; margin:0 0 24px;
-  font-variation-settings:'opsz' 36; }
 .dm-body { font-size:clamp(16px, 1.8vw, 19px); line-height:1.65; color:var(--muted); margin:0 auto; max-width:640px; }
+.dm-body + .dm-body { margin-top:16px; }
+.dm-body b { color:var(--ink); font-weight:700; }
 
 .dm-card { background:var(--card); border-radius:28px; padding:40px 28px 32px; margin-bottom:56px;
   box-shadow:0 18px 50px rgba(42,37,34,0.08); }
@@ -115,9 +115,9 @@ export default function DemoPage() {
         </nav>
 
         <header className="dm-hero">
-          <h1 className="dm-lead dm-serif">
-            A booking tool for coworking spaces that share resources — rooms, call booths, tools, desks, etc.
-          </h1>
+          <p className="dm-body">
+            <b>spacebook</b> is a booking tool for coworking spaces that share resources — rooms, call booths, tools, desks, etc.
+          </p>
           <p className="dm-body">
             It integrates with Google Calendar, lets admins own their data, provides useful analytics,
             doesn&apos;t require accounts, and is hardware-agnostic.
