@@ -65,7 +65,7 @@ export default function PrivacyPage() {
         </Section>
 
         <Section title="Your rights">
-          <p>You may request access to, correction of, or deletion of your personal data at any time by emailing us at <a href="mailto:hello@spacebook.app" style={{ color: INK }}>hello@spacebook.app</a>. We will respond within 30 days.</p>
+          <p>You may request access to, correction of, or deletion of your personal data at any time by emailing us at <a href="mailto:hello@space-book.net" style={{ color: INK }}>hello@space-book.net</a>. We will respond within 30 days.</p>
         </Section>
 
         <Section title="Cookies">
@@ -77,7 +77,7 @@ export default function PrivacyPage() {
         </Section>
 
         <Section title="Contact">
-          <p>Questions about this policy: <a href="mailto:hello@spacebook.app" style={{ color: INK }}>hello@spacebook.app</a></p>
+          <p>Questions about this policy: <a href="mailto:hello@space-book.net" style={{ color: INK }}>hello@space-book.net</a></p>
         </Section>
       </div>
 
@@ -88,7 +88,7 @@ export default function PrivacyPage() {
         <div style={{ display: 'flex', gap: 24, flexWrap: 'wrap' }}>
           <a href="/privacy" style={{ fontSize: 12, color: CREAM, textDecoration: 'none', letterSpacing: '0.06em' }}>Privacy</a>
           <a href="/terms" style={{ fontSize: 12, color: `${CREAM}66`, textDecoration: 'none', letterSpacing: '0.06em' }}>Terms</a>
-          <a href="mailto:hello@spacebook.app" style={{ fontSize: 12, color: `${CREAM}66`, textDecoration: 'none', letterSpacing: '0.06em' }}>hello@spacebook.app</a>
+          <a href="mailto:hello@space-book.net" style={{ fontSize: 12, color: `${CREAM}66`, textDecoration: 'none', letterSpacing: '0.06em' }}>hello@space-book.net</a>
         </div>
       </div>
     </div>

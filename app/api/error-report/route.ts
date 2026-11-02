@@ -5,7 +5,7 @@ import { Redis } from '@upstash/redis'
 
 export const dynamic = 'force-dynamic'
 
-const FROM = process.env.EMAIL_FROM ?? 'spacebook <noreply@spacebook.app>'
+const FROM = process.env.EMAIL_FROM ?? 'spacebook <noreply@space-book.net>'
 
 const esc = (s: unknown) =>
   String(s ?? 'unknown')

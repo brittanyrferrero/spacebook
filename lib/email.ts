@@ -7,7 +7,7 @@ export function isValidEmail(email: unknown): email is string {
     /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim())
 }
 
-const FROM = process.env.EMAIL_FROM ?? 'spacebook <noreply@spacebook.app>'
+const FROM = process.env.EMAIL_FROM ?? 'spacebook <noreply@space-book.net>'
 
 function escapeHtml(s: string): string {
   return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#39;')
