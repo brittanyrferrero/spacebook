@@ -132,6 +132,7 @@ function createStore(): MockStore {
     displayHours: { start: 8, end: 20 },
     bookingVisibility: { showTitle: true, showOrganizer: true, allowEditOthers: false },
     countWeekends: false,
+    tabletDesign: 'linen', // the demo shows the current tablet design; visitors can switch to Classic in admin
     gcalTokens: {},
   }
 }
@@ -162,6 +163,7 @@ export async function getSessionStore(): Promise<MockStore> {
     if (!existing.bookingVisibility)          { existing.bookingVisibility = defaults.bookingVisibility; dirty = true }
     if (existing.countWeekends === undefined) { existing.countWeekends     = false;                       dirty = true }
     if (!existing.gcalTokens)                { existing.gcalTokens        = {};                          dirty = true }
+    if (existing.tabletDesign === undefined) { existing.tabletDesign      = defaults.tabletDesign;       dirty = true }
     if (dirty) await kv.set(`mock:${sessionId}`, existing, { ex: SESSION_TTL_S })
     return existing
   }
