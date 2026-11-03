@@ -4,27 +4,32 @@ import { getBookingsForDate, getBookingsForRange } from '@/lib/data'
 import { getWorkspaceId } from '@/lib/workspace'
 import type { Booking, CreateBookingPayload } from '@/types'
 import { ratelimit, getIP } from '@/lib/ratelimit'
+import { accessFor, type BookingAccess } from '@/lib/booking-access'
 import { isValidEmail } from '@/lib/email'
 import { waitUntil } from '@vercel/functions'
 import { getLimits } from '@/lib/prod-config'
 
 const rl = ratelimit(20, '1 m')
 
-// The general calendar feed has no per-booking access control — anyone who can
-// view the workspace (i.e. anyone with the ws_{workspace} cookie, which per
-// ADR-001 requires only knowing the slug) can call this. cancel_token is a
-// bearer credential (see app/api/cancel/[token]/route.ts, which cancels on
-// token match alone) — it must never appear in a row the requester doesn't
-// already have another way to prove ownership of, or any viewer could cancel
-// any booking in the workspace just by reading the calendar's own JSON.
-type ScrubbedBooking = Omit<Booking, 'cancel_token'> & { cancel_token?: string }
+// The general calendar feed is readable by anyone who can view the workspace
+// (i.e. anyone with the ws_{workspace} cookie, which per ADR-001 requires only
+// knowing the slug). cancel_token is a bearer credential (see
+// app/api/cancel/[token]/route.ts, which cancels on token match alone and is
+// what the booker's email links use) — it must never appear in a row the
+// requester doesn't already have another way to prove ownership of.
+//
+// Cancelling or changing someone else's booking in the app doesn't need the
+// token: it goes through /bookings/[id]/cancel and PATCH, which ask the person
+// why and email the booker (ADR-023). `access` tells the client whether to ask.
+type ScrubbedBooking = Omit<Booking, 'cancel_token'> & { cancel_token?: string; access: BookingAccess }
 
 function scrubCancelToken(bookings: Booking[], isAdmin: boolean, mbEmail: string | null): ScrubbedBooking[] {
-  if (isAdmin) return bookings
+  const now = new Date()
   return bookings.map((b): ScrubbedBooking => {
-    if (mbEmail && mbEmail.toLowerCase() === b.booker_email.toLowerCase()) return b
+    const access = accessFor(b, { isAdmin, mbEmail, now })
+    if (isAdmin || (mbEmail && mbEmail.toLowerCase() === b.booker_email.toLowerCase())) return { ...b, access }
     const { cancel_token, ...rest } = b
-    return rest
+    return { ...rest, access }
   })
 }
 
@@ -39,8 +44,10 @@ export async function GET(req: NextRequest, { params }: { params: { workspace: s
     const [{ getBookingsByEmail, getBookingsForDate: mockDate, getBookingsForRange: mockRange }, { getSessionStore }] = await Promise.all([import('@/lib/mock/api'), import('@/lib/mock/store')])
     const store = await getSessionStore()
     if (email) return Response.json(getBookingsByEmail(store, email))
-    if (from && to) return Response.json(mockRange(store, from, to, roomId))
-    return Response.json(mockDate(store, searchParams.get('date') ?? new Date().toISOString().slice(0, 10), roomId))
+    const cs = await cookies()
+    const withAccess = (bs: Booking[]) => bs.map(b => ({ ...b, access: accessFor(b, { isAdmin: !!cs.get(`admin_${params.workspace}`)?.value, mbEmail: cs.get(`mb_${params.workspace}`)?.value }) }))
+    if (from && to) return Response.json(withAccess(mockRange(store, from, to, roomId)))
+    return Response.json(withAccess(mockDate(store, searchParams.get('date') ?? new Date().toISOString().slice(0, 10), roomId)))
   }
 
   const workspaceId = await getWorkspaceId(params.workspace)

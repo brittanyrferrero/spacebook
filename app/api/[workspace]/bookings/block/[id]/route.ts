@@ -19,6 +19,8 @@ export async function PATCH(req: NextRequest, { params }: { params: { workspace:
   }
 
   const { sendBlockRebookedEmail, sendBlockCancelledEmail } = await import('@/lib/email')
+  const { workspaceTimeZoneBySlug } = await import('@/lib/time-zone')
+  const emailTz = await workspaceTimeZoneBySlug(params.workspace)
 
   // ── MOCK_MODE path ────────────────────────────────────────────────────────
 
@@ -93,6 +95,7 @@ export async function PATCH(req: NextRequest, { params }: { params: { workspace:
         })
         rebooked.push(cb)
         sendBlockRebookedEmail({
+          timeZone: emailTz,
           to: cb.booker_email,
           bookerName: cb.booker_name,
           originalRoomName: room.name,
@@ -105,6 +108,7 @@ export async function PATCH(req: NextRequest, { params }: { params: { workspace:
       } else {
         cancelled.push(cb)
         sendBlockCancelledEmail({
+          timeZone: emailTz,
           to: cb.booker_email,
           bookerName: cb.booker_name,
           roomName: room.name,
@@ -225,6 +229,7 @@ export async function PATCH(req: NextRequest, { params }: { params: { workspace:
       rebooked.push({ original: cb, replacement: newBooking })
 
       sendBlockRebookedEmail({
+        timeZone: emailTz,
         to: cb.booker_email,
         bookerName: cb.booker_name,
         originalRoomName: room.name,
@@ -238,6 +243,7 @@ export async function PATCH(req: NextRequest, { params }: { params: { workspace:
       cancelled.push(cb)
 
       sendBlockCancelledEmail({
+        timeZone: emailTz,
         to: cb.booker_email,
         bookerName: cb.booker_name,
         roomName: room.name,

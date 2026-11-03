@@ -159,7 +159,9 @@ async function processWebhook(channelId: string) {
       const organizerEmail = event.organizer?.email
       if (organizerEmail) {
         const { sendGcalConflictEmail } = await import('@/lib/email')
+        const { workspaceTimeZone } = await import('@/lib/time-zone')
         sendGcalConflictEmail({
+          timeZone: await workspaceTimeZone(workspaceId),
           to: organizerEmail,
           organizerName: event.organizer?.displayName ?? organizerEmail,
           roomName: room?.name ?? 'the room',

@@ -1,6 +1,7 @@
 'use client'
 
-import { useState, useEffect, useCallback, useRef } from 'react'
+import { useState, useEffect, useCallback, useRef, useMemo } from 'react'
+import { reportTimeZone } from '@/lib/report-time-zone'
 import { useParams } from 'next/navigation'
 import { format, subDays, addDays } from 'date-fns'
 import { DndContext, closestCenter, PointerSensor, useSensor, useSensors } from '@dnd-kit/core'
@@ -232,6 +233,14 @@ export default function AdminPage() {
   const [accentColorSaving, setAccentColorSaving] = useState(false)
   const [accentColorError, setAccentColorError] = useState('')
 
+  // Workspace time zone — used for times in emails; filled in from the first browser
+  const [timeZone,       setTimeZone]       = useState('')
+  const [timeZoneSaving, setTimeZoneSaving] = useState(false)
+  const [timeZoneSaved,  setTimeZoneSaved]  = useState(false)
+  const [timeZoneError,  setTimeZoneError]  = useState('')
+  const timeZoneOptions = useMemo(() => {
+    try { return (Intl as unknown as { supportedValuesOf(k: string): string[] }).supportedValuesOf('timeZone') } catch { return [] }
+  }, [])
   // Tablet design (ADR-021) — saved as soon as an option is picked
   const [tabletDesign,       setTabletDesign]       = useState<TabletDesign>(DEFAULT_TABLET_DESIGN)
   const [tabletDesignSaving, setTabletDesignSaving] = useState(false)
@@ -315,6 +324,8 @@ export default function AdminPage() {
       if (d.workspaceName != null) setWsName(d.workspaceName)
       if (d.accentColor) setAccentColor(d.accentColor)
       if (isTabletDesign(d.tabletDesign)) setTabletDesign(d.tabletDesign)
+      if (d.timeZone) setTimeZone(d.timeZone)
+      reportTimeZone(api, d.timeZone)
       if (d.limits?.is_trial) { setTrialLimits(d.limits); setTrialUsage(d.trial_usage ?? null) }
     }).catch(() => {})
   }, [])
@@ -2080,6 +2091,34 @@ export default function AdminPage() {
                 {tabletDesignSaving && <div style={{ fontSize: 11, color: '#9CA3AF', marginTop: 6 }}>Saving…</div>}
                 {tabletDesignSaved && <div style={{ fontSize: 11, color: FREE, marginTop: 6 }}>✓ Saved — tablets will switch within about 2 minutes.</div>}
                 {tabletDesignError && <div style={{ fontSize: 11, color: BUSY, marginTop: 6 }}>{tabletDesignError}</div>}
+              </div>
+
+              {/* ── Time zone ── */}
+              <div style={{ background: '#fff', border: '1px solid #dddddd', borderRadius: 0, padding: 16, marginBottom: 10 }}>
+                <div style={{ fontSize: 12, fontWeight: 500, color: '#374151', marginBottom: 4 }}>Time zone</div>
+                <div style={{ fontSize: 12, color: '#9CA3AF', marginBottom: 12 }}>
+                  Times in booking emails are shown in this time zone. It's filled in automatically from the first browser that opens this workspace; change it here if that's wrong.
+                </div>
+                <select
+                  value={timeZone}
+                  disabled={timeZoneSaving}
+                  onChange={async e => {
+                    const value = e.target.value
+                    const prev = timeZone
+                    setTimeZone(value); setTimeZoneSaving(true); setTimeZoneError(''); setTimeZoneSaved(false)
+                    const result = await apiRequest(`${api}/settings`, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ timeZone: value }) }, 'Failed to save.')
+                    setTimeZoneSaving(false)
+                    if (!result.ok) { setTimeZone(prev); setTimeZoneError(result.error); return }
+                    setTimeZoneSaved(true); setTimeout(() => setTimeZoneSaved(false), 2500)
+                  }}
+                  style={{ fontSize: 12, padding: '6px 8px', border: '1px solid #dddddd', borderRadius: 0, outline: 'none', fontFamily: 'inherit', width: '100%', maxWidth: 320, background: '#fff', color: '#374151' }}>
+                  {!timeZone && <option value="">Not set — emails show UTC</option>}
+                  {timeZone && !timeZoneOptions.includes(timeZone) && <option value={timeZone}>{timeZone}</option>}
+                  {timeZoneOptions.map(z => <option key={z} value={z}>{z.replace(/_/g, ' ')}</option>)}
+                </select>
+                {timeZoneSaving && <div style={{ fontSize: 11, color: '#9CA3AF', marginTop: 6 }}>Saving…</div>}
+                {timeZoneSaved && <div style={{ fontSize: 11, color: FREE, marginTop: 6 }}>✓ Saved</div>}
+                {timeZoneError && <div style={{ fontSize: 11, color: BUSY, marginTop: 6 }}>{timeZoneError}</div>}
               </div>
 
               <div style={{ background: '#fff', border: '1px solid #f5c6c6', borderRadius: 0, padding: 16, marginBottom: 10 }}>
