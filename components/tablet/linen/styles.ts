@@ -109,8 +109,7 @@ export const LINEN_CSS = `
 .ln-mdanger:disabled { cursor:default; background:#d9b8aa; color:#fbf8f2; }
 .ln-merr { font-size:14px; color:var(--busy); font-weight:500; margin-top:12px; }
 .ln-textbtn { display:block; width:100%; margin-top:16px; background:none; border:none; color:var(--busy); font-size:15px; font-weight:600; padding:10px 0; }
-.ln-others { background:#f6e3dc; border-radius:16px; padding:14px 18px; margin-bottom:20px; color:#6e2f1c; font-size:14px; line-height:1.5; }
-.ln-others b { color:var(--busy); }
+.ln-others { background:var(--linen); border-radius:16px; padding:14px 18px; margin-bottom:20px; color:var(--muted); font-size:14px; line-height:1.5; }
 .ln-choices { display:flex; flex-direction:column; gap:10px; margin-top:20px; }
 .ln-choice { text-align:left; padding:16px 20px; border:1.5px solid #ddd2c1; border-radius:18px; background:#ffffff; color:var(--ink); }
 .ln-choice b { display:block; font-family:var(--ln-serif), Georgia, serif; font-size:21px; font-weight:400; }
