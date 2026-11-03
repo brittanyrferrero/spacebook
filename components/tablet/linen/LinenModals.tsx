@@ -180,9 +180,7 @@ export function EditModal({ booking, roomName, workspace, form, onChange, isOthe
       </div>
       {isOthers && (
         <div className="ln-others">
-          {isPlaceholderEmail(booking.booker_email)
-            ? <>This is a <b>walk-in</b>. When you save or cancel, you’ll be asked whether it’s yours or you have permission.</>
-            : <>This is <b>{booking.booker_name}</b>’s booking. When you save or cancel, you’ll be asked whether it’s yours or you have their permission, and they’ll get an email.</>}
+          Only edit bookings that are yours, or that you have permission to change.
         </div>
       )}
       {/* Who a booking belongs to can only be changed by its booker (ADR-023) */}

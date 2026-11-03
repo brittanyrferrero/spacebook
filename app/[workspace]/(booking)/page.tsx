@@ -2283,13 +2283,8 @@ export default function BookingPage() {
                 Edit booking <span style={{ color: accentColor }}>·</span> {selectedRoom?.name}
               </div>
               {isOthers && editConflicts.length === 0 && (
-                <div style={{ background: '#C0392B', borderRadius: 0, padding: '12px 14px', marginBottom: 16 }}>
-                  <div style={{ fontSize: 15, fontWeight: 700, color: '#fff', marginBottom: 4 }}>⚠️ Not your booking</div>
-                  <div style={{ fontSize: 12, color: '#fddede', lineHeight: 1.5 }}>
-                    {visShowOrganizer
-                      ? <>This belongs to <strong style={{ color: '#fff' }}>{editBooking.booker_name}</strong>. When you save or cancel, you’ll be asked whether it’s yours or you have their permission, and they’ll get an email.</>
-                      : 'This booking belongs to someone else. When you save or cancel, you’ll be asked whether it’s yours or you have their permission, and they’ll get an email.'}
-                  </div>
+                <div style={{ background: dark ? 'rgba(255,255,255,0.05)' : '#f4f4f4', borderLeft: `3px solid ${T.border}`, padding: '10px 12px', marginBottom: 16, fontSize: 13, color: T.textMuted, lineHeight: 1.5 }}>
+                  Only edit bookings that are yours, or that you have permission to change.
                 </div>
               )}
               {!isOthers && editConflicts.length === 0 && (
