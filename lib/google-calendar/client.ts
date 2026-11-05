@@ -28,11 +28,17 @@ export async function getAuthClient(roomId: string) {
   return oauth2Client
 }
 
-export async function createCalendarEvent(booking: Booking, room: Room): Promise<string | null> {
+export async function createCalendarEvent(booking: Booking, room: Pick<Room, 'id' | 'name' | 'google_calendar_id' | 'gcal_resource_email'>): Promise<string | null> {
   if (!room.google_calendar_id) return null
 
   const auth = await getAuthClient(room.id)
-  if (!auth) return null
+  if (!auth) {
+    // A room with a calendar picked but no tokens: either disconnected (expected)
+    // or Redis lost its tokens. Log it so a skipped booking isn't invisible; the
+    // nightly resync (lib/google-calendar/resyncMissingEvents.ts) retries it.
+    console.warn('[gcal write] skipped: no Google tokens for room', { roomId: room.id, bookingId: booking.id })
+    return null
+  }
 
   const calendar = google.calendar({ version: 'v3', auth })
   const attendees: { email: string; displayName?: string; resource?: boolean }[] = [

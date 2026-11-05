@@ -489,7 +489,7 @@ export async function sendGcalSyncHealthEmail({
 
   const brokenSection = rooms.length === 0 ? '' : `
   <p style="font-size:14px;color:#374151">
-    The daily sync-health check found ${plural(rooms.length)} where Google Calendar sync looks broken — external calendar changes on these rooms are not reaching spacebook, and re-registering automatically didn't fix it.
+    The daily sync-health check found ${plural(rooms.length)} where Google Calendar sync looks broken and fixing it automatically didn't work. Each entry says which direction is affected.
   </p>
 
   ${brokenRows}
@@ -502,13 +502,13 @@ export async function sendGcalSyncHealthEmail({
   const healedIntroStyle = rooms.length > 0 ? 'font-size:13px;color:#6B7280;margin-top:28px' : 'font-size:14px;color:#374151'
   const healedSection = healed.length === 0 ? '' : `
   <p style="${healedIntroStyle}">
-    Fixed automatically: ${plural(healed.length)} had lost ${healed.length === 1 ? 'its' : 'their'} Google Calendar sync and ${healed.length === 1 ? 'was' : 'were'} re-registered. Nothing to do now — but external calendar changes made since the sync was lost (up to a day) may not have reached spacebook.
+    Fixed automatically: ${plural(healed.length)} had a Google Calendar sync problem the check fixed itself. Nothing to do now. Where a room's watch channel was re-registered, external calendar changes made since the sync was lost (up to a day) may not have reached spacebook.
   </p>
 
   ${healedRows}
 
   <p style="font-size:13px;color:#6B7280">
-    If the same rooms keep showing up here, something keeps deleting their sync. See ADR-025 and the <code>gcal-not-syncing</code> runbook.
+    If the same rooms keep showing up here, the underlying cause is still live. See ADR-025 and the <code>gcal-not-syncing</code> runbook.
   </p>`
 
   await resend.emails.send({

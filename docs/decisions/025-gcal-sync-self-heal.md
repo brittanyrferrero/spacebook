@@ -88,3 +88,34 @@ from ADR-019 on the same day.
   It's safe to call on a room that already has a watch, but it does one full
   `events.list` page-through per call to get a sync token, so don't call it in a hot path.
 - Tests: `__tests__/gcal-renew-route.test.ts`.
+
+## Addendum (2026-11-04): the outbound direction
+
+The check above only covered Google → spacebook. Bookings made in spacebook that
+never reached Google Calendar went unnoticed: the create-time write in
+`POST /bookings` runs once in the background and isn't retried, and edits and
+cancels only touch GCal when `google_event_id` is already set. A failed write
+(Google error, the room's tokens briefly missing from Redis, the function cut
+short) left the booking off the calendar for good.
+
+The same nightly cron now runs `resyncMissingEvents()`
+(`lib/google-calendar/resyncMissingEvents.ts`) over the rooms the check considers
+connected (active, with tokens). It retries upcoming bookings with no
+`google_event_id`, using the same "heal, report what was healed, alarm only on
+failure" approach as the watch check.
+
+- **Duplicates.** Before creating, it lists the calendar for that slot and adopts an
+  event with the same start, end and `Booked by name (email)` description. This
+  covers the case where the original write reached Google but saving the id
+  failed. It also skips bookings created in the last 15 minutes, so it can't race
+  the create-time write.
+- **Bounded.** At most 150 bookings and about 2 minutes per run, soonest first. A
+  backlog, like the pre-2026-08-24 recurring series, drains over several nights
+  instead of hitting the cron's time limit or Google's rate limit.
+- **Out of scope.** Blocked time (`is_block`) isn't written to GCal anywhere, and
+  whether it should be is undecided. Past bookings aren't backfilled. When a block
+  moves a booking to another room, the original room's GCal event isn't deleted.
+- **Visibility.** `createCalendarEvent` now logs `[gcal write] skipped: no Google
+  tokens for room` instead of returning silently when a room's tokens are missing.
+- Tests: `__tests__/resync-missing-events.test.ts`, plus the outbound cases in
+  `__tests__/gcal-renew-route.test.ts`.
