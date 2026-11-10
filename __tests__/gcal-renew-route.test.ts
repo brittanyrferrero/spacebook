@@ -37,6 +37,14 @@ vi.mock('@/lib/supabase/server', () => ({
     }),
   }),
 }))
+const resyncCalls: string[][] = []
+let resyncResult: any
+vi.mock('@/lib/google-calendar/resyncMissingEvents', () => ({
+  resyncMissingEvents: async (rooms: { id: string }[]) => {
+    resyncCalls.push(rooms.map(r => r.id))
+    return resyncResult
+  },
+}))
 vi.mock('@/lib/email', () => ({
   appUrl: () => 'https://example.test',
   sendGcalSyncHealthEmail: async (args: any) => { sent.push(args) },
@@ -47,7 +55,8 @@ const call = () => GET(new Request('https://example.test/api/gcal-renew') as any
 
 beforeEach(() => {
   watches.clear(); tokens.clear(); registerResults.clear()
-  registered.length = 0; sent.length = 0
+  registered.length = 0; sent.length = 0; resyncCalls.length = 0
+  resyncResult = { added: 0, adopted: 0, fixed: [], failures: [], backlog: false }
   process.env.PALANTIR_ADMINS = 'admin@x.org'
   delete process.env.CRON_SECRET
 })
@@ -93,5 +102,32 @@ describe('gcal-renew sync health self-heal', () => {
     expect(sent[0].rooms.map(r => r.roomName)).toEqual(['Room r2'])
     expect(sent[0].rooms[0].reason).toContain('auto re-register failed: Not Found')
     expect(sent[0].healed.map(r => r.roomName)).toEqual(['Room r1'])
+  })
+})
+
+describe('gcal-renew outbound resync', () => {
+  it('only resyncs active rooms with live tokens', async () => {
+    tokens.add('r1'); tokens.add('r3')
+    await call()
+    expect(resyncCalls).toEqual([['r1', 'r3']])
+  })
+
+  it('reports bookings it added as fixed and ones it could not add as broken', async () => {
+    tokens.add('r1'); tokens.add('r2')
+    watches.set('r1', { expirationMs: Date.now() + 86400000 })
+    watches.set('r2', { expirationMs: Date.now() + 86400000 })
+    resyncResult = {
+      added: 3, adopted: 0, backlog: false,
+      fixed: [{ roomName: 'Room r1', workspaceSlug: 'map', workspaceName: 'MAP', count: 3 }],
+      failures: [{ roomName: 'Room r2', workspaceSlug: 'map', workspaceName: 'MAP', count: 1, error: 'Forbidden' }],
+    }
+
+    const body = await (await call()).json()
+
+    expect(body.resyncedBookings).toBe(3)
+    expect(body.resyncFailedRooms).toBe(1)
+    expect(sent).toHaveLength(1)
+    expect(sent[0].healed.map(r => [r.roomName, r.reason])).toEqual([['Room r1', '3 upcoming bookings missing from Google Calendar — added']])
+    expect(sent[0].rooms.map(r => [r.roomName, r.reason])).toEqual([['Room r2', "1 upcoming booking not on Google Calendar and couldn't be added (Forbidden)"]])
   })
 })

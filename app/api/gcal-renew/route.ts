@@ -1,6 +1,7 @@
 import { type NextRequest } from 'next/server'
 import { google } from 'googleapis'
 import { appUrl, sendGcalSyncHealthEmail } from '@/lib/email'
+import type { ResyncRoom } from '@/lib/google-calendar/resyncMissingEvents'
 
 // Vercel cron: runs daily at 2am UTC to renew expiring GCal webhooks
 export async function GET(req: NextRequest) {
@@ -79,10 +80,25 @@ export async function GET(req: NextRequest) {
     }
   }
 
-  const { unhealthy, healed } = await checkSyncHealth(failedRoomIds)
+  const { unhealthy, healed, connected } = await checkSyncHealth(failedRoomIds)
+
+  // Outbound: upcoming bookings that never made it onto the room's Google Calendar
+  const { resyncMissingEvents } = await import('@/lib/google-calendar/resyncMissingEvents')
+  const resync = await resyncMissingEvents(connected)
+  const bookingsLabel = (n: number) => `${n} upcoming booking${n === 1 ? '' : 's'}`
+  for (const r of resync.fixed) {
+    healed.push({ roomName: r.roomName, workspaceSlug: r.workspaceSlug, workspaceName: r.workspaceName, reason: `${bookingsLabel(r.count)} missing from Google Calendar — added` })
+  }
+  for (const r of resync.failures) {
+    unhealthy.push({ roomName: r.roomName, workspaceSlug: r.workspaceSlug, workspaceName: r.workspaceName, reason: `${bookingsLabel(r.count)} not on Google Calendar and couldn't be added (${r.error})` })
+  }
+
   if (unhealthy.length > 0 || healed.length > 0) await notifyUnhealthy(unhealthy, healed)
 
-  return Response.json({ renewed, errors, total: roomIds.length, healedRooms: healed.length, unhealthyRooms: unhealthy.length })
+  return Response.json({
+    renewed, errors, total: roomIds.length, healedRooms: healed.length, unhealthyRooms: unhealthy.length,
+    resyncedBookings: resync.added + resync.adopted, resyncFailedRooms: resync.failures.length, resyncBacklog: resync.backlog,
+  })
 }
 
 // Cross-checks every GCal-connected room against its watch state — catches the
@@ -98,6 +114,7 @@ export async function GET(req: NextRequest) {
 // email as "fixed automatically", so a recurring root cause stays visible
 // instead of being silently papered over.
 async function checkSyncHealth(failedRoomIds: Set<string>) {
+  const connected: ResyncRoom[] = [] // active rooms with live tokens, for the outbound resync
   const { getWatchState } = await import('@/lib/google-calendar/watchStore')
   const { hasTokens } = await import('@/lib/google-calendar/tokenStore')
   const { registerWatch } = await import('@/lib/google-calendar/registerWatch')
@@ -106,11 +123,11 @@ async function checkSyncHealth(failedRoomIds: Set<string>) {
 
   const { data: rooms } = await supabase
     .from('rooms')
-    .select('id, name, is_active, google_calendar_id, workspace_id, workspaces(slug, name)')
+    .select('id, name, is_active, google_calendar_id, gcal_resource_email, workspace_id, workspaces(slug, name)')
     .not('google_calendar_id', 'is', null)
   const unhealthy: HealthRoom[] = []
   const healed: HealthRoom[] = []
-  if (!rooms) return { unhealthy, healed }
+  if (!rooms) return { unhealthy, healed, connected }
 
   for (const room of rooms as any[]) {
     if (!room.is_active) continue // disabled rooms deliberately don't sync — not a health issue
@@ -126,6 +143,7 @@ async function checkSyncHealth(failedRoomIds: Set<string>) {
 
     const workspaceSlug = room.workspaces?.slug ?? 'unknown'
     const workspaceName = room.workspaces?.name ?? null
+    connected.push({ id: room.id, name: room.name, google_calendar_id: room.google_calendar_id, gcal_resource_email: room.gcal_resource_email ?? null, workspaceSlug, workspaceName })
 
     if (failedRoomIds.has(room.id)) {
       unhealthy.push({ roomName: room.name, workspaceSlug, workspaceName, reason: 'watch-channel renewal failed today (see [gcal renew] logs)' })
@@ -155,7 +173,7 @@ async function checkSyncHealth(failedRoomIds: Set<string>) {
     })
   }
 
-  return { unhealthy, healed }
+  return { unhealthy, healed, connected }
 }
 
 type HealthRoom = { roomName: string; workspaceSlug: string; workspaceName: string | null; reason: string }
