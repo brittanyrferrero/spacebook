@@ -172,6 +172,13 @@ function fmtHourShort(h: number) {
   return `${h % 12 || 12}${h < 12 ? 'a' : 'p'}`
 }
 
+/** Hover-time label, styled to match the axis it sits on: "9:15am" (week gutter) or "9:15 AM" (day header) */
+function fmtSlot(hhmm: string, axis: 'week' | 'day') {
+  const [h, m] = hhmm.split(':').map(Number)
+  const t = `${h % 12 || 12}:${String(m).padStart(2, '0')}`
+  return axis === 'week' ? `${t}${h < 12 ? 'am' : 'pm'}` : `${t} ${h < 12 ? 'AM' : 'PM'}`
+}
+
 // Phones get a stacked header, a sideways-scrolling day grid and no sidebar.
 // Wider screens keep the desktop layout unchanged.
 const MOBILE_QUERY = '(max-width: 640px)'
@@ -405,6 +412,8 @@ function WeekView({ bookings, weekDays, onSlotClick, onBookingClick, pendingSlot
   const gp = (h: number, m: number) => toGridPct(h, m, gridStart, gridHours)
   const todayStr = dateStr(new Date())
   const [hoverSlot, setHoverSlot] = useState<{ ds: string; time: string } | null>(null)
+  // Last hovered time, kept after the pointer leaves so the gutter label can fade out in place
+  const [gutterTime, setGutterTime] = useState<string | null>(null)
   const [chronoFlash, setChronoFlash] = useState(false)
 
   function flashChrono() {
@@ -412,6 +421,8 @@ function WeekView({ bookings, weekDays, onSlotClick, onBookingClick, pendingSlot
     requestAnimationFrame(() => requestAnimationFrame(() => setChronoFlash(true)))
     setTimeout(() => setChronoFlash(false), 1800)
   }
+
+  const gutterTop = gutterTime ? (() => { const [h, m] = gutterTime.split(':').map(Number); return gp(h, m) * gridH })() : 0
 
   const byDay: Record<string, Booking[]> = {}
   for (const b of bookings) {
@@ -452,8 +463,13 @@ function WeekView({ bookings, weekDays, onSlotClick, onBookingClick, pendingSlot
       <div style={{ display: 'flex', overflow: 'auto' }}>
         <div style={{ flexShrink: 0, width: 38, position: 'relative', height: gridH }}>
           {hourLabels.map((label, i) => (
-            <div key={label} style={{ position: 'absolute', top: Math.max(0, i * hourH - 7), right: 4, fontSize: 9, color: dark ? '#8b949e' : '#6B7280', textAlign: 'right', whiteSpace: 'nowrap' }}>{label}</div>
+            <div key={label} style={{ position: 'absolute', top: Math.max(0, i * hourH - 7), right: 4, fontSize: 9, color: dark ? '#8b949e' : '#6B7280', textAlign: 'right', whiteSpace: 'nowrap', opacity: hoverSlot && Math.abs(gutterTop - i * hourH) < 11 ? 0 : 1, transition: 'opacity 0.18s ease' }}>{label}</div>
           ))}
+          {gutterTime && (
+            <div style={{ position: 'absolute', top: Math.max(6, gutterTop), right: 4, transform: 'translateY(-50%)', fontSize: 9, fontWeight: 600, color: rose, whiteSpace: 'nowrap', pointerEvents: 'none', opacity: hoverSlot ? 1 : 0, transition: 'top 0.08s ease-out, opacity 0.18s ease' }}>
+              {fmtSlot(gutterTime, 'week')}
+            </div>
+          )}
         </div>
         <div style={{ display: 'grid', gridTemplateColumns: `repeat(7, 1fr)`, flex: 1, borderLeft: `0.5px solid ${T.borderFaint}` }}>
           {weekDays.map((day, colIdx) => {
@@ -468,8 +484,8 @@ function WeekView({ bookings, weekDays, onSlotClick, onBookingClick, pendingSlot
                 <div
                   style={{ position: 'relative', height: gridH, overflow: 'hidden', background: colBg, backgroundImage: isPast && !dark ? workspaceTheme.pastHatching : undefined, cursor: onSlotClick && !isPast ? 'pointer' : 'default' }}
                   onClick={onSlotClick && !isPast ? (e) => { const rect = e.currentTarget.getBoundingClientRect(); const t = snapY(e.clientY - rect.top); if (isToday && now) { const [h,m] = t.split(':').map(Number); const s = new Date(day); s.setHours(h,m,0,0); if (s < now) { flashChrono(); return } } onSlotClick(day, t) } : undefined}
-                  onMouseMove={onSlotClick && !isPast ? (e) => { const rect = e.currentTarget.getBoundingClientRect(); const t = snapY(e.clientY - rect.top); if (isToday && now) { const [h,m] = t.split(':').map(Number); const s = new Date(day); s.setHours(h,m,0,0); if (s < now) { setHoverSlot(null); return } } setHoverSlot({ ds, time: t }) } : undefined}
-                  onMouseLeave={() => setHoverSlot(null)}>
+                  onPointerMove={onSlotClick && !isPast ? (e) => { if (e.pointerType !== 'mouse') return; const rect = e.currentTarget.getBoundingClientRect(); const t = snapY(e.clientY - rect.top); if (isToday && now) { const [h,m] = t.split(':').map(Number); const s = new Date(day); s.setHours(h,m,0,0); if (s < now) { setHoverSlot(null); return } } setHoverSlot({ ds, time: t }); setGutterTime(t) } : undefined}
+                  onPointerLeave={() => setHoverSlot(null)}>
                   {Array.from({ length: gridHours }, (_, i) => (
                     <div key={i} style={{ position: 'absolute', top: i * hourH, left: 0, right: 0, height: hourH, background: i % 2 === 0 ? T.bandOdd : 'transparent', borderTop: `0.5px solid ${isPast ? (dark ? 'rgba(255,255,255,0.04)' : '#888888') : (dark ? 'rgba(255,255,255,0.18)' : '#AAAAAA')}` }} />
                   ))}
@@ -664,6 +680,31 @@ function AllRoomsDayView({ bookings, rooms, viewDate, onRoomSlotClick, onBooking
 
   const hourTicks = Array.from({ length: gridHours + 1 }, (_, i) => gridStart + i)
 
+  // Hovered slot. `axisTime` and `trackW` outlive the hover so the header label fades out in place.
+  const [hover, setHover] = useState<{ roomId: string; time: string } | null>(null)
+  const [axisTime, setAxisTime] = useState<string | null>(null)
+  const [trackW, setTrackW] = useState(0)
+  const axisPct = axisTime ? (() => { const [h, m] = axisTime.split(':').map(Number); return gp(h, m) })() : 0
+  const hoverColor = dark ? 'rgba(219,149,171,0.13)' : 'rgba(44,62,107,0.08)'
+
+  function trackHover(e: React.PointerEvent<HTMLDivElement>, roomId: string) {
+    if (e.pointerType !== 'mouse' || isFullPast) return
+    const rect = e.currentTarget.getBoundingClientRect()
+    const time = snapToSlot(e.clientX, rect)
+    if (isToday) {
+      const [h, m] = time.split(':').map(Number)
+      if (h * 60 + m < now.getHours() * 60 + now.getMinutes()) { setHover(null); return }
+    }
+    setHover({ roomId, time }); setAxisTime(time); setTrackW(rect.width)
+  }
+
+  // An hour label in the header fades while the hover label (~46px wide, centred) would cover it
+  function hourLabelCovered(i: number) {
+    if (!hover || !trackW) return false
+    const x = axisPct * trackW, hx = i / gridHours * trackW
+    return x + 23 > hx + 4 && x - 23 < hx + 36
+  }
+
   // On phones the timeline is wider than the screen: open it scrolled to the current time
   useEffect(() => {
     const el = scrollRef.current
@@ -674,15 +715,22 @@ function AllRoomsDayView({ bookings, rooms, viewDate, onRoomSlotClick, onBooking
   }, [compact, viewDateStr])
 
   return (
-    <div ref={scrollRef} style={{ overflowX: 'auto', userSelect: 'none' }}>
+    // Hover is cleared on leaving the whole grid (or entering a room label), not each track,
+    // so crossing the 1px border between rooms doesn't flicker the label
+    <div ref={scrollRef} style={{ overflowX: 'auto', userSelect: 'none' }} onPointerLeave={() => setHover(null)}>
      <div style={compact ? { minWidth: colW + gridHours * HOUR_W_COMPACT } : undefined}>
       {/* Time axis header */}
-      <div style={{ display: 'flex', marginLeft: colW, borderBottom: `1px solid ${T.border}` }}>
-        {hourTicks.slice(0, -1).map(h => (
-          <div key={h} style={{ flex: 1, fontSize: 9, color: T.textMuted, padding: '5px 0 5px 4px', letterSpacing: '0.05em', whiteSpace: 'nowrap' }}>
+      <div style={{ display: 'flex', position: 'relative', marginLeft: colW, borderBottom: `1px solid ${T.border}` }}>
+        {hourTicks.slice(0, -1).map((h, i) => (
+          <div key={h} style={{ flex: 1, fontSize: 9, color: T.textMuted, padding: '5px 0 5px 4px', letterSpacing: '0.05em', whiteSpace: 'nowrap', opacity: hourLabelCovered(i) ? 0 : 1, transition: 'opacity 0.18s ease' }}>
             {compact ? fmtHourShort(h) : fmtHour(h)}
           </div>
         ))}
+        {axisTime && (
+          <div style={{ position: 'absolute', top: 0, bottom: 0, left: `${axisPct * 100}%`, transform: 'translateX(-50%)', display: 'flex', alignItems: 'center', fontSize: 9, fontWeight: 600, letterSpacing: '0.05em', color: rose, whiteSpace: 'nowrap', pointerEvents: 'none', opacity: hover ? 1 : 0, transition: 'left 0.08s ease-out, opacity 0.18s ease' }}>
+            {fmtSlot(axisTime, 'day')}
+          </div>
+        )}
       </div>
 
       {/* Room rows */}
@@ -693,7 +741,7 @@ function AllRoomsDayView({ bookings, rooms, viewDate, onRoomSlotClick, onBooking
         return (
           <div key={room.id} style={{ display: 'flex', borderBottom: `1px solid ${T.borderFaint}` }}>
             {/* Room label */}
-            <div style={{ width: colW, flexShrink: 0, display: 'flex', alignItems: 'center', height: TRACK_H, borderRight: `1px solid ${T.border}`, background: T.cardBg, ...(compact ? { position: 'sticky' as const, left: 0, zIndex: 6 } : {}) }}>
+            <div onPointerEnter={() => setHover(null)} style={{ width: colW, flexShrink: 0, display: 'flex', alignItems: 'center', height: TRACK_H, borderRight: `1px solid ${T.border}`, background: T.cardBg, ...(compact ? { position: 'sticky' as const, left: 0, zIndex: 6 } : {}) }}>
               {/* Floorplan icon zone */}
               {!compact && (
               <div style={{ width: 52, flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', borderRight: `1px solid ${T.borderFaint}`, height: '100%' }}>
@@ -718,7 +766,16 @@ function AllRoomsDayView({ bookings, rooms, viewDate, onRoomSlotClick, onBooking
                 const time = snapToSlot(e.clientX, e.currentTarget.getBoundingClientRect())
                 onRoomSlotClick(room.id, viewDate, time)
               }}
+              onPointerMove={e => trackHover(e, room.id)}
             >
+              {/* Hovered slot: a soft 15-minute band in this room, and a hairline through every room */}
+              {hover?.roomId === room.id && (
+                <div style={{ position: 'absolute', top: 0, bottom: 0, left: `${axisPct * 100}%`, width: `${100 / (gridHours * 4)}%`, background: hoverColor, pointerEvents: 'none', transition: 'left 0.08s ease-out' }} />
+              )}
+              {axisTime && (
+                <div style={{ position: 'absolute', top: 0, bottom: 0, left: `${axisPct * 100}%`, width: 1, background: rose, opacity: hover ? 0.35 : 0, pointerEvents: 'none', zIndex: 3, transition: 'left 0.08s ease-out, opacity 0.18s ease' }} />
+              )}
+
               {/* Hour grid lines */}
               {hourTicks.map((h, i) => (
                 <div key={h} style={{ position: 'absolute', top: 0, bottom: 0, left: `${i / gridHours * 100}%`, width: '0.5px', background: i === 0 ? 'transparent' : (i % 2 === 0 ? T.border : T.borderFaint), pointerEvents: 'none' }} />
