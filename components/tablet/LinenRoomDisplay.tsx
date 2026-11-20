@@ -436,13 +436,14 @@ export function LinenRoomDisplay() {
   const durations = (() => {
     const until = status.next ? new Date(status.next.start_time) : null
     // Labels only here; handleWalkIn works out the real end time when tapped
-    const opts: { label: string; mins: number | null; ok: boolean }[] = [15, 30].map(m => ({
-      label: `${m} min`, mins: m, ok: !durationConflicts(todayBkgs, exact, m),
+    const opts: { label: string; mins: number | null; ok: boolean }[] = [15, 30, 60].map(m => ({
+      label: m === 60 ? '1 hr' : `${m} min`, mins: m, ok: !durationConflicts(todayBkgs, exact, m),
     }))
     if (until) opts.push({ label: `Until ${fmtClock(until)}`, mins: null, ok: until > exact })
     else opts.push({ label: '2 hr', mins: 120, ok: !durationConflicts(todayBkgs, exact, 120) })
-    opts.push({ label: '1 hr', mins: 60, ok: !durationConflicts(todayBkgs, exact, 60) })
-    return opts
+    // Shortest first; "Until …" sorts by how long it actually is
+    const length = (o: typeof opts[number]) => o.mins ?? (until ? (+until - +exact) / 60_000 : 0)
+    return opts.sort((a, b) => length(a) - length(b))
   })()
 
   const rootVars = {
