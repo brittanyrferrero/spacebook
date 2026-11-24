@@ -49,6 +49,12 @@ export async function removeWatchState(roomId: string, channelId?: string): Prom
   await Promise.all(ops)
 }
 
+// Drops only the channel→room lookup for a replaced channel. Unlike
+// removeWatchState, leaves the room's current watch state alone.
+export async function removeChannelMapping(channelId: string): Promise<void> {
+  await (await kv()).del(`gcal:channel:${channelId}`)
+}
+
 export async function getRoomIdByChannel(channelId: string): Promise<string | null> {
   return (await kv()).get<string>(`gcal:channel:${channelId}`)
 }

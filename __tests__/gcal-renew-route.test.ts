@@ -5,6 +5,7 @@ const watches = new Map<string, { expirationMs: number }>()
 const tokens = new Set<string>()
 const registerResults = new Map<string, { ok: true } | { ok: false; reason: string; detail?: string }>()
 const registered: string[] = []
+const catchUpFlags: boolean[] = []
 const sent: { to: string; rooms: { roomName: string; reason: string }[]; healed: { roomName: string; reason: string }[] }[] = []
 
 vi.mock('@/lib/google-calendar/watchStore', () => ({
@@ -19,8 +20,9 @@ vi.mock('@/lib/google-calendar/tokenStore', () => ({
   hasTokens: async (id: string) => tokens.has(id),
 }))
 vi.mock('@/lib/google-calendar/registerWatch', () => ({
-  registerWatch: async ({ roomId }: { roomId: string }) => {
+  registerWatch: async ({ roomId }: { roomId: string }, opts?: { catchUp?: boolean }) => {
     registered.push(roomId)
+    catchUpFlags.push(!!opts?.catchUp)
     return registerResults.get(roomId) ?? { ok: true }
   },
 }))
@@ -47,7 +49,7 @@ const call = () => GET(new Request('https://example.test/api/gcal-renew') as any
 
 beforeEach(() => {
   watches.clear(); tokens.clear(); registerResults.clear()
-  registered.length = 0; sent.length = 0
+  registered.length = 0; catchUpFlags.length = 0; sent.length = 0
   process.env.PALANTIR_ADMINS = 'admin@x.org'
   delete process.env.CRON_SECRET
 })
@@ -62,13 +64,27 @@ describe('gcal-renew sync health self-heal', () => {
     const body = await (await call()).json()
 
     expect(registered.sort()).toEqual(['r1', 'r2'])
+    expect(catchUpFlags).toEqual([true, true])
     expect(body.healedRooms).toBe(2)
     expect(body.unhealthyRooms).toBe(0)
     expect(sent).toHaveLength(1)
     expect(sent[0].rooms).toEqual([])
     expect(sent[0].healed.map(r => [r.roomName, r.reason])).toEqual([
-      ['Room r1', 'no watch channel registered'],
-      ['Room r2', 'watch channel expired'],
+      ['Room r1', 'no watch channel registered — no missed changes'],
+      ['Room r2', 'watch channel expired — no missed changes'],
+    ])
+  })
+
+  it('says in the email what the catch-up pulled in, or that it failed', async () => {
+    tokens.add('r1'); tokens.add('r2')
+    registerResults.set('r1', { ok: true, caughtUp: { imported: 2, cancelled: 1 } } as any)
+    registerResults.set('r2', { ok: true, catchUpError: 'boom' } as any)
+
+    await call()
+
+    expect(sent[0].healed.map(r => r.reason)).toEqual([
+      'no watch channel registered — caught up: 2 new events imported, 1 booking cancelled',
+      'no watch channel registered — catching up on missed changes failed (boom), so Google Calendar changes made while sync was down may be missing',
     ])
   })
 

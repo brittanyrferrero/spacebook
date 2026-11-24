@@ -136,11 +136,12 @@ async function checkSyncHealth(failedRoomIds: Set<string>) {
     if (!problem) continue
 
     const result = room.workspaces?.slug
-      ? await registerWatch({ roomId: room.id, calendarId: room.google_calendar_id, workspace: room.workspaces.slug, workspaceId: room.workspace_id })
+      ? await registerWatch({ roomId: room.id, calendarId: room.google_calendar_id, workspace: room.workspaces.slug, workspaceId: room.workspace_id }, { catchUp: true })
       : null
     if (result?.ok) {
-      console.warn('[gcal renew] self-healed watch channel', { roomId: room.id, roomName: room.name, workspaceSlug, problem })
-      healed.push({ roomName: room.name, workspaceSlug, workspaceName, reason: problem === 'missing' ? 'no watch channel registered' : 'watch channel expired' })
+      console.warn('[gcal renew] self-healed watch channel', { roomId: room.id, roomName: room.name, workspaceSlug, problem, caughtUp: result.caughtUp, catchUpError: result.catchUpError })
+      const base = problem === 'missing' ? 'no watch channel registered' : 'watch channel expired'
+      healed.push({ roomName: room.name, workspaceSlug, workspaceName, reason: `${base} — ${describeCatchUp(result)}` })
       continue
     }
 
@@ -156,6 +157,16 @@ async function checkSyncHealth(failedRoomIds: Set<string>) {
   }
 
   return { unhealthy, healed }
+}
+
+function describeCatchUp(r: { caughtUp?: { imported: number; cancelled: number }; catchUpError?: string }): string {
+  if (r.catchUpError) return `catching up on missed changes failed (${r.catchUpError}), so Google Calendar changes made while sync was down may be missing`
+  const { imported = 0, cancelled = 0 } = r.caughtUp ?? {}
+  if (imported === 0 && cancelled === 0) return 'no missed changes'
+  const parts = []
+  if (imported) parts.push(`${imported} new ${imported === 1 ? 'event' : 'events'} imported`)
+  if (cancelled) parts.push(`${cancelled} ${cancelled === 1 ? 'booking' : 'bookings'} cancelled`)
+  return `caught up: ${parts.join(', ')}`
 }
 
 type HealthRoom = { roomName: string; workspaceSlug: string; workspaceName: string | null; reason: string }
