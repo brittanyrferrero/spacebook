@@ -88,3 +88,23 @@ from ADR-019 on the same day.
   It's safe to call on a room that already has a watch, but it does one full
   `events.list` page-through per call to get a sync token, so don't call it in a hot path.
 - Tests: `__tests__/gcal-renew-route.test.ts`.
+
+## Update 2026-11-23: catch up on missed changes
+
+A heal used to take a fresh sync token "from now", so any Google change made while the
+watch was lost was **dropped for good**, not just delayed. Every runbook fast-path fix had
+the same gap. The cron now calls `registerWatch(..., { catchUp: true })`. It reuses the
+full event listing that registration already pages through, compares it with the room's
+future bookings, and feeds only the differences (unseen future events, deletions of
+still-active bookings) to `applyCalendarEvents` (`lib/google-calendar/applyEvents.ts`,
+extracted from the webhook so both paths share one set of import rules). A first connect
+does not catch up; it still mirrors only changes made after connecting. The heal email now
+says, for each room, what was caught up, or that catching up failed.
+
+Also: `registerWatch` used to remove the existing watch *before* registering the new one,
+so a Google error part-way through left the room with no watch. It now saves the new watch
+first, then stops the old channel and drops its `gcal:channel:*` mapping.
+
+The heals since this ADR shipped arrive exactly every 6 days, always "missing". See the
+runbook for why that points at some other deployment running pre-#166 cron code against
+the same Redis, rather than at replica lag.

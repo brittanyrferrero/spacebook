@@ -502,7 +502,7 @@ export async function sendGcalSyncHealthEmail({
   const healedIntroStyle = rooms.length > 0 ? 'font-size:13px;color:#6B7280;margin-top:28px' : 'font-size:14px;color:#374151'
   const healedSection = healed.length === 0 ? '' : `
   <p style="${healedIntroStyle}">
-    Fixed automatically: ${plural(healed.length)} had lost ${healed.length === 1 ? 'its' : 'their'} Google Calendar sync and ${healed.length === 1 ? 'was' : 'were'} re-registered. Nothing to do now — but external calendar changes made since the sync was lost (up to a day) may not have reached spacebook.
+    Fixed automatically: ${plural(healed.length)} had lost ${healed.length === 1 ? 'its' : 'their'} Google Calendar sync and ${healed.length === 1 ? 'was' : 'were'} re-registered. Nothing to do now. Changes made in Google Calendar while sync was down were caught up, as listed below.
   </p>
 
   ${healedRows}
